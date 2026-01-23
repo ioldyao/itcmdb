@@ -1,5 +1,10 @@
 FROM golang:1.23-alpine AS builder
 WORKDIR /app
+
+# 设置Go代理为阿里云
+ENV GOPROXY=https://mirrors.aliyun.com/goproxy/,direct
+ENV GO111MODULE=on
+
 RUN apk add --no-cache git
 
 # Copy shared code
