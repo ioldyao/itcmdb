@@ -171,11 +171,20 @@ export const useCMDBStore = create<CMDBState>()(
           if (filters.status) params.append('status', filters.status)
           if (filters.name) params.append('name', filters.name)
 
-          const response = await fetch(`/api/v1/ci/instances?${params}`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+          const headers: Record<string, string> = {
+            'Authorization': `Bearer ${token}`,
+          }
+
+          console.log('[CMDB] Fetching with headers:', {
+            'Authorization': headers.Authorization.substring(0, 50) + '...'
           })
+
+          const response = await fetch(`/api/v1/ci/instances?${params}`, {
+            headers,
+          })
+
+          console.log('[CMDB] Response status:', response.status)
+          console.log('[CMDB] Response headers:', Object.fromEntries(response.headers.entries()))
 
           if (response.status === 401) {
             message.error('登录已过期，请重新登录')

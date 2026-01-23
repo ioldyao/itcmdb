@@ -41,7 +41,7 @@ func main() {
 		viper.GetDuration("jwt.expiration"),
 	)
 
-	db := database.GetDB()
+	db := database.Get()
 	ciRepo := repository.NewCIRepository(db)
 	ciService := service.NewCIService(ciRepo)
 	ciHandler := handlers.NewCIHandler(ciService)
@@ -71,6 +71,8 @@ func loadConfig() error {
 	viper.BindEnv("database.password", "CMDB_DATABASE_PASSWORD")
 	viper.BindEnv("database.dbname", "CMDB_DATABASE_DBNAME")
 	viper.BindEnv("database.sslmode", "CMDB_DATABASE_SSLMODE")
+	viper.BindEnv("jwt.secret", "CMDB_JWT_SECRET")
+	viper.BindEnv("jwt.expiration", "CMDB_JWT_EXPIRATION")
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("CMDB")
@@ -78,7 +80,7 @@ func loadConfig() error {
 	viper.SetDefault("env", "development")
 	viper.SetDefault("server.port", "5002")
 	viper.SetDefault("log.level", "info")
-	viper.SetDefault("jwt.secret", "your-secret-key")
+	viper.SetDefault("jwt.secret", "your-secret-key-change-in-production")
 	viper.SetDefault("jwt.expiration", "24h")
 	viper.SetDefault("database.host", "localhost")
 	viper.SetDefault("database.port", 5432)
