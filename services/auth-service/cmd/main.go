@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"github.com/itcmdb/auth-service/internal/service"
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
@@ -36,6 +37,16 @@ func main() {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
 
+	// 自动迁移数据库表
+	// TODO: AutoMigrate has issues with existing tables, skipping for now
+	// if err := models.AutoMigrate(); err != nil {
+	// 	logger.Fatal("Failed to migrate database", zap.Error(err))
+	// }
+	logger.Info("Skipping database migration")
+
+	// 初始化用户服务
+	userService := service.NewUserService()
+
 	// 初始化JWT管理器
 	jwtManager := auth.NewJWTManager(
 		viper.GetString("jwt.secret"),
@@ -50,7 +61,7 @@ func main() {
 	r := gin.Default()
 
 	// 注册路由
-	setupRoutes(r, jwtManager)
+	setupRoutes(r, jwtManager, userService)
 
 	// 启动服务
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
@@ -107,13 +118,14 @@ func loadConfig() error {
 	return nil
 }
 
-func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager) {
+func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, userService service.UserService) {
 	api := r.Group("/api/v1")
 	{
 		// 认证相关
 		auth := api.Group("/auth")
 		{
-			auth.POST("/login", loginHandler(jwtManager))
+			auth.POST("/register", registerHandler(userService, jwtManager))
+			auth.POST("/login", loginHandler(userService, jwtManager))
 			auth.POST("/logout", logoutHandler())
 			auth.POST("/refresh", refreshHandler(jwtManager))
 		}
@@ -122,9 +134,10 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager) {
 		users := api.Group("/users")
 		users.Use(jwtManager.AuthMiddleware())
 		{
-			users.GET("/me", getMeHandler())
-			users.PUT("/me", updateMeHandler())
-			users.GET("/:id/permissions", getPermissionsHandler())
+			users.GET("/me", getMeHandler(userService))
+			users.PUT("/me", updateMeHandler(userService))
+			users.GET("/me/permissions", getMyPermissionsHandler(userService))
+			users.GET("/:id/permissions", getPermissionsHandler(userService))
 		}
 	}
 
@@ -135,7 +148,58 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager) {
 }
 
 // Handler functions
-func loginHandler(jwtManager *auth.JWTManager) gin.HandlerFunc {
+
+// registerHandler 用户注册
+func registerHandler(userService service.UserService, jwtManager *auth.JWTManager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			Username string `json:"username" binding:"required"`
+			Email    string `json:"email" binding:"required,email"`
+			Password string `json:"password" binding:"required,min=6"`
+			FullName string `json:"full_name"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, response.Error(400, "invalid request: "+err.Error()))
+			return
+		}
+
+		// 创建用户
+		user, err := userService.Register(req.Username, req.Email, req.Password, req.FullName)
+		if err != nil {
+			c.JSON(400, response.Error(400, err.Error()))
+			return
+		}
+
+		// 获取用户权限
+		permissions, err := userService.GetUserPermissions(user.ID)
+		if err != nil {
+			logger.Warn("Failed to get user permissions", zap.Error(err))
+			permissions = []string{}
+		}
+
+		// 生成token
+		token, err := jwtManager.Generate(int64(user.ID), user.Username, permissions)
+		if err != nil {
+			c.JSON(500, response.Error(500, "failed to generate token"))
+			return
+		}
+
+		c.JSON(200, response.Success(gin.H{
+			"token": token,
+			"user": gin.H{
+				"id":       user.ID,
+				"username": user.Username,
+				"email":    user.Email,
+				"fullName": user.FullName,
+			},
+			"permissions": permissions,
+		}))
+	}
+}
+
+// loginHandler 用户登录
+func loginHandler(userService service.UserService, jwtManager *auth.JWTManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
 			Username string `json:"username" binding:"required"`
@@ -147,29 +211,37 @@ func loginHandler(jwtManager *auth.JWTManager) gin.HandlerFunc {
 			return
 		}
 
-		// TODO: 实现真实的用户认证逻辑
-		// 这里简化处理，实际应该从数据库验证
-		if req.Username == "admin" && req.Password == "admin123" {
-			token, err := jwtManager.Generate(1, "admin", []string{"admin"})
-			if err != nil {
-				c.JSON(500, response.Error(500, "failed to generate token"))
-				return
-			}
-
-			c.JSON(200, response.Success(gin.H{
-				"token": token,
-				"user": gin.H{
-					"id":       1,
-					"username": "admin",
-					"email":    "admin@itcmdb.com",
-					"fullName": "管理员",
-				},
-				"permissions": []string{"*:*"},
-			}))
+		// 验证用户
+		user, err := userService.ValidateUser(req.Username, req.Password)
+		if err != nil {
+			c.JSON(401, response.Error(401, "invalid username or password"))
 			return
 		}
 
-		c.JSON(401, response.Error(401, "invalid username or password"))
+		// 获取用户权限
+		permissions, err := userService.GetUserPermissions(user.ID)
+		if err != nil {
+			logger.Warn("Failed to get user permissions", zap.Error(err))
+			permissions = []string{}
+		}
+
+		// 生成token
+		token, err := jwtManager.Generate(int64(user.ID), user.Username, permissions)
+		if err != nil {
+			c.JSON(500, response.Error(500, "failed to generate token"))
+			return
+		}
+
+		c.JSON(200, response.Success(gin.H{
+			"token": token,
+			"user": gin.H{
+				"id":       user.ID,
+				"username": user.Username,
+				"email":    user.Email,
+				"fullName": user.FullName,
+			},
+			"permissions": permissions,
+		}))
 	}
 }
 
@@ -201,30 +273,87 @@ func refreshHandler(jwtManager *auth.JWTManager) gin.HandlerFunc {
 	}
 }
 
-func getMeHandler() gin.HandlerFunc {
+func getMeHandler(userService service.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := auth.GetUserID(c)
-		username, _ := auth.GetUsername(c)
+
+		user, err := userService.GetUserByID(uint(userID))
+		if err != nil {
+			c.JSON(404, response.Error(404, "user not found"))
+			return
+		}
 
 		c.JSON(200, response.Success(gin.H{
-			"id":       userID,
-			"username": username,
-			"email":    username + "@itcmdb.com",
-			"fullName": username,
+			"id":       user.ID,
+			"username": user.Username,
+			"email":    user.Email,
+			"fullName": user.FullName,
+			"status":   user.Status,
 		}))
 	}
 }
 
-func updateMeHandler() gin.HandlerFunc {
+func updateMeHandler(userService service.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: 实现更新用户信息逻辑
+		userID, _ := auth.GetUserID(c)
+
+		var req struct {
+			FullName string `json:"full_name"`
+			Password string `json:"password"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, response.Error(400, "invalid request"))
+			return
+		}
+
+		updates := make(map[string]interface{})
+		if req.FullName != "" {
+			updates["full_name"] = req.FullName
+		}
+		if req.Password != "" {
+			updates["password"] = req.Password
+		}
+
+		if err := userService.UpdateUser(uint(userID), updates); err != nil {
+			c.JSON(400, response.Error(400, err.Error()))
+			return
+		}
+
 		c.JSON(200, response.Success(nil))
 	}
 }
 
-func getPermissionsHandler() gin.HandlerFunc {
+func getMyPermissionsHandler(userService service.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: 实现获取用户权限逻辑
-		c.JSON(200, response.Success([]string{"*:*"}))
+		userID, _ := auth.GetUserID(c)
+
+		permissions, err := userService.GetUserPermissions(uint(userID))
+		if err != nil {
+			c.JSON(500, response.Error(500, "failed to get permissions"))
+			return
+		}
+
+		c.JSON(200, response.Success(permissions))
+	}
+}
+
+func getPermissionsHandler(userService service.UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.Param("id")
+
+		var id uint
+		if _, err := fmt.Sscanf(userID, "%d", &id); err != nil {
+			c.JSON(400, response.Error(400, "invalid user id"))
+			return
+		}
+
+		permissions, err := userService.GetUserPermissions(id)
+		if err != nil {
+			c.JSON(500, response.Error(500, "failed to get permissions"))
+			return
+		}
+
+		c.JSON(200, response.Success(permissions))
 	}
 }

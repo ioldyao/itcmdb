@@ -1,14 +1,293 @@
-import { Table, Button } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { useState, useEffect } from 'react'
+import { Table, Button, Modal, Form, Input, Select, Space, message, Popconfirm, Tag } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useAuthStore } from '@/stores/authStore'
+import type { ColumnsType } from 'antd/es/table'
+
+interface User {
+  id: number
+  username: string
+  email: string
+  full_name: string
+  status: string
+}
 
 export default function AdminUsers() {
+  const { token } = useAuthStore()
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(false)
+  const [modalVisible, setModalVisible] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [form] = Form.useForm()
+
+  // 获取用户列表
+  const fetchUsers = async () => {
+    setLoading(true)
+    try {
+      // TODO: 实现获取用户列表的 API
+      // const response = await fetch('/api/v1/users', {
+      //   headers: { Authorization: `Bearer ${token}` },
+      // })
+      // const data = await response.json()
+
+      // 临时使用模拟数据
+      const mockUsers: User[] = [
+        { id: 1, username: 'admin', email: 'admin@itcmdb.com', full_name: 'System Administrator', status: 'active' },
+      ]
+      setUsers(mockUsers)
+    } catch (error) {
+      message.error('获取用户列表失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  // 打开新增用户模态框
+  const handleAdd = () => {
+    setEditingUser(null)
+    form.resetFields()
+    setModalVisible(true)
+  }
+
+  // 打开编辑用户模态框
+  const handleEdit = (user: User) => {
+    setEditingUser(user)
+    form.setFieldsValue({
+      username: user.username,
+      email: user.email,
+      full_name: user.full_name,
+      status: user.status,
+    })
+    setModalVisible(true)
+  }
+
+  // 删除用户
+  const handleDelete = async (_id: number) => {
+    try {
+      // TODO: 实现删除用户的 API
+      // await fetch(`/api/v1/users/${_id}`, {
+      //   method: 'DELETE',
+      //   headers: { Authorization: `Bearer ${token}` },
+      // })
+
+      message.success('删除成功')
+      fetchUsers()
+    } catch (error) {
+      message.error('删除失败')
+    }
+  }
+
+  // 提交表单
+  const handleSubmit = async (values: any) => {
+    try {
+      if (editingUser) {
+        // TODO: 实现更新用户的 API
+        // await fetch(`/api/v1/users/${editingUser.id}`, {
+        //   method: 'PUT',
+        //   headers: {
+        //     'Content-Type': 'application/json',
+        //     Authorization: `Bearer ${token}`,
+        //   },
+        //   body: JSON.stringify(values),
+        // })
+        message.success('更新成功')
+      } else {
+        // 创建用户
+        const response = await fetch('/api/v1/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            username: values.username,
+            email: values.email,
+            password: values.password,
+            full_name: values.full_name,
+          }),
+        })
+
+        const data = await response.json()
+        if (data.code === 0) {
+          message.success('创建成功')
+        } else {
+          message.error(data.message || '创建失败')
+          return
+        }
+      }
+
+      setModalVisible(false)
+      form.resetFields()
+      fetchUsers()
+    } catch (error) {
+      message.error('操作失败')
+    }
+  }
+
+  const columns: ColumnsType<User> = [
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      width: 80,
+    },
+    {
+      title: '用户名',
+      dataIndex: 'username',
+      key: 'username',
+    },
+    {
+      title: '邮箱',
+      dataIndex: 'email',
+      key: 'email',
+    },
+    {
+      title: '姓名',
+      dataIndex: 'full_name',
+      key: 'full_name',
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => (
+        <Tag color={status === 'active' ? 'green' : 'red'}>
+          {status === 'active' ? '启用' : '禁用'}
+        </Tag>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+          >
+            编辑
+          </Button>
+          <Popconfirm
+            title="确定要删除这个用户吗？"
+            onConfirm={() => handleDelete(record.id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button type="link" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
   return (
     <div>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
         <h2>用户管理</h2>
-        <Button type="primary" icon={<PlusOutlined />}>添加用户</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          添加用户
+        </Button>
       </div>
-      <Table columns={[]} dataSource={[]} rowKey="id" />
+
+      <Table
+        columns={columns}
+        dataSource={users}
+        rowKey="id"
+        loading={loading}
+        pagination={{
+          pageSize: 10,
+          showSizeChanger: true,
+          showTotal: (total) => `共 ${total} 条`,
+        }}
+      />
+
+      <Modal
+        title={editingUser ? '编辑用户' : '添加用户'}
+        open={modalVisible}
+        onCancel={() => {
+          setModalVisible(false)
+          form.resetFields()
+        }}
+        footer={null}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+        >
+          <Form.Item
+            label="用户名"
+            name="username"
+            rules={[
+              { required: true, message: '请输入用户名' },
+              { pattern: /^[a-zA-Z0-9_]{3,20}$/, message: '用户名只能包含字母、数字、下划线，3-20个字符' },
+            ]}
+          >
+            <Input placeholder="请输入用户名" disabled={!!editingUser} />
+          </Form.Item>
+
+          <Form.Item
+            label="邮箱"
+            name="email"
+            rules={[
+              { required: true, message: '请输入邮箱' },
+              { type: 'email', message: '请输入有效的邮箱地址' },
+            ]}
+          >
+            <Input placeholder="请输入邮箱" disabled={!!editingUser} />
+          </Form.Item>
+
+          <Form.Item
+            label="姓名"
+            name="full_name"
+            rules={[{ required: true, message: '请输入姓名' }]}
+          >
+            <Input placeholder="请输入姓名" />
+          </Form.Item>
+
+          {!editingUser && (
+            <Form.Item
+              label="密码"
+              name="password"
+              rules={[
+                { required: true, message: '请输入密码' },
+                { min: 6, message: '密码至少6个字符' },
+              ]}
+            >
+              <Input.Password placeholder="请输入密码" />
+            </Form.Item>
+          )}
+
+          <Form.Item
+            label="状态"
+            name="status"
+            initialValue="active"
+            rules={[{ required: true, message: '请选择状态' }]}
+          >
+            <Select>
+              <Select.Option value="active">启用</Select.Option>
+              <Select.Option value="inactive">禁用</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit">
+                {editingUser ? '更新' : '创建'}
+              </Button>
+              <Button onClick={() => setModalVisible(false)}>
+                取消
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }

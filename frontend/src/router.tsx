@@ -1,10 +1,12 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { lazy } from 'react'
 import MainLayout from '@/components/Layout/MainLayout'
+import ProtectedRoute from '@/components/ProtectedRoute'
 
 // Lazy load pages
 const Login = lazy(() => import('@/pages/Login'))
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
+const Profile = lazy(() => import('@/pages/Profile'))
 
 // CMDB Pages
 const CMDBServers = lazy(() => import('@/pages/CMDB/Servers'))
@@ -34,10 +36,15 @@ const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <MainLayout />,
+    element: (
+      <ProtectedRoute>
+        <MainLayout />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: <Dashboard /> },
+      { path: 'profile', element: <Profile /> },
       {
         path: 'cmdb',
         children: [

@@ -11,12 +11,16 @@ export default function Login() {
 
   const onFinish = async (values: { username: string; password: string }) => {
     try {
-      const response = await authService.login(values)
-      setAuth(response.user, response.token, response.permissions)
-      message.success('登录成功')
-      navigate('/dashboard')
-    } catch (error) {
-      message.error('登录失败，请检查用户名和密码')
+      const response = await authService.login(values) as any
+      if (response.code === 0) {
+        setAuth(response.data.user, response.data.token, response.data.permissions)
+        message.success('登录成功')
+        navigate('/dashboard')
+      } else {
+        message.error(response.message || '登录失败')
+      }
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || '登录失败，请检查用户名和密码')
     }
   }
 

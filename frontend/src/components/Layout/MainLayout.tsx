@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Avatar, Dropdown, Button } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Button, message } from 'antd'
 import {
   DashboardOutlined,
   CloudServerOutlined,
@@ -10,6 +10,7 @@ import {
   LogoutOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
+import { useAuthStore } from '@/stores/authStore'
 
 const { Header, Sider, Content } = Layout
 
@@ -52,39 +53,58 @@ const menuItems: MenuProps['items'] = [
   },
 ]
 
-const userMenuItems: MenuProps['items'] = [
-  {
-    key: 'profile',
-    icon: <UserOutlined />,
-    label: '个人信息',
-  },
-  {
-    type: 'divider',
-  },
-  {
-    key: 'logout',
-    icon: <LogoutOutlined />,
-    label: '退出登录',
-    danger: true,
-  },
-]
-
 export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, logout, token } = useAuthStore()
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key)
   }
 
-  const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
+  const handleUserMenuClick: MenuProps['onClick'] = async ({ key }) => {
     if (key === 'logout') {
-      // TODO: Implement logout
+      try {
+        // 调用后端登出 API
+        await fetch('/api/v1/auth/logout', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+      } catch (error) {
+        // 即使 API 调用失败也继续登出
+        console.error('Logout API call failed:', error)
+      }
+
+      // 清除本地认证状态
+      logout()
+
+      message.success('已退出登录')
+
+      // 跳转到登录页
       navigate('/login')
     } else if (key === 'profile') {
-      // TODO: Navigate to profile page
+      navigate('/profile')
     }
   }
+
+  const userMenuItems: MenuProps['items'] = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: '个人中心',
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: '退出登录',
+      danger: true,
+    },
+  ]
 
   const selectedKeys = [location.pathname]
   const openKey = location.pathname.split('/')[1]
@@ -109,7 +129,7 @@ export default function MainLayout() {
           <div />
           <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight">
             <Button type="text" icon={<Avatar size="small" icon={<UserOutlined />} />}>
-              管理员
+              {user?.fullName || user?.username || '用户'}
             </Button>
           </Dropdown>
         </Header>
