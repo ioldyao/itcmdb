@@ -1,142 +1,195 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Avatar, Dropdown, Button, message } from 'antd'
+import { Avatar, Dropdown, Badge, Input } from 'antd'
 import {
-  DashboardOutlined,
-  CloudServerOutlined,
-  CustomerServiceOutlined,
-  AlertOutlined,
-  SettingOutlined,
-  UserOutlined,
-  LogoutOutlined,
-} from '@ant-design/icons'
-import type { MenuProps } from 'antd'
+  LayoutDashboard,
+  Server,
+  FileText,
+  Bell,
+  BarChart3,
+  Settings,
+  User,
+  LogOut,
+  Search,
+  Sun,
+  Moon,
+  Monitor,
+} from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useAuthStore } from '@/stores/authStore'
+import { useThemeStore } from '@/stores/themeStore'
+import type { MenuProps } from 'antd'
 
-const { Header, Sider, Content } = Layout
-
-const menuItems: MenuProps['items'] = [
-  {
-    key: '/dashboard',
-    icon: <DashboardOutlined />,
-    label: '仪表板',
-  },
-  {
-    key: '/cmdb',
-    icon: <CloudServerOutlined />,
-    label: 'CMDB',
-    children: [
-      { key: '/cmdb/servers', label: '服务器' },
-      { key: '/cmdb/networks', label: '网络设备' },
-      { key: '/cmdb/applications', label: '应用服务' },
-      { key: '/cmdb/containers', label: '容器/K8s' },
-    ],
-  },
-  {
-    key: '/tickets',
-    icon: <CustomerServiceOutlined />,
-    label: '工单管理',
-  },
-  {
-    key: '/alerts',
-    icon: <AlertOutlined />,
-    label: '告警管理',
-  },
-  {
-    key: '/admin',
-    icon: <SettingOutlined />,
-    label: '系统管理',
-    children: [
-      { key: '/admin/users', label: '用户管理' },
-      { key: '/admin/roles', label: '角色权限' },
-      { key: '/admin/audit', label: '审计日志' },
-    ],
-  },
+const menuItems = [
+  { key: '/dashboard', label: '仪表板', icon: LayoutDashboard },
+  { key: '/cmdb', label: 'CMDB', icon: Server },
+  { key: '/tickets', label: '工单', icon: FileText },
+  { key: '/alerts', label: '告警', icon: Bell },
+  { key: '/reports', label: '报表', icon: BarChart3 },
+  { key: '/admin', label: '系统', icon: Settings },
 ]
 
 export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout, token } = useAuthStore()
+  const { theme, setTheme } = useThemeStore()
 
-  const handleMenuClick = ({ key }: { key: string }) => {
-    navigate(key)
-  }
-
-  const handleUserMenuClick: MenuProps['onClick'] = async ({ key }) => {
-    if (key === 'logout') {
-      try {
-        // 调用后端登出 API
-        await fetch('/api/v1/auth/logout', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-      } catch (error) {
-        // 即使 API 调用失败也继续登出
-        console.error('Logout API call failed:', error)
-      }
-
-      // 清除本地认证状态
-      logout()
-
-      message.success('已退出登录')
-
-      // 跳转到登录页
-      navigate('/login')
-    } else if (key === 'profile') {
-      navigate('/profile')
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/v1/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch (error) {
+      console.error('Logout failed:', error)
     }
+    logout()
+    navigate('/login')
   }
 
   const userMenuItems: MenuProps['items'] = [
     {
       key: 'profile',
-      icon: <UserOutlined />,
+      icon: <User size={16} />,
       label: '个人中心',
+      onClick: () => navigate('/profile'),
     },
     {
       type: 'divider',
     },
     {
       key: 'logout',
-      icon: <LogoutOutlined />,
+      icon: <LogOut size={16} />,
       label: '退出登录',
       danger: true,
+      onClick: handleLogout,
     },
   ]
 
-  const selectedKeys = [location.pathname]
+  const themeMenuItems: MenuProps['items'] = [
+    {
+      key: 'light',
+      icon: <Sun size={16} />,
+      label: '浅色主题',
+      onClick: () => setTheme('light'),
+    },
+    {
+      key: 'dark',
+      icon: <Moon size={16} />,
+      label: '深色主题',
+      onClick: () => setTheme('dark'),
+    },
+    {
+      key: 'system',
+      icon: <Monitor size={16} />,
+      label: '跟随系统',
+      onClick: () => setTheme('system'),
+    },
+  ]
+
+  // 判断当前路径是否匹配菜单项
+  const isActive = (path: string) => {
+    if (path === '/dashboard') {
+      return location.pathname === '/' || location.pathname === '/dashboard'
+    }
+    return location.pathname.startsWith(path)
+  }
+
+  // 获取当前主题图标
+  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider theme="dark" width={240}>
-        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
-          ITCMDB
-        </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={selectedKeys}
-          items={menuItems}
-          onClick={handleMenuClick}
-        />
-      </Sider>
-      <Layout>
-        <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f0f0f0' }}>
-          <div />
-          <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight">
-            <Button type="text" icon={<Avatar size="small" icon={<UserOutlined />} />}>
-              {user?.fullName || user?.username || '用户'}
-            </Button>
-          </Dropdown>
-        </Header>
-        <Content style={{ padding: 24 }}>
-          <div style={{ background: '#fff', padding: 24, borderRadius: 8, minHeight: 'calc(100vh - 112px)' }}>
-            <Outlet />
+    <div className="min-h-screen bg-white dark:bg-bg-primary transition-colors">
+      {/* 顶部导航栏 */}
+      <header className="h-16 bg-white dark:bg-bg-secondary border-b border-gray-200 dark:border-white/8 sticky top-0 z-50 backdrop-blur-md">
+        <div className="h-full px-6 flex items-center justify-between">
+          {/* Logo + 菜单 */}
+          <div className="flex items-center gap-8">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-primary to-brand-active flex items-center justify-center">
+                <Server size={20} className="text-white" />
+              </div>
+              <span className="text-xl font-semibold text-gray-900 dark:text-text-primary">ITCMDB</span>
+            </div>
+
+            {/* 横向菜单 */}
+            <nav className="flex items-center gap-1">
+              {menuItems.map((item) => {
+                const Icon = item.icon
+                const active = isActive(item.key)
+
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => navigate(item.key)}
+                    className={`
+                      relative px-4 py-2 rounded-lg flex items-center gap-2
+                      transition-all duration-200
+                      ${active
+                        ? 'text-brand-primary bg-brand-primary/10'
+                        : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5'
+                      }
+                    `}
+                  >
+                    <Icon size={18} />
+                    <span className="text-sm font-medium">{item.label}</span>
+
+                    {/* 活动指示器 */}
+                    {active && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary"
+                        initial={false}
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                  </button>
+                )
+              })}
+            </nav>
           </div>
-        </Content>
-      </Layout>
-    </Layout>
+
+          {/* 右侧工具栏 */}
+          <div className="flex items-center gap-4">
+            {/* 搜索框 */}
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-text-tertiary" />
+              <Input
+                placeholder="搜索... (Cmd+K)"
+                className="w-64 h-9 pl-9 bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-900 dark:text-text-primary placeholder:text-gray-400 dark:placeholder:text-text-tertiary hover:bg-gray-100 dark:hover:bg-white/8 focus:bg-white dark:focus:bg-white/8"
+              />
+            </div>
+
+            {/* 主题切换 */}
+            <Dropdown menu={{ items: themeMenuItems, selectedKeys: [theme] }} placement="bottomRight" trigger={['click']}>
+              <button className="p-2 rounded-lg text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+                <ThemeIcon size={20} />
+              </button>
+            </Dropdown>
+
+            {/* 通知 */}
+            <button className="relative p-2 rounded-lg text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+              <Badge count={3} size="small">
+                <Bell size={20} />
+              </Badge>
+            </button>
+
+            {/* 用户菜单 */}
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
+              <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+                <Avatar size={32} icon={<User size={16} />} className="bg-brand-primary" />
+                <span className="text-sm text-gray-900 dark:text-text-primary">{user?.fullName || user?.username || '用户'}</span>
+              </button>
+            </Dropdown>
+          </div>
+        </div>
+      </header>
+
+      {/* 内容区域 */}
+      <main className="min-h-[calc(100vh-64px)]">
+        <Outlet />
+      </main>
+    </div>
   )
 }
