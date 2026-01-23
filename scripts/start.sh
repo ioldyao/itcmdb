@@ -11,17 +11,18 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-if ! command -v docker-compose &> /dev/null; then
-    echo "错误: Docker Compose 未安装，请先安装 Docker Compose"
+# 检查 Docker Compose v2
+if ! docker compose version &> /dev/null; then
+    echo "错误: Docker Compose v2 未安装，请先安装 Docker Compose v2"
     exit 1
 fi
 
 # 构建并启动所有服务
 echo "构建 Docker 镜像..."
-docker-compose build
+docker compose build
 
 echo "启动所有服务..."
-docker-compose up -d
+docker compose up -d
 
 # 等待数据库启动
 echo "等待数据库启动..."
@@ -29,7 +30,7 @@ sleep 5
 
 # 检查服务状态
 echo "检查服务状态..."
-docker-compose ps
+docker compose ps
 
 echo ""
 echo "ITCMDB 系统启动完成！"
@@ -47,5 +48,5 @@ echo "  - Kafka UI: http://localhost:8080"
 echo ""
 echo "默认管理员账号: admin / admin123"
 echo ""
-echo "查看日志: docker-compose logs -f [service-name]"
-echo "停止服务: docker-compose down"
+echo "查看日志: docker compose logs -f [service-name]"
+echo "停止服务: docker compose down"

@@ -92,10 +92,10 @@ cd itcmdb
 ./scripts/start.sh
 
 # 查看服务状态
-docker-compose ps
+docker compose ps
 
 # 查看日志
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ### 服务访问地址
@@ -184,7 +184,7 @@ npm run dev
 
 ```bash
 # 启动基础设施 (PostgreSQL, Redis, Kafka)
-docker-compose up -d postgres redis kafka zookeeper
+docker compose up -d postgres redis kafka zookeeper
 
 # 启动单个服务 (例如: auth-service)
 cd services/auth-service
@@ -204,11 +204,11 @@ go run cmd/main.go
 ```bash
 ./scripts/stop.sh
 
-# 或使用 docker-compose
-docker-compose down
+# 或使用 docker compose
+docker compose down
 
 # 删除数据卷 (警告: 会删除所有数据)
-docker-compose down -v
+docker compose down -v
 ```
 
 ## 配置说明
