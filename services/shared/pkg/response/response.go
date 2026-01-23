@@ -27,12 +27,17 @@ func Success(data interface{}) Response {
 	}
 }
 
-// Error 错误响应
-func Error(code int, message string) Response {
+// Error 错误响应（简化版）
+func Error(message string, detail string) Response {
 	return Response{
-		Code:    code,
-		Message: message,
+		Code:    1,
+		Message: message + ": " + detail,
 	}
+}
+
+// SuccessWithPagination 分页成功响应
+func SuccessWithPagination(items interface{}, total int64, page, pageSize int) Response {
+	return Pagination(items, total, page, pageSize)
 }
 
 // Pagination 分页响应

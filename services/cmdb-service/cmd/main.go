@@ -6,10 +6,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"github.com/itcmdb/cmdb-service/internal/handlers"
+	"github.com/itcmdb/cmdb-service/internal/repository"
+	"github.com/itcmdb/cmdb-service/internal/service"
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
-	"github.com/itcmdb/shared/pkg/response"
 	"go.uber.org/zap"
 )
 
@@ -33,17 +35,23 @@ func main() {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
 
+	// 初始化依赖
 	jwtManager := auth.NewJWTManager(
 		viper.GetString("jwt.secret"),
 		viper.GetDuration("jwt.expiration"),
 	)
+
+	db := database.GetDB()
+	ciRepo := repository.NewCIRepository(db)
+	ciService := service.NewCIService(ciRepo)
+	ciHandler := handlers.NewCIHandler(ciService)
 
 	if viper.GetString("env") == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	r := gin.Default()
-	setupRoutes(r, jwtManager)
+	setupRoutes(r, jwtManager, ciHandler)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
 	logger.Info("CMDB service starting", zap.String("addr", addr))
@@ -83,69 +91,25 @@ func loadConfig() error {
 	return nil
 }
 
-func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager) {
+func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, ciHandler *handlers.CIHandler) {
 	api := r.Group("/api/v1")
 	api.Use(jwtManager.AuthMiddleware())
 	{
 		ci := api.Group("/ci")
 		{
-			ci.GET("/types", getCITypesHandler())
-			ci.POST("/instances", createCIInstanceHandler())
-			ci.GET("/instances", getCIInstancesHandler())
-			ci.GET("/instances/:id", getCIInstanceHandler())
-			ci.PUT("/instances/:id", updateCIInstanceHandler())
-			ci.DELETE("/instances/:id", deleteCIInstanceHandler())
-			ci.GET("/relations", getCIRelationsHandler())
+			ci.GET("/types", ciHandler.GetCITypes)
+			ci.POST("/instances", ciHandler.CreateCIInstance)
+			ci.GET("/instances", ciHandler.GetCIInstances)
+			ci.GET("/instances/:id", ciHandler.GetCIInstance)
+			ci.PUT("/instances/:id", ciHandler.UpdateCIInstance)
+			ci.DELETE("/instances/:id", ciHandler.DeleteCIInstance)
+			ci.GET("/instances/:id/history", ciHandler.GetCIHistory)
+			ci.GET("/relations", ciHandler.GetCIRelations)
+			ci.POST("/relations", ciHandler.CreateCIRelation)
 		}
 	}
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
-}
-
-// Handler functions
-func getCITypesHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// TODO: 实现获取CI类型逻辑
-		types := []interface{}{}
-		c.JSON(200, response.Success(types))
-	}
-}
-
-func createCIInstanceHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(200, response.Success(nil))
-	}
-}
-
-func getCIInstancesHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(200, response.Success([]interface{}{}))
-	}
-}
-
-func getCIInstanceHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		id := c.Param("id")
-		c.JSON(200, response.Success(gin.H{"id": id}))
-	}
-}
-
-func updateCIInstanceHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(200, response.Success(nil))
-	}
-}
-
-func deleteCIInstanceHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(200, response.Success(nil))
-	}
-}
-
-func getCIRelationsHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(200, response.Success([]interface{}{}))
-	}
 }
