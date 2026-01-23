@@ -1,0 +1,10 @@
+server:
+  port: 5005
+
+env: development
+log:
+  level: info
+
+jwt:
+  secret: your-secret-key
+  expiration: 24h

@@ -1,0 +1,311 @@
+version: '3.8'
+
+services:
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: itcmdb-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: itcmdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - data-network
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: itcmdb-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - data-network
+
+  # Zookeeper (Kafka依赖)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: itcmdb-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+    networks:
+      - data-network
+
+  # Kafka消息队列
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: itcmdb-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - data-network
+
+  # Kafka UI (可选)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: itcmdb-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: itcmdb
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - data-network
+
+  # 认证服务
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: itcmdb-auth-service
+    ports:
+      - "5001:5001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AUTH_ENV: production
+      AUTH_SERVER_PORT: "5001"
+      AUTH_LOG_LEVEL: info
+      AUTH_DATABASE_HOST: postgres
+      AUTH_DATABASE_PORT: 5432
+      AUTH_DATABASE_USER: postgres
+      AUTH_DATABASE_PASSWORD: postgres
+      AUTH_DATABASE_DBNAME: itcmdb
+      AUTH_DATABASE_SSLMODE: disable
+      AUTH_JWT_SECRET: your-secret-key-change-in-production
+      AUTH_JWT_EXPIRATION: 24h
+    networks:
+      - backend-network
+      - data-network
+    restart: unless-stopped
+
+  # CMDB服务
+  cmdb-service:
+    build:
+      context: ./services/cmdb-service
+      dockerfile: Dockerfile
+    container_name: itcmdb-cmdb-service
+    ports:
+      - "5002:5002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CMDB_ENV: production
+      CMDB_SERVER_PORT: "5002"
+      CMDB_LOG_LEVEL: info
+      CMDB_DATABASE_HOST: postgres
+      CMDB_DATABASE_PORT: 5432
+      CMDB_DATABASE_USER: postgres
+      CMDB_DATABASE_PASSWORD: postgres
+      CMDB_DATABASE_DBNAME: itcmdb
+      CMDB_DATABASE_SSLMODE: disable
+      CMDB_JWT_SECRET: your-secret-key-change-in-production
+      CMDB_JWT_EXPIRATION: 24h
+    networks:
+      - backend-network
+      - data-network
+    restart: unless-stopped
+
+  # 工单服务
+  ticket-service:
+    build:
+      context: ./services/ticket-service
+      dockerfile: Dockerfile
+    container_name: itcmdb-ticket-service
+    ports:
+      - "5003:5003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      TICKET_ENV: production
+      TICKET_SERVER_PORT: "5003"
+      TICKET_LOG_LEVEL: info
+      TICKET_DATABASE_HOST: postgres
+      TICKET_DATABASE_PORT: 5432
+      TICKET_DATABASE_USER: postgres
+      TICKET_DATABASE_PASSWORD: postgres
+      TICKET_DATABASE_DBNAME: itcmdb
+      TICKET_DATABASE_SSLMODE: disable
+      TICKET_JWT_SECRET: your-secret-key-change-in-production
+      TICKET_JWT_EXPIRATION: 24h
+    networks:
+      - backend-network
+      - data-network
+    restart: unless-stopped
+
+  # 告警服务
+  alert-service:
+    build:
+      context: ./services/alert-service
+      dockerfile: Dockerfile
+    container_name: itcmdb-alert-service
+    ports:
+      - "5004:5004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      ALERT_ENV: production
+      ALERT_SERVER_PORT: "5004"
+      ALERT_LOG_LEVEL: info
+      ALERT_DATABASE_HOST: postgres
+      ALERT_DATABASE_PORT: 5432
+      ALERT_DATABASE_USER: postgres
+      ALERT_DATABASE_PASSWORD: postgres
+      ALERT_DATABASE_DBNAME: itcmdb
+      ALERT_DATABASE_SSLMODE: disable
+      ALERT_JWT_SECRET: your-secret-key-change-in-production
+      ALERT_JWT_EXPIRATION: 24h
+    networks:
+      - backend-network
+      - data-network
+    restart: unless-stopped
+
+  # 通知服务
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: itcmdb-notification-service
+    ports:
+      - "5005:5005"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      NOTIFICATION_ENV: production
+      NOTIFICATION_SERVER_PORT: "5005"
+      NOTIFICATION_LOG_LEVEL: info
+      NOTIFICATION_JWT_SECRET: your-secret-key-change-in-production
+      NOTIFICATION_JWT_EXPIRATION: 24h
+    networks:
+      - backend-network
+      - data-network
+    restart: unless-stopped
+
+  # 报表服务
+  report-service:
+    build:
+      context: ./services/report-service
+      dockerfile: Dockerfile
+    container_name: itcmdb-report-service
+    ports:
+      - "5006:5006"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      REPORT_ENV: production
+      REPORT_SERVER_PORT: "5006"
+      REPORT_LOG_LEVEL: info
+      REPORT_DATABASE_HOST: postgres
+      REPORT_DATABASE_PORT: 5432
+      REPORT_DATABASE_USER: postgres
+      REPORT_DATABASE_PASSWORD: postgres
+      REPORT_DATABASE_DBNAME: itcmdb
+      REPORT_DATABASE_SSLMODE: disable
+      REPORT_JWT_SECRET: your-secret-key-change-in-production
+      REPORT_JWT_EXPIRATION: 24h
+    networks:
+      - backend-network
+      - data-network
+    restart: unless-stopped
+
+  # 前端应用
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: itcmdb-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - auth-service
+      - cmdb-service
+      - ticket-service
+      - alert-service
+    networks:
+      - frontend-network
+    restart: unless-stopped
+
+  # API Gateway (使用Nginx)
+  api-gateway:
+    image: nginx:alpine
+    container_name: itcmdb-api-gateway
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - cmdb-service
+      - ticket-service
+      - alert-service
+      - notification-service
+      - report-service
+    networks:
+      - frontend-network
+      - backend-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  zookeeper_data:
+  zookeeper_log:
+  kafka_data:
+
+networks:
+  frontend-network:
+    driver: bridge
+  backend-network:
+    driver: bridge
+  data-network:
+    driver: bridge

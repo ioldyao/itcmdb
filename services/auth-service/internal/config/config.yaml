@@ -1,0 +1,19 @@
+server:
+  port: 5001
+
+env: development
+
+log:
+  level: info
+
+jwt:
+  secret: your-secret-key-change-in-production
+  expiration: 24h
+
+database:
+  host: postgres
+  port: 5432
+  user: postgres
+  password: postgres
+  dbname: itcmdb
+  sslmode: disable
