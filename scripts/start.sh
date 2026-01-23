@@ -19,7 +19,7 @@ fi
 
 # 构建并启动所有服务
 echo "构建 Docker 镜像..."
-docker compose build 
+docker compose build --pull=false
 
 echo "启动所有服务..."
 docker compose up -d

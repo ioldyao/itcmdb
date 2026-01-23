@@ -3,9 +3,6 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 设置npm镜像源为阿里云
-RUN npm config set registry https://mirrors.aliyun.com/npm/
-
 COPY package*.json ./
 RUN npm install
 
