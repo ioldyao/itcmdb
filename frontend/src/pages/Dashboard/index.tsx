@@ -1,6 +1,6 @@
 import { Row, Col, Card, Statistic } from 'antd'
 import {
-  ServerOutlined,
+  CloudServerOutlined,
   CustomerServiceOutlined,
   AlertOutlined,
   CheckCircleOutlined,
@@ -16,7 +16,7 @@ export default function Dashboard() {
             <Statistic
               title="服务器总数"
               value={156}
-              prefix={<ServerOutlined />}
+              prefix={<CloudServerOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
           </Card>

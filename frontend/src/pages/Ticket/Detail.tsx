@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom'
-import { Card, Descriptions, Button } from 'antd'
+import { Card, Descriptions, Button, Space } from 'antd'
 
 export default function TicketDetail() {
   const { id } = useParams()
@@ -19,10 +19,10 @@ export default function TicketDetail() {
             服务器CPU使用率持续超过90%
           </Descriptions.Item>
         </Descriptions>
-        <div style={{ marginTop: 16 }}>
-          <Button>确认</Button>
+        <Space style={{ marginTop: 16 }}>
+          <Button type="primary">确认</Button>
           <Button>关闭</Button>
-        </div>
+        </Space>
       </Card>
     </div>
   )
