@@ -93,8 +93,8 @@ services:
   # 认证服务
   auth-service:
     build:
-      context: ./services/auth-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: auth-service/Dockerfile
     container_name: itcmdb-auth-service
     ports:
       - "5001:5001"
@@ -121,8 +121,8 @@ services:
   # CMDB服务
   cmdb-service:
     build:
-      context: ./services/cmdb-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: cmdb-service/Dockerfile
     container_name: itcmdb-cmdb-service
     ports:
       - "5002:5002"
@@ -149,8 +149,8 @@ services:
   # 工单服务
   ticket-service:
     build:
-      context: ./services/ticket-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: ticket-service/Dockerfile
     container_name: itcmdb-ticket-service
     ports:
       - "5003:5003"
@@ -179,8 +179,8 @@ services:
   # 告警服务
   alert-service:
     build:
-      context: ./services/alert-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: alert-service/Dockerfile
     container_name: itcmdb-alert-service
     ports:
       - "5004:5004"
@@ -209,8 +209,8 @@ services:
   # 通知服务
   notification-service:
     build:
-      context: ./services/notification-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: notification-service/Dockerfile
     container_name: itcmdb-notification-service
     ports:
       - "5005:5005"
@@ -231,8 +231,8 @@ services:
   # 报表服务
   report-service:
     build:
-      context: ./services/report-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: report-service/Dockerfile
     container_name: itcmdb-report-service
     ports:
       - "5006:5006"

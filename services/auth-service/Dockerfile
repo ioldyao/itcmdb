@@ -6,13 +6,16 @@ WORKDIR /app
 # Install dependencies
 RUN apk add --no-cache git
 
-# Copy go mod files
-COPY go.mod ./
-COPY go.sum* ./
-RUN go mod download
+# Copy shared code
+COPY shared /app/shared
 
-# Copy source code
-COPY . .
+# Copy service code
+COPY auth-service /app/service
+WORKDIR /app/service
+
+# Download dependencies
+RUN go mod download
+RUN go mod tidy
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux go build -o auth-service ./cmd/main.go
@@ -25,10 +28,10 @@ RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /root/
 
 # Copy binary from builder
-COPY --from=builder /app/auth-service .
+COPY --from=builder /app/service/auth-service .
 
 # Copy config
-COPY internal/config/config.yaml /etc/auth-service/
+COPY auth-service/internal/config/config.yaml /etc/auth-service/
 
 EXPOSE 5001
 
