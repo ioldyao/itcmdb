@@ -114,7 +114,10 @@ interface UpdateCIInstanceRequest {
 // Helper function to get auth token
 const getAuthToken = () => {
   const authState = useAuthStore.getState()
-  return authState.token
+  const token = authState?.token
+  console.log('[CMDB] Getting token:', token ? `${token.substring(0, 20)}...` : 'undefined')
+  console.log('[CMDB] Auth state:', { isAuthenticated: authState?.isAuthenticated, user: authState?.user })
+  return token
 }
 
 export const useCMDBStore = create<CMDBState>()(
