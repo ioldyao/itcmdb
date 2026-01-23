@@ -56,6 +56,10 @@ func loadConfig() error {
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("./internal/config")
 
+	// 必须在 SetDefault 之前调用 AutomaticEnv
+	viper.AutomaticEnv()
+	viper.SetEnvPrefix("CMDB")
+
 	viper.SetDefault("env", "development")
 	viper.SetDefault("server.port", "5002")
 	viper.SetDefault("log.level", "info")
@@ -69,8 +73,6 @@ func loadConfig() error {
 	viper.SetDefault("database.sslmode", "disable")
 
 	viper.ReadInConfig()
-	viper.AutomaticEnv()
-	viper.SetEnvPrefix("CMDB")
 	return nil
 }
 

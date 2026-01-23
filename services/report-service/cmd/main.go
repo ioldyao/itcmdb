@@ -53,6 +53,11 @@ func main() {
 func loadConfig() error {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
+
+	// 必须在 SetDefault 之前调用 AutomaticEnv
+	viper.AutomaticEnv()
+	viper.SetEnvPrefix("REPORT")
+
 	viper.SetDefault("env", "development")
 	viper.SetDefault("server.port", "5006")
 	viper.SetDefault("log.level", "info")
@@ -65,8 +70,6 @@ func loadConfig() error {
 	viper.SetDefault("jwt.secret", "your-secret-key")
 	viper.SetDefault("jwt.expiration", "24h")
 	viper.ReadInConfig()
-	viper.AutomaticEnv()
-	viper.SetEnvPrefix("REPORT")
 	return nil
 }
 

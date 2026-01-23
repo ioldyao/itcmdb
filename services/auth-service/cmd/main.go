@@ -67,6 +67,10 @@ func loadConfig() error {
 	viper.AddConfigPath("/etc/auth-service")
 	viper.AddConfigPath("./internal/config")
 
+	// 必须在 SetDefault 之前调用 AutomaticEnv
+	viper.AutomaticEnv()
+	viper.SetEnvPrefix("AUTH")
+
 	// 设置默认值
 	viper.SetDefault("env", "development")
 	viper.SetDefault("server.port", "5001")
@@ -88,9 +92,6 @@ func loadConfig() error {
 		}
 	}
 
-	// 支持环境变量
-	viper.AutomaticEnv()
-	viper.SetEnvPrefix("AUTH")
 	return nil
 }
 
