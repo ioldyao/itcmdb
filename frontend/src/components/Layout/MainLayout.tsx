@@ -107,7 +107,6 @@ export default function MainLayout() {
   ]
 
   const selectedKeys = [location.pathname]
-  const openKey = location.pathname.split('/')[1]
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -119,7 +118,6 @@ export default function MainLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={selectedKeys}
-          defaultOpenKeys={[openKey]}
           items={menuItems}
           onClick={handleMenuClick}
         />

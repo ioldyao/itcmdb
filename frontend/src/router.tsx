@@ -1,33 +1,32 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import { lazy } from 'react'
 import MainLayout from '@/components/Layout/MainLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
-// Lazy load pages
-const Login = lazy(() => import('@/pages/Login'))
-const Dashboard = lazy(() => import('@/pages/Dashboard'))
-const Profile = lazy(() => import('@/pages/Profile'))
+// Direct imports instead of lazy loading
+import Login from '@/pages/Login'
+import Dashboard from '@/pages/Dashboard'
+import Profile from '@/pages/Profile'
 
 // CMDB Pages
-const CMDBServers = lazy(() => import('@/pages/CMDB/Servers'))
-const CMDBNetworks = lazy(() => import('@/pages/CMDB/Networks'))
-const CMDBApplications = lazy(() => import('@/pages/CMDB/Applications'))
-const CMDBContainers = lazy(() => import('@/pages/CMDB/Containers'))
+import CMDBServers from '@/pages/CMDB/Servers'
+import CMDBNetworks from '@/pages/CMDB/Networks'
+import CMDBApplications from '@/pages/CMDB/Applications'
+import CMDBContainers from '@/pages/CMDB/Containers'
 
 // Ticket Pages
-const TicketList = lazy(() => import('@/pages/Ticket/List'))
-const TicketCreate = lazy(() => import('@/pages/Ticket/Create'))
-const TicketDetail = lazy(() => import('@/pages/Ticket/Detail'))
+import TicketList from '@/pages/Ticket/List'
+import TicketCreate from '@/pages/Ticket/Create'
+import TicketDetail from '@/pages/Ticket/Detail'
 
 // Alert Pages
-const AlertList = lazy(() => import('@/pages/Alert/List'))
-const AlertRules = lazy(() => import('@/pages/Alert/Rules'))
-const AlertHistory = lazy(() => import('@/pages/Alert/History'))
+import AlertList from '@/pages/Alert/List'
+import AlertRules from '@/pages/Alert/Rules'
+import AlertHistory from '@/pages/Alert/History'
 
 // Admin Pages
-const AdminUsers = lazy(() => import('@/pages/Admin/Users'))
-const AdminRoles = lazy(() => import('@/pages/Admin/Roles'))
-const AdminAudit = lazy(() => import('@/pages/Admin/Audit'))
+import AdminUsers from '@/pages/Admin/Users'
+import AdminRoles from '@/pages/Admin/Roles'
+import AdminAudit from '@/pages/Admin/Audit'
 
 const router = createBrowserRouter([
   {
