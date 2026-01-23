@@ -14,7 +14,7 @@ interface Server {
 }
 
 export default function CMDBServers() {
-  const { instances, loading } = useCMDBStore()
+  const { loading } = useCMDBStore()
 
   const columns: ColumnsType<Server> = [
     { title: 'ID', dataIndex: 'id', width: 80 },

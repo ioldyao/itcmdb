@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Avatar, Dropdown, Button } from 'antd'
 import {
   DashboardOutlined,
-  ServerOutlined,
+  CloudServerOutlined,
   CustomerServiceOutlined,
   AlertOutlined,
   SettingOutlined,
@@ -21,7 +21,7 @@ const menuItems: MenuProps['items'] = [
   },
   {
     key: '/cmdb',
-    icon: <ServerOutlined />,
+    icon: <CloudServerOutlined />,
     label: 'CMDB',
     children: [
       { key: '/cmdb/servers', label: '服务器' },
