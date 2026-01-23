@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { useAuthStore } from './authStore'
 
 // CI 类型
 export interface CIType {
@@ -109,6 +110,12 @@ interface UpdateCIInstanceRequest {
   tags?: Record<string, any>
 }
 
+// Helper function to get auth token
+const getAuthToken = () => {
+  const authState = useAuthStore.getState()
+  return authState.token
+}
+
 export const useCMDBStore = create<CMDBState>()(
   persist(
     (set, get) => ({
@@ -124,10 +131,10 @@ export const useCMDBStore = create<CMDBState>()(
       fetchCITypes: async () => {
         set({ loading: true })
         try {
-          const token = JSON.parse(localStorage.getItem('auth-storage') || '{}')
+          const token = getAuthToken()
           const response = await fetch('/api/v1/ci/types', {
             headers: {
-              Authorization: `Bearer ${token.token || token.state?.token}`,
+              Authorization: `Bearer ${token}`,
             },
           })
           const result: ApiResponse<CIType[]> = await response.json()
@@ -144,7 +151,7 @@ export const useCMDBStore = create<CMDBState>()(
       fetchInstances: async (ciTypeID = 0, page = 1, pageSize = 20) => {
         set({ loading: true })
         try {
-          const token = JSON.parse(localStorage.getItem('auth-storage') || '{}')
+          const token = getAuthToken()
           const params = new URLSearchParams()
           if (ciTypeID > 0) params.append('ci_type_id', ciTypeID.toString())
           params.append('page', page.toString())
@@ -156,7 +163,7 @@ export const useCMDBStore = create<CMDBState>()(
 
           const response = await fetch(`/api/v1/ci/instances?${params}`, {
             headers: {
-              Authorization: `Bearer ${token.token || token.state?.token}`,
+              Authorization: `Bearer ${token}`,
             },
           })
           const result: ApiResponse<PaginationResponse<CIInstance>> = await response.json()
@@ -177,10 +184,10 @@ export const useCMDBStore = create<CMDBState>()(
 
       fetchInstance: async (id: number) => {
         try {
-          const token = JSON.parse(localStorage.getItem('auth-storage') || '{}')
+          const token = getAuthToken()
           const response = await fetch(`/api/v1/ci/instances/${id}`, {
             headers: {
-              Authorization: `Bearer ${token.token || token.state?.token}`,
+              Authorization: `Bearer ${token}`,
             },
           })
           const result: ApiResponse<CIInstance> = await response.json()
@@ -198,12 +205,12 @@ export const useCMDBStore = create<CMDBState>()(
       createInstance: async (data: CreateCIInstanceRequest) => {
         set({ loading: true })
         try {
-          const token = JSON.parse(localStorage.getItem('auth-storage') || '{}')
+          const token = getAuthToken()
           const response = await fetch('/api/v1/ci/instances', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${token.token || token.state?.token}`,
+              Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify(data),
           })
@@ -224,12 +231,12 @@ export const useCMDBStore = create<CMDBState>()(
       updateInstance: async (id: number, data: UpdateCIInstanceRequest) => {
         set({ loading: true })
         try {
-          const token = JSON.parse(localStorage.getItem('auth-storage') || '{}')
+          const token = getAuthToken()
           const response = await fetch(`/api/v1/ci/instances/${id}`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${token.token || token.state?.token}`,
+              Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify(data),
           })
@@ -250,11 +257,11 @@ export const useCMDBStore = create<CMDBState>()(
       deleteInstance: async (id: number) => {
         set({ loading: true })
         try {
-          const token = JSON.parse(localStorage.getItem('auth-storage') || '{}')
+          const token = getAuthToken()
           const response = await fetch(`/api/v1/ci/instances/${id}`, {
             method: 'DELETE',
             headers: {
-              Authorization: `Bearer ${token.token || token.state?.token}`,
+              Authorization: `Bearer ${token}`,
             },
           })
           const result: ApiResponse<null> = await response.json()
