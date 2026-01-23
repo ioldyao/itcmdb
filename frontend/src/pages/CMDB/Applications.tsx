@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Table, Button, Input, Select, Tag, Space, Modal, Form, message, Popconfirm } from 'antd'
-import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, Box as BoxIcon } from 'lucide-react'
+import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Box as BoxIcon } from 'lucide-react'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useCMDBStore, CIInstance } from '@/stores/cmdbStore'
 
@@ -253,7 +254,7 @@ export default function CMDBApplications() {
     },
   ]
 
-  const handleTableChange: TablePaginationConfig['onChange'] = (pagination) => {
+  const handleTableChange = (pagination: TablePaginationConfig) => {
     fetchInstances(3, pagination.current || 1, pagination.pageSize || 20)
   }
 
