@@ -54,6 +54,18 @@ func loadConfig() error {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 
+	// 绑定嵌套配置到环境变量
+	viper.BindEnv("database.host", "TICKET_DATABASE_HOST")
+	viper.BindEnv("database.port", "TICKET_DATABASE_PORT")
+	viper.BindEnv("database.user", "TICKET_DATABASE_USER")
+	viper.BindEnv("database.password", "TICKET_DATABASE_PASSWORD")
+	viper.BindEnv("database.dbname", "TICKET_DATABASE_DBNAME")
+	viper.BindEnv("database.sslmode", "TICKET_DATABASE_SSLMODE")
+	viper.BindEnv("jwt.secret", "TICKET_JWT_SECRET")
+	viper.BindEnv("jwt.expiration", "TICKET_JWT_EXPIRATION")
+	viper.BindEnv("server.port", "TICKET_SERVER_PORT")
+	viper.BindEnv("log.level", "TICKET_LOG_LEVEL")
+
 	// 必须在 SetDefault 之前调用 AutomaticEnv
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("TICKET")

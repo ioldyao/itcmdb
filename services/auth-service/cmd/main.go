@@ -67,6 +67,18 @@ func loadConfig() error {
 	viper.AddConfigPath("/etc/auth-service")
 	viper.AddConfigPath("./internal/config")
 
+	// 绑定嵌套配置到环境变量
+	viper.BindEnv("database.host", "AUTH_DATABASE_HOST")
+	viper.BindEnv("database.port", "AUTH_DATABASE_PORT")
+	viper.BindEnv("database.user", "AUTH_DATABASE_USER")
+	viper.BindEnv("database.password", "AUTH_DATABASE_PASSWORD")
+	viper.BindEnv("database.dbname", "AUTH_DATABASE_DBNAME")
+	viper.BindEnv("database.sslmode", "AUTH_DATABASE_SSLMODE")
+	viper.BindEnv("jwt.secret", "AUTH_JWT_SECRET")
+	viper.BindEnv("jwt.expiration", "AUTH_JWT_EXPIRATION")
+	viper.BindEnv("server.port", "AUTH_SERVER_PORT")
+	viper.BindEnv("log.level", "AUTH_LOG_LEVEL")
+
 	// 必须在 SetDefault 之前调用 AutomaticEnv
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("AUTH")

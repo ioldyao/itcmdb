@@ -56,7 +56,14 @@ func loadConfig() error {
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("./internal/config")
 
-	// 必须在 SetDefault 之前调用 AutomaticEnv
+	// 绑定嵌套配置到环境变量
+	viper.BindEnv("database.host", "CMDB_DATABASE_HOST")
+	viper.BindEnv("database.port", "CMDB_DATABASE_PORT")
+	viper.BindEnv("database.user", "CMDB_DATABASE_USER")
+	viper.BindEnv("database.password", "CMDB_DATABASE_PASSWORD")
+	viper.BindEnv("database.dbname", "CMDB_DATABASE_DBNAME")
+	viper.BindEnv("database.sslmode", "CMDB_DATABASE_SSLMODE")
+
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("CMDB")
 

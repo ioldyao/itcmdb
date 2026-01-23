@@ -42,6 +42,18 @@ func loadConfig() error {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 
+	// 绑定嵌套配置到环境变量
+	viper.BindEnv("database.host", "NOTIFICATION_DATABASE_HOST")
+	viper.BindEnv("database.port", "NOTIFICATION_DATABASE_PORT")
+	viper.BindEnv("database.user", "NOTIFICATION_DATABASE_USER")
+	viper.BindEnv("database.password", "NOTIFICATION_DATABASE_PASSWORD")
+	viper.BindEnv("database.dbname", "NOTIFICATION_DATABASE_DBNAME")
+	viper.BindEnv("database.sslmode", "NOTIFICATION_DATABASE_SSLMODE")
+	viper.BindEnv("jwt.secret", "NOTIFICATION_JWT_SECRET")
+	viper.BindEnv("jwt.expiration", "NOTIFICATION_JWT_EXPIRATION")
+	viper.BindEnv("server.port", "NOTIFICATION_SERVER_PORT")
+	viper.BindEnv("log.level", "NOTIFICATION_LOG_LEVEL")
+
 	// 必须在 SetDefault 之前调用 AutomaticEnv
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("NOTIFICATION")
