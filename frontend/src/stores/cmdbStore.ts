@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { message } from 'antd'
 import { useAuthStore } from './authStore'
 
 // CI 类型
@@ -152,6 +153,12 @@ export const useCMDBStore = create<CMDBState>()(
         set({ loading: true })
         try {
           const token = getAuthToken()
+          if (!token) {
+            console.error('No auth token found')
+            message.error('请先登录')
+            return
+          }
+
           const params = new URLSearchParams()
           if (ciTypeID > 0) params.append('ci_type_id', ciTypeID.toString())
           params.append('page', page.toString())
@@ -166,6 +173,14 @@ export const useCMDBStore = create<CMDBState>()(
               Authorization: `Bearer ${token}`,
             },
           })
+
+          if (response.status === 401) {
+            message.error('登录已过期，请重新登录')
+            // 清除认证状态
+            useAuthStore.getState().logout()
+            return
+          }
+
           const result: ApiResponse<PaginationResponse<CIInstance>> = await response.json()
           if (result.code === 0) {
             set({
@@ -174,9 +189,12 @@ export const useCMDBStore = create<CMDBState>()(
               page: result.data.page,
               pageSize: result.data.page_size,
             })
+          } else {
+            message.error(result.message || '加载数据失败')
           }
         } catch (error) {
           console.error('Failed to fetch CI instances:', error)
+          message.error('网络错误，请稍后重试')
         } finally {
           set({ loading: false })
         }
