@@ -2,11 +2,12 @@ package database
 
 import (
 	"fmt"
+	"log"
 	"time"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
-	"github.com/itcmdb/shared/pkg/logger"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 var db *gorm.DB
@@ -30,7 +31,7 @@ func Init(cfg Config) error {
 
 	var err error
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: gormlogger.Default.LogMode(gormlogger.Info),
 	})
 
 	if err != nil {
@@ -47,7 +48,7 @@ func Init(cfg Config) error {
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
-	logger.Info("Database connected", zap.String("database", cfg.DBName))
+	log.Printf("Database connected: %s", cfg.DBName)
 	return nil
 }
 
