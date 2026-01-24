@@ -6,7 +6,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/itcmdb/auth-service/internal/service"
 	"github.com/itcmdb/shared/pkg/audit"
+	"github.com/itcmdb/shared/pkg/logger"
+	"github.com/itcmdb/shared/pkg/rbac"
 	"github.com/itcmdb/shared/pkg/response"
+	"go.uber.org/zap"
 )
 
 type RoleHandler struct {
@@ -188,6 +191,9 @@ func (h *RoleHandler) AssignPermissionToRole(c *gin.Context) {
 		return
 	}
 
+	// 清除该角色所有用户的权限缓存
+	h.clearRoleUsersCache(c, req.RoleID)
+
 	c.JSON(200, response.Success(nil))
 }
 
@@ -207,6 +213,9 @@ func (h *RoleHandler) RemovePermissionFromRole(c *gin.Context) {
 		c.JSON(500, response.Error("500", "failed to remove permission"))
 		return
 	}
+
+	// 清除该角色所有用户的权限缓存
+	h.clearRoleUsersCache(c, req.RoleID)
 
 	c.JSON(200, response.Success(nil))
 }
@@ -228,6 +237,11 @@ func (h *RoleHandler) AssignRoleToUser(c *gin.Context) {
 		return
 	}
 
+	// 清除用户权限缓存
+	if err := rbac.ClearUserPermissionsCache(c.Request.Context(), int64(req.UserID)); err != nil {
+		logger.Warn("Failed to clear user permission cache", zap.Error(err), zap.Uint("user_id", req.UserID))
+	}
+
 	c.JSON(200, response.Success(nil))
 }
 
@@ -246,6 +260,11 @@ func (h *RoleHandler) RemoveRoleFromUser(c *gin.Context) {
 	if err := h.roleService.RemoveRoleFromUser(req.UserID, req.RoleID); err != nil {
 		c.JSON(500, response.Error("500", "failed to remove role"))
 		return
+	}
+
+	// 清除用户权限缓存
+	if err := rbac.ClearUserPermissionsCache(c.Request.Context(), int64(req.UserID)); err != nil {
+		logger.Warn("Failed to clear user permission cache", zap.Error(err), zap.Uint("user_id", req.UserID))
 	}
 
 	c.JSON(200, response.Success(nil))
@@ -285,4 +304,21 @@ func (h *RoleHandler) GetRoleUsers(c *gin.Context) {
 	}
 
 	c.JSON(200, response.Success(users))
+}
+
+// clearRoleUsersCache 清除角色下所有用户的权限缓存
+func (h *RoleHandler) clearRoleUsersCache(c *gin.Context, roleID uint) {
+	users, err := h.roleService.GetRoleUsers(roleID)
+	if err != nil {
+		logger.Warn("Failed to get role users for cache clearing", zap.Error(err), zap.Uint("role_id", roleID))
+		return
+	}
+
+	for _, user := range users {
+		if err := rbac.ClearUserPermissionsCache(c.Request.Context(), int64(user.ID)); err != nil {
+			logger.Warn("Failed to clear user permission cache", zap.Error(err), zap.Uint("user_id", user.ID))
+		}
+	}
+
+	logger.Info("Cleared permission cache for role users", zap.Uint("role_id", roleID), zap.Int("user_count", len(users)))
 }

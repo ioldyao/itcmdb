@@ -64,11 +64,12 @@ func main() {
 	}
 
 	// 自动迁移数据库表
-	// TODO: AutoMigrate has issues with existing tables, skipping for now
-	// if err := models.AutoMigrate(); err != nil {
-	// 	logger.Fatal("Failed to migrate database", zap.Error(err))
-	// }
-	logger.Info("Skipping database migration")
+	if err := models.AutoMigrate(); err != nil {
+		logger.Warn("Failed to migrate database", zap.Error(err))
+		// 不终止服务启动，允许服务在迁移失败时继续运行
+	} else {
+		logger.Info("Database migration completed successfully")
+	}
 
 	// 初始化用户服务
 	userService := service.NewUserService()
@@ -192,7 +193,7 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, userService service
 		{
 			auth.POST("/register", registerHandler(userService, jwtManager))
 			auth.POST("/login", loginHandler(userService, jwtManager))
-			auth.POST("/logout", jwtManager.AuthMiddleware(), logoutHandler())
+			auth.POST("/logout", jwtManager.AuthMiddleware(), logoutHandler(jwtManager))
 			auth.POST("/refresh", refreshHandler(jwtManager))
 		}
 
@@ -363,11 +364,27 @@ func loginHandler(userService service.UserService, jwtManager *auth.JWTManager) 
 	}
 }
 
-func logoutHandler() gin.HandlerFunc {
+func logoutHandler(jwtManager *auth.JWTManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 获取用户信息（如果已认证）
 		userID, exists := auth.GetUserID(c)
 		username, _ := auth.GetUsername(c)
+
+		// 提取token并加入黑名单
+		authHeader := c.GetHeader("Authorization")
+		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+			// 解析token获取claims（用于计算TTL）
+			claims, err := jwtManager.Verify(tokenString)
+			if err == nil {
+				// 将token加入黑名单
+				if err := jwtManager.AddToBlacklist(c.Request.Context(), tokenString, claims); err != nil {
+					logger.Warn("Failed to add token to blacklist", zap.Error(err))
+					// 继续执行，不影响用户体验
+				}
+			}
+		}
 
 		// 记录登出审计日志
 		if exists {
@@ -377,7 +394,6 @@ func logoutHandler() gin.HandlerFunc {
 			})
 		}
 
-		// TODO: 实现token黑名单逻辑
 		c.JSON(200, response.Success(nil))
 	}
 }

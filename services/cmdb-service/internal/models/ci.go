@@ -127,3 +127,14 @@ func (CIRelation) TableName() string {
 func (CIHistory) TableName() string {
 	return "ci_history"
 }
+
+// AutoMigrate 自动迁移表结构
+func AutoMigrate(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&CIType{},
+		&CIAttribute{},
+		&CIInstance{},
+		&CIRelation{},
+		&CIHistory{},
+	)
+}

@@ -56,6 +56,15 @@ func main() {
 		logger.Info("Redis cache connected")
 	}
 
+	// 自动迁移数据库表
+	db := database.Get()
+	if err := models.AutoMigrate(db); err != nil {
+		logger.Warn("Failed to migrate database", zap.Error(err))
+		// 不终止服务启动，允许服务在迁移失败时继续运行
+	} else {
+		logger.Info("Database migration completed successfully")
+	}
+
 	// 初始化Auth服务gRPC客户端
 	authServiceAddr := viper.GetString("auth.grpc.address")
 	if authServiceAddr == "" {

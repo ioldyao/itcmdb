@@ -37,6 +37,18 @@ func (m *JWTManager) AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		// Check if token is blacklisted
+		isBlacklisted, err := m.IsBlacklisted(c.Request.Context(), tokenString)
+		if err != nil {
+			// Error checking blacklist - log but allow access (fail-safe)
+			// The IsBlacklisted method already logs the error
+		}
+		if isBlacklisted {
+			c.JSON(401, gin.H{"code": 401, "message": "token has been revoked"})
+			c.Abort()
+			return
+		}
+
 		c.Set(UserIDKey, claims.UserID)
 		c.Set(UsernameKey, claims.Username)
 		c.Set(RolesKey, claims.Roles)
