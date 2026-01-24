@@ -296,6 +296,7 @@ export const useCMDBStore = create<CMDBState>()(
           if (result.code === 0) {
             await get().fetchInstances()
             await get().fetchInstance(id)
+            return
           }
           throw new Error(result.message)
         } catch (error) {
@@ -319,6 +320,7 @@ export const useCMDBStore = create<CMDBState>()(
           const result: ApiResponse<null> = await response.json()
           if (result.code === 0) {
             await get().fetchInstances()
+            return
           }
           throw new Error(result.message)
         } catch (error) {

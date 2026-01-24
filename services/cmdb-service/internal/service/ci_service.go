@@ -310,16 +310,37 @@ func (s *ciService) validateAttributes(attrs map[string]interface{}, definitions
 }
 
 func (s *ciService) recordHistory(ciID, userID uint, action, fieldName, oldValue, newValue string) {
+	// JSON-encode values if they're not already valid JSON
+	oldValueJSON := s.ensureJSON(oldValue)
+	newValueJSON := s.ensureJSON(newValue)
+
 	history := &models.CIHistory{
 		CIID:      ciID,
 		ChangedBy: userID,
 		Action:    action,
 		FieldName: fieldName,
-		OldValue:  oldValue,
-		NewValue:  newValue,
+		OldValue:  oldValueJSON,
+		NewValue:  newValueJSON,
 		ChangedAt: time.Now(),
 	}
 	s.repo.CreateCIHistory(history)
+}
+
+// ensureJSON checks if a string is valid JSON, if not, wraps it as a JSON string
+func (s *ciService) ensureJSON(value string) string {
+	if value == "" {
+		return "null"
+	}
+
+	// Check if it's already valid JSON
+	var js json.RawMessage
+	if err := json.Unmarshal([]byte(value), &js); err == nil {
+		return value
+	}
+
+	// Not valid JSON, encode it as a JSON string
+	encoded, _ := json.Marshal(value)
+	return string(encoded)
 }
 
 // Import/Export
