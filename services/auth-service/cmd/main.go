@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"github.com/itcmdb/auth-service/internal/handlers"
+	"github.com/itcmdb/auth-service/internal/repository"
 	"github.com/itcmdb/auth-service/internal/service"
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
@@ -47,6 +49,12 @@ func main() {
 	// 初始化用户服务
 	userService := service.NewUserService()
 
+	// 初始化角色服务
+	db := database.Get()
+	roleRepo := repository.NewRoleRepository(db)
+	roleService := service.NewRoleService(roleRepo)
+	roleHandler := handlers.NewRoleHandler(roleService)
+
 	// 初始化JWT管理器
 	jwtManager := auth.NewJWTManager(
 		viper.GetString("jwt.secret"),
@@ -61,7 +69,7 @@ func main() {
 	r := gin.Default()
 
 	// 注册路由
-	setupRoutes(r, jwtManager, userService)
+	setupRoutes(r, jwtManager, userService, roleHandler)
 
 	// 启动服务
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
@@ -118,7 +126,7 @@ func loadConfig() error {
 	return nil
 }
 
-func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, userService service.UserService) {
+func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, userService service.UserService, roleHandler *handlers.RoleHandler) {
 	api := r.Group("/api/v1")
 	{
 		// 认证相关
@@ -138,6 +146,44 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, userService service
 			users.PUT("/me", updateMeHandler(userService))
 			users.GET("/me/permissions", getMyPermissionsHandler(userService))
 			users.GET("/:id/permissions", getPermissionsHandler(userService))
+		}
+
+		// 角色管理（需要认证）
+		roles := api.Group("/roles")
+		roles.Use(jwtManager.AuthMiddleware())
+		{
+			roles.GET("", roleHandler.GetRoles)
+			roles.POST("", roleHandler.CreateRole)
+			roles.PUT("/:id", roleHandler.UpdateRole)
+			roles.DELETE("/:id", roleHandler.DeleteRole)
+			roles.GET("/:id/permissions", roleHandler.GetRolePermissions)
+			roles.GET("/:id/users", roleHandler.GetRoleUsers)
+		}
+
+		// 权限管理（需要认证）
+		permissions := api.Group("/permissions")
+		permissions.Use(jwtManager.AuthMiddleware())
+		{
+			permissions.GET("", roleHandler.GetPermissions)
+			permissions.POST("", roleHandler.CreatePermission)
+			permissions.DELETE("/:id", roleHandler.DeletePermission)
+		}
+
+		// 角色权限关联（需要认证）
+		rolePermissions := api.Group("/role-permissions")
+		rolePermissions.Use(jwtManager.AuthMiddleware())
+		{
+			rolePermissions.POST("", roleHandler.AssignPermissionToRole)
+			rolePermissions.DELETE("", roleHandler.RemovePermissionFromRole)
+		}
+
+		// 用户角色关联（需要认证）
+		userRoles := api.Group("/user-roles")
+		userRoles.Use(jwtManager.AuthMiddleware())
+		{
+			userRoles.POST("", roleHandler.AssignRoleToUser)
+			userRoles.DELETE("", roleHandler.RemoveRoleFromUser)
+			userRoles.GET("/user/:id", roleHandler.GetUserRoles)
 		}
 	}
 
@@ -160,14 +206,14 @@ func registerHandler(userService service.UserService, jwtManager *auth.JWTManage
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(400, response.Error(400, "invalid request: "+err.Error()))
+			c.JSON(400, response.Error("Bad Request", "invalid request: "+err.Error()))
 			return
 		}
 
 		// 创建用户
 		user, err := userService.Register(req.Username, req.Email, req.Password, req.FullName)
 		if err != nil {
-			c.JSON(400, response.Error(400, err.Error()))
+			c.JSON(400, response.Error("Bad Request", err.Error()))
 			return
 		}
 
@@ -181,7 +227,7 @@ func registerHandler(userService service.UserService, jwtManager *auth.JWTManage
 		// 生成token
 		token, err := jwtManager.Generate(int64(user.ID), user.Username, permissions)
 		if err != nil {
-			c.JSON(500, response.Error(500, "failed to generate token"))
+			c.JSON(500, response.Error("Internal Error", "failed to generate token"))
 			return
 		}
 
@@ -207,14 +253,14 @@ func loginHandler(userService service.UserService, jwtManager *auth.JWTManager) 
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(400, response.Error(400, "invalid request"))
+			c.JSON(400, response.Error("Bad Request", "invalid request"))
 			return
 		}
 
 		// 验证用户
 		user, err := userService.ValidateUser(req.Username, req.Password)
 		if err != nil {
-			c.JSON(401, response.Error(401, "invalid username or password"))
+			c.JSON(401, response.Error("Unauthorized", "invalid username or password"))
 			return
 		}
 
@@ -228,7 +274,7 @@ func loginHandler(userService service.UserService, jwtManager *auth.JWTManager) 
 		// 生成token
 		token, err := jwtManager.Generate(int64(user.ID), user.Username, permissions)
 		if err != nil {
-			c.JSON(500, response.Error(500, "failed to generate token"))
+			c.JSON(500, response.Error("Internal Error", "failed to generate token"))
 			return
 		}
 
@@ -259,13 +305,13 @@ func refreshHandler(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(400, response.Error(400, "invalid request"))
+			c.JSON(400, response.Error("Bad Request", "invalid request"))
 			return
 		}
 
 		newToken, err := jwtManager.Refresh(req.Token)
 		if err != nil {
-			c.JSON(401, response.Error(401, err.Error()))
+			c.JSON(401, response.Error("Unauthorized", err.Error()))
 			return
 		}
 
@@ -279,7 +325,7 @@ func getMeHandler(userService service.UserService) gin.HandlerFunc {
 
 		user, err := userService.GetUserByID(uint(userID))
 		if err != nil {
-			c.JSON(404, response.Error(404, "user not found"))
+			c.JSON(404, response.Error("Not Found", "user not found"))
 			return
 		}
 
@@ -303,7 +349,7 @@ func updateMeHandler(userService service.UserService) gin.HandlerFunc {
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(400, response.Error(400, "invalid request"))
+			c.JSON(400, response.Error("Bad Request", "invalid request"))
 			return
 		}
 
@@ -316,7 +362,7 @@ func updateMeHandler(userService service.UserService) gin.HandlerFunc {
 		}
 
 		if err := userService.UpdateUser(uint(userID), updates); err != nil {
-			c.JSON(400, response.Error(400, err.Error()))
+			c.JSON(400, response.Error("Bad Request", err.Error()))
 			return
 		}
 
@@ -330,7 +376,7 @@ func getMyPermissionsHandler(userService service.UserService) gin.HandlerFunc {
 
 		permissions, err := userService.GetUserPermissions(uint(userID))
 		if err != nil {
-			c.JSON(500, response.Error(500, "failed to get permissions"))
+			c.JSON(500, response.Error("Internal Error", "failed to get permissions"))
 			return
 		}
 
@@ -344,13 +390,13 @@ func getPermissionsHandler(userService service.UserService) gin.HandlerFunc {
 
 		var id uint
 		if _, err := fmt.Sscanf(userID, "%d", &id); err != nil {
-			c.JSON(400, response.Error(400, "invalid user id"))
+			c.JSON(400, response.Error("Bad Request", "invalid user id"))
 			return
 		}
 
 		permissions, err := userService.GetUserPermissions(id)
 		if err != nil {
-			c.JSON(500, response.Error(500, "failed to get permissions"))
+			c.JSON(500, response.Error("Internal Error", "failed to get permissions"))
 			return
 		}
 
