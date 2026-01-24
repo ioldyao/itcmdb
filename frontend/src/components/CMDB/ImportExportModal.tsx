@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Modal, Upload, Button, message, Progress, Alert } from 'antd'
-import { UploadOutlined, DownloadOutlined, InboxOutlined } from '@ant-design/icons'
+import { DownloadOutlined, InboxOutlined } from '@ant-design/icons'
 import type { UploadProps } from 'antd'
 import { useAuthStore } from '@/stores/authStore'
 

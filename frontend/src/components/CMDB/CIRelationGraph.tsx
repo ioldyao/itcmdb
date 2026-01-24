@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Empty, Spin, Button, Modal, Form, Select, Input, message, Space, Tag } from 'antd'
+import { Card, Empty, Spin, Button, Modal, Form, Select, Input, message, Tag } from 'antd'
 import { PlusOutlined, LinkOutlined } from '@ant-design/icons'
 import { useCMDBStore, CIRelation, CIInstance } from '@/stores/cmdbStore'
 
@@ -9,16 +9,14 @@ interface CIRelationGraphProps {
 }
 
 export default function CIRelationGraph({ ciId, ciName }: CIRelationGraphProps) {
-  const { fetchRelations, createRelation, fetchInstances } = useCMDBStore()
+  const { fetchRelations, createRelation, instances } = useCMDBStore()
   const [relations, setRelations] = useState<CIRelation[]>([])
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
-  const [instances, setInstances] = useState<CIInstance[]>([])
   const [form] = Form.useForm()
 
   useEffect(() => {
     loadRelations()
-    loadInstances()
   }, [ciId])
 
   const loadRelations = async () => {
@@ -30,14 +28,6 @@ export default function CIRelationGraph({ ciId, ciName }: CIRelationGraphProps) 
       console.error('Failed to load relations:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadInstances = async () => {
-    try {
-      await fetchInstances(0, 1, 100)
-    } catch (error) {
-      console.error('Failed to load instances:', error)
     }
   }
 
