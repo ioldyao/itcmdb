@@ -5,10 +5,20 @@ WORKDIR /app
 ENV GOPROXY=https://mirrors.aliyun.com/goproxy/,direct
 ENV GO111MODULE=on
 
-RUN apk add --no-cache git
+RUN apk add --no-cache git protobuf
+
+# 安装protoc-gen-go和protoc-gen-go-grpc
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.1
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 
 # Copy shared code
 COPY shared /app/shared
+
+# 重新生成proto代码
+WORKDIR /app/shared
+RUN protoc --go_out=. --go_opt=paths=source_relative \
+    --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+    proto/auth/auth.proto proto/cmdb/cmdb.proto proto/alert/alert.proto proto/ticket/ticket.proto
 
 # Copy service code
 COPY cmdb-service /app/service

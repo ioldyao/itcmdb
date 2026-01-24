@@ -25,17 +25,17 @@ message ValidateTokenRequest {
 
 message ValidateTokenResponse {
   bool valid = 1;
-  uint32 user_id = 2;
+  uint64 user_id = 2;
   string username = 3;
   string error = 4;
 }
 
 message GetUserRequest {
-  uint32 user_id = 1;
+  uint64 user_id = 1;
 }
 
 message GetUserResponse {
-  uint32 id = 1;
+  uint64 id = 1;
   string username = 2;
   string email = 3;
   string full_name = 4;
@@ -43,7 +43,7 @@ message GetUserResponse {
 }
 
 message GetUserPermissionsRequest {
-  uint32 user_id = 1;
+  uint64 user_id = 1;
 }
 
 message GetUserPermissionsResponse {
@@ -51,7 +51,7 @@ message GetUserPermissionsResponse {
 }
 
 message CheckPermissionRequest {
-  uint32 user_id = 1;
+  uint64 user_id = 1;
   string resource = 2;
   string action = 3;
 }

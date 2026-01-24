@@ -218,9 +218,10 @@ func (h *TagHandler) AssignTag(c *gin.Context) {
 		return
 	}
 
-	userID, _ := auth.GetUserID(c)
+	userID, _ := c.Get("user_id")
+	userIDUint := userID.(uint64)
 
-	if err := h.tagService.AssignTag(uint(id), req.TagID, uint(userID)); err != nil {
+	if err := h.tagService.AssignTag(uint(id), req.TagID, uint(userIDUint)); err != nil {
 		c.JSON(http.StatusInternalServerError, response.Error("添加标签失败", err.Error()))
 		return
 	}
@@ -265,9 +266,10 @@ func (h *TagHandler) BatchAssignTags(c *gin.Context) {
 		return
 	}
 
-	userID, _ := auth.GetUserID(c)
+	userID, _ := c.Get("user_id")
+	userIDUint := userID.(uint64)
 
-	if err := h.tagService.BatchAssignTags(req.CIIDs, req.TagID, uint(userID)); err != nil {
+	if err := h.tagService.BatchAssignTags(req.CIIDs, req.TagID, uint(userIDUint)); err != nil {
 		c.JSON(http.StatusInternalServerError, response.Error("批量添加标签失败", err.Error()))
 		return
 	}

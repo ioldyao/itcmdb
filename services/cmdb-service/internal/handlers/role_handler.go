@@ -193,9 +193,10 @@ func (h *RoleHandler) AssignCIRole(c *gin.Context) {
 		return
 	}
 
-	userID, _ := auth.GetUserID(c)
+	userID, _ := c.Get("user_id")
+	userIDUint := userID.(uint64)
 
-	if err := h.roleService.AssignCIRole(uint(id), &req, uint(userID)); err != nil {
+	if err := h.roleService.AssignCIRole(uint(id), &req, uint(userIDUint)); err != nil {
 		c.JSON(http.StatusInternalServerError, response.Error("分配角色失败", err.Error()))
 		return
 	}
