@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
@@ -12,14 +13,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"github.com/itcmdb/auth-service/internal/handlers"
+	grpcserver "github.com/itcmdb/auth-service/internal/grpc"
 	"github.com/itcmdb/auth-service/internal/repository"
 	"github.com/itcmdb/auth-service/internal/service"
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/audit"
+	"github.com/itcmdb/shared/pkg/cache"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
 	"github.com/itcmdb/shared/pkg/response"
+	pb "github.com/itcmdb/shared/proto"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -43,6 +49,18 @@ func main() {
 		SSLMode:  viper.GetString("database.sslmode"),
 	}); err != nil {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
+	}
+
+	// 初始化Redis缓存
+	if err := cache.Init(cache.Config{
+		Host:     viper.GetString("redis.host"),
+		Port:     viper.GetInt("redis.port"),
+		Password: viper.GetString("redis.password"),
+		DB:       viper.GetInt("redis.db"),
+	}); err != nil {
+		logger.Warn("Failed to connect to Redis, running without cache", zap.Error(err))
+	} else {
+		logger.Info("Redis cache connected")
 	}
 
 	// 自动迁移数据库表
@@ -73,6 +91,12 @@ func main() {
 		viper.GetDuration("jwt.expiration"),
 	)
 
+	// 初始化Auth服务
+	authService := service.NewAuthService(jwtManager)
+
+	// 启动gRPC服务器
+	go startGRPCServer(authService, userService)
+
 	// 设置Gin
 	if viper.GetString("env") == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -83,9 +107,9 @@ func main() {
 	// 注册路由
 	setupRoutes(r, jwtManager, userService, roleHandler)
 
-	// 启动服务
+	// 启动REST API服务
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
-	logger.Info("Auth service starting", zap.String("addr", addr))
+	logger.Info("Auth REST API service starting", zap.String("addr", addr))
 
 	// 优雅关闭
 	go func() {
@@ -121,6 +145,11 @@ func loadConfig() error {
 	viper.BindEnv("jwt.expiration", "AUTH_JWT_EXPIRATION")
 	viper.BindEnv("server.port", "AUTH_SERVER_PORT")
 	viper.BindEnv("log.level", "AUTH_LOG_LEVEL")
+	viper.BindEnv("redis.host", "AUTH_REDIS_HOST")
+	viper.BindEnv("redis.port", "AUTH_REDIS_PORT")
+	viper.BindEnv("redis.password", "AUTH_REDIS_PASSWORD")
+	viper.BindEnv("redis.db", "AUTH_REDIS_DB")
+	viper.BindEnv("grpc.port", "AUTH_GRPC_PORT")
 
 	// 必须在 SetDefault 之前调用 AutomaticEnv
 	viper.AutomaticEnv()
@@ -129,6 +158,7 @@ func loadConfig() error {
 	// 设置默认值
 	viper.SetDefault("env", "development")
 	viper.SetDefault("server.port", "5001")
+	viper.SetDefault("grpc.port", "50001")
 	viper.SetDefault("log.level", "info")
 	viper.SetDefault("jwt.secret", "your-secret-key-change-in-production")
 	viper.SetDefault("jwt.expiration", "24h")
@@ -138,6 +168,10 @@ func loadConfig() error {
 	viper.SetDefault("database.password", "postgres")
 	viper.SetDefault("database.dbname", "itcmdb")
 	viper.SetDefault("database.sslmode", "disable")
+	viper.SetDefault("redis.host", "redis")
+	viper.SetDefault("redis.port", 6379)
+	viper.SetDefault("redis.password", "itcmdb_redis_pass_2026")
+	viper.SetDefault("redis.db", 0)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
@@ -536,5 +570,29 @@ func getPermissionsHandler(userService service.UserService) gin.HandlerFunc {
 		}
 
 		c.JSON(200, response.Success(permissions))
+	}
+}
+
+func startGRPCServer(authService service.AuthService, userService service.UserService) {
+	grpcPort := viper.GetString("grpc.port")
+	if grpcPort == "" {
+		grpcPort = "50001"
+	}
+
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
+	if err != nil {
+		logger.Fatal("Failed to listen for gRPC", zap.Error(err))
+	}
+
+	grpcServer := grpc.NewServer()
+	authServer := grpcserver.NewAuthServer(authService, userService)
+	pb.RegisterAuthServiceServer(grpcServer, authServer)
+
+	// 注册反射服务，用于grpcurl等工具
+	reflection.Register(grpcServer)
+
+	logger.Info("Auth gRPC service starting", zap.String("port", grpcPort))
+	if err := grpcServer.Serve(lis); err != nil {
+		logger.Fatal("Failed to serve gRPC", zap.Error(err))
 	}
 }

@@ -19,6 +19,7 @@ type UserService interface {
 	UpdateUser(id uint, updates map[string]interface{}) error
 	DeleteUser(id uint) error
 	GetUserPermissions(userID uint) ([]string, error)
+	CheckPermission(userID uint, resource, action string) (bool, error)
 }
 
 type userService struct {
@@ -154,4 +155,22 @@ func (s *userService) DeleteUser(id uint) error {
 // GetUserPermissions 获取用户权限
 func (s *userService) GetUserPermissions(userID uint) ([]string, error) {
 	return s.repo.GetUserPermissions(userID)
+}
+
+// CheckPermission 检查用户权限
+func (s *userService) CheckPermission(userID uint, resource, action string) (bool, error) {
+	permissions, err := s.GetUserPermissions(userID)
+	if err != nil {
+		return false, err
+	}
+
+	// 检查是否有匹配的权限
+	requiredPermission := resource + ":" + action
+	for _, perm := range permissions {
+		if perm == requiredPermission || perm == resource+":*" || perm == "*:*" {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
