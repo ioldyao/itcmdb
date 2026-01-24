@@ -5,7 +5,7 @@ WORKDIR /app
 ENV GOPROXY=https://mirrors.aliyun.com/goproxy/,direct
 ENV GO111MODULE=on
 
-RUN apk add --no-cache git protobuf
+RUN apk add --no-cache git protobuf protobuf-dev
 
 # 安装protoc-gen-go和protoc-gen-go-grpc
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.1
