@@ -3,6 +3,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -10,6 +14,7 @@ import (
 	"github.com/itcmdb/auth-service/internal/repository"
 	"github.com/itcmdb/auth-service/internal/service"
 	"github.com/itcmdb/shared/pkg/auth"
+	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
 	"github.com/itcmdb/shared/pkg/response"
@@ -55,6 +60,12 @@ func main() {
 	roleService := service.NewRoleService(roleRepo)
 	roleHandler := handlers.NewRoleHandler(roleService)
 
+	// 初始化审计日志Kafka生产者
+	kafkaBrokers := []string{"kafka:9092"}
+	if err := audit.InitProducer(kafkaBrokers); err != nil {
+		logger.Warn("Failed to initialize audit producer, audit logging disabled", zap.Error(err))
+	}
+
 	// 初始化JWT管理器
 	jwtManager := auth.NewJWTManager(
 		viper.GetString("jwt.secret"),
@@ -74,6 +85,18 @@ func main() {
 	// 启动服务
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
 	logger.Info("Auth service starting", zap.String("addr", addr))
+
+	// 优雅关闭
+	go func() {
+		sigterm := make(chan os.Signal, 1)
+		signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
+		<-sigterm
+
+		logger.Info("Shutting down auth service...")
+		audit.CloseProducer()
+		time.Sleep(1 * time.Second)
+	}()
+
 	if err := r.Run(addr); err != nil {
 		logger.Fatal("Failed to start server", zap.Error(err))
 	}

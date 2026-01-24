@@ -249,6 +249,40 @@ services:
       - data-network
     restart: unless-stopped
 
+  # 审计服务
+  audit-service:
+    build:
+      context: ./services
+      dockerfile: audit-service/Dockerfile
+    container_name: itcmdb-audit-service
+    ports:
+      - "5007:5007"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      AUDIT_ENV: production
+      AUDIT_SERVER_PORT: "5007"
+      AUDIT_LOG_LEVEL: info
+      AUDIT_DATABASE_HOST: postgres
+      AUDIT_DATABASE_PORT: 5432
+      AUDIT_DATABASE_USER: postgres
+      AUDIT_DATABASE_PASSWORD: postgres
+      AUDIT_DATABASE_DBNAME: itcmdb
+      AUDIT_DATABASE_SSLMODE: disable
+      AUDIT_KAFKA_BROKERS: kafka:9092
+      AUDIT_KAFKA_TOPIC: audit_logs
+      AUDIT_KAFKA_GROUP_ID: audit_consumer
+      AUDIT_CONSUMER_BATCH_SIZE: "100"
+      AUDIT_CONSUMER_BATCH_TIMEOUT: 1s
+      AUDIT_CONSUMER_WORKERS: "4"
+    networks:
+      - backend-network
+      - data-network
+    restart: unless-stopped
+
   # 前端应用
   frontend:
     build:

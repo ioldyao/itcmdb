@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/itcmdb/auth-service/internal/service"
+	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/response"
 )
 
@@ -44,8 +45,16 @@ func (h *RoleHandler) CreateRole(c *gin.Context) {
 	role, err := h.roleService.CreateRole(req.Name, req.Description)
 	if err != nil {
 		c.JSON(400, response.Error("400", err.Error()))
+		audit.LogError(c, "create", "roles", nil, err.Error(), req)
 		return
 	}
+
+	audit.LogSuccess(c, "create", "roles", &role.ID, map[string]interface{}{
+		"role_name":     role.Name,
+		"role_id":       role.ID,
+		"description":   req.Description,
+		"created_by":     "user",
+	})
 
 	c.JSON(200, response.Success(role))
 }

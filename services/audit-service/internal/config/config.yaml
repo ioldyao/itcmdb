@@ -1,0 +1,22 @@
+server:
+  port: 5007
+  log_level: info
+
+kafka:
+  brokers:
+    - kafka:9092
+  topic: audit_logs
+  group_id: audit_consumer
+
+database:
+  host: postgres
+  port: 5432
+  user: postgres
+  password: postgres
+  dbname: itcmdb
+  sslmode: disable
+
+consumer:
+  batch_size: 100
+  batch_timeout: 1s
+  workers: 4
