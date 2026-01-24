@@ -59,6 +59,18 @@ export interface CIRelation {
   child?: CIInstance
 }
 
+// CI 变更历史
+export interface CIHistory {
+  id: number
+  ci_id: number
+  changed_by: number
+  action: string // create, update, delete
+  field_name: string
+  old_value: string
+  new_value: string
+  changed_at: string
+}
+
 // 分页响应
 export interface PaginationResponse<T> {
   items: T[]
@@ -92,6 +104,9 @@ interface CMDBState {
   createInstance: (data: CreateCIInstanceRequest) => Promise<CIInstance>
   updateInstance: (id: number, data: UpdateCIInstanceRequest) => Promise<void>
   deleteInstance: (id: number) => Promise<void>
+  fetchHistory: (ciId: number, limit?: number) => Promise<CIHistory[]>
+  fetchRelations: (ciId: number) => Promise<CIRelation[]>
+  createRelation: (data: CreateCIRelationRequest) => Promise<CIRelation>
   setFilters: (filters: Record<string, any>) => void
   resetFilters: () => void
 }
@@ -109,6 +124,13 @@ interface UpdateCIInstanceRequest {
   status?: string
   attributes?: Record<string, any>
   tags?: Record<string, any>
+}
+
+interface CreateCIRelationRequest {
+  parent_id: number
+  child_id: number
+  relation_type: string
+  description?: string
 }
 
 // Helper function to get auth token
@@ -304,6 +326,69 @@ export const useCMDBStore = create<CMDBState>()(
           throw error
         } finally {
           set({ loading: false })
+        }
+      },
+
+      fetchHistory: async (ciId: number, limit = 50) => {
+        try {
+          const token = getAuthToken()
+          const params = new URLSearchParams()
+          if (limit) params.append('limit', limit.toString())
+
+          const response = await fetch(`/api/v1/ci/instances/${ciId}/history?${params}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+          const result: ApiResponse<CIHistory[]> = await response.json()
+          if (result.code === 0) {
+            return result.data
+          }
+          throw new Error(result.message)
+        } catch (error) {
+          console.error('Failed to fetch CI history:', error)
+          throw error
+        }
+      },
+
+      fetchRelations: async (ciId: number) => {
+        try {
+          const token = getAuthToken()
+          const response = await fetch(`/api/v1/ci/relations?ci_id=${ciId}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+          const result: ApiResponse<CIRelation[]> = await response.json()
+          if (result.code === 0) {
+            return result.data
+          }
+          throw new Error(result.message)
+        } catch (error) {
+          console.error('Failed to fetch CI relations:', error)
+          throw error
+        }
+      },
+
+      createRelation: async (data: CreateCIRelationRequest) => {
+        try {
+          const token = getAuthToken()
+          const response = await fetch('/api/v1/ci/relations', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(data),
+          })
+          const result: ApiResponse<CIRelation> = await response.json()
+          if (result.code === 0) {
+            return result.data
+          }
+          throw new Error(result.message)
+        } catch (error) {
+          console.error('Failed to create CI relation:', error)
+          throw error
         }
       },
 
