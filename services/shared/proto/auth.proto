@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/itcmdb/shared/proto/auth";
+
+// 认证服务
+service AuthService {
+  // 验证JWT令牌
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+
+  // 获取用户信息
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+
+  // 获取用户权限
+  rpc GetUserPermissions(GetUserPermissionsRequest) returns (GetUserPermissionsResponse);
+
+  // 检查用户权限
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  uint32 user_id = 2;
+  string username = 3;
+  string error = 4;
+}
+
+message GetUserRequest {
+  uint32 user_id = 1;
+}
+
+message GetUserResponse {
+  uint32 id = 1;
+  string username = 2;
+  string email = 3;
+  string full_name = 4;
+  string status = 5;
+}
+
+message GetUserPermissionsRequest {
+  uint32 user_id = 1;
+}
+
+message GetUserPermissionsResponse {
+  repeated string permissions = 1;
+}
+
+message CheckPermissionRequest {
+  uint32 user_id = 1;
+  string resource = 2;
+  string action = 3;
+}
+
+message CheckPermissionResponse {
+  bool allowed = 1;
+}

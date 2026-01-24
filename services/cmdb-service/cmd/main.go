@@ -3,17 +3,23 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"github.com/itcmdb/cmdb-service/internal/handlers"
+	grpcserver "github.com/itcmdb/cmdb-service/internal/grpc"
 	"github.com/itcmdb/cmdb-service/internal/repository"
 	"github.com/itcmdb/cmdb-service/internal/service"
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/audit"
+	"github.com/itcmdb/shared/pkg/cache"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
+	pb "github.com/itcmdb/shared/proto"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -34,6 +40,18 @@ func main() {
 		SSLMode:  viper.GetString("database.sslmode"),
 	}); err != nil {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
+	}
+
+	// 初始化Redis缓存
+	if err := cache.Init(cache.Config{
+		Host:     viper.GetString("redis.host"),
+		Port:     viper.GetInt("redis.port"),
+		Password: viper.GetString("redis.password"),
+		DB:       viper.GetInt("redis.db"),
+	}); err != nil {
+		logger.Warn("Failed to connect to Redis, running without cache", zap.Error(err))
+	} else {
+		logger.Info("Redis cache connected")
 	}
 
 	// 初始化依赖
@@ -65,12 +83,40 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	// 启动gRPC服务器
+	go startGRPCServer(ciService)
+
+	// 启动REST API服务器
 	r := gin.Default()
 	setupRoutes(r, jwtManager, ciHandler, roleHandler, tagHandler)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
-	logger.Info("CMDB service starting", zap.String("addr", addr))
+	logger.Info("CMDB REST API service starting", zap.String("addr", addr))
 	r.Run(addr)
+}
+
+func startGRPCServer(ciService service.CIService) {
+	grpcPort := viper.GetString("grpc.port")
+	if grpcPort == "" {
+		grpcPort = "50002"
+	}
+
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
+	if err != nil {
+		logger.Fatal("Failed to listen for gRPC", zap.Error(err))
+	}
+
+	grpcServer := grpc.NewServer()
+	cmdbServer := grpcserver.NewCMDBServer(ciService)
+	pb.RegisterCMDBServiceServer(grpcServer, cmdbServer)
+
+	// 注册反射服务，用于grpcurl等工具
+	reflection.Register(grpcServer)
+
+	logger.Info("CMDB gRPC service starting", zap.String("port", grpcPort))
+	if err := grpcServer.Serve(lis); err != nil {
+		logger.Fatal("Failed to serve gRPC", zap.Error(err))
+	}
 }
 
 func loadConfig() error {
@@ -88,12 +134,18 @@ func loadConfig() error {
 	viper.BindEnv("database.sslmode", "CMDB_DATABASE_SSLMODE")
 	viper.BindEnv("jwt.secret", "CMDB_JWT_SECRET")
 	viper.BindEnv("jwt.expiration", "CMDB_JWT_EXPIRATION")
+	viper.BindEnv("redis.host", "CMDB_REDIS_HOST")
+	viper.BindEnv("redis.port", "CMDB_REDIS_PORT")
+	viper.BindEnv("redis.password", "CMDB_REDIS_PASSWORD")
+	viper.BindEnv("redis.db", "CMDB_REDIS_DB")
+	viper.BindEnv("grpc.port", "CMDB_GRPC_PORT")
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("CMDB")
 
 	viper.SetDefault("env", "development")
 	viper.SetDefault("server.port", "5002")
+	viper.SetDefault("grpc.port", "50002")
 	viper.SetDefault("log.level", "info")
 	viper.SetDefault("jwt.secret", "your-secret-key-change-in-production")
 	viper.SetDefault("jwt.expiration", "24h")
@@ -103,6 +155,10 @@ func loadConfig() error {
 	viper.SetDefault("database.password", "postgres")
 	viper.SetDefault("database.dbname", "itcmdb")
 	viper.SetDefault("database.sslmode", "disable")
+	viper.SetDefault("redis.host", "redis")
+	viper.SetDefault("redis.port", 6379)
+	viper.SetDefault("redis.password", "itcmdb_redis_pass_2026")
+	viper.SetDefault("redis.db", 0)
 
 	viper.ReadInConfig()
 	return nil

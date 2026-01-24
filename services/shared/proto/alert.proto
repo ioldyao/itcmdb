@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package alert;
+
+option go_package = "github.com/itcmdb/shared/proto/alert";
+
+// 告警服务
+service AlertService {
+  // 获取告警
+  rpc GetAlert(GetAlertRequest) returns (GetAlertResponse);
+
+  // 获取告警列表
+  rpc GetAlerts(GetAlertsRequest) returns (GetAlertsResponse);
+
+  // 获取告警规则
+  rpc GetAlertRule(GetAlertRuleRequest) returns (GetAlertRuleResponse);
+
+  // 获取告警规则列表
+  rpc GetAlertRules(GetAlertRulesRequest) returns (GetAlertRulesResponse);
+
+  // 确认告警
+  rpc AcknowledgeAlert(AcknowledgeAlertRequest) returns (AcknowledgeAlertResponse);
+}
+
+message GetAlertRequest {
+  uint32 id = 1;
+}
+
+message GetAlertResponse {
+  Alert alert = 1;
+}
+
+message GetAlertsRequest {
+  string severity = 1;
+  string status = 2;
+  uint32 affected_ci_id = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message GetAlertsResponse {
+  repeated Alert alerts = 1;
+  int64 total = 2;
+}
+
+message GetAlertRuleRequest {
+  uint32 id = 1;
+}
+
+message GetAlertRuleResponse {
+  AlertRule rule = 1;
+}
+
+message GetAlertRulesRequest {
+  bool is_active = 1;
+}
+
+message GetAlertRulesResponse {
+  repeated AlertRule rules = 1;
+}
+
+message AcknowledgeAlertRequest {
+  uint32 id = 1;
+  uint32 user_id = 2;
+}
+
+message AcknowledgeAlertResponse {
+  Alert alert = 1;
+}
+
+message Alert {
+  uint32 id = 1;
+  uint32 rule_id = 2;
+  string title = 3;
+  string description = 4;
+  string severity = 5;
+  string status = 6;
+  uint32 affected_ci_id = 7;
+  string triggered_at = 8;
+  string acknowledged_at = 9;
+  uint32 acknowledged_by = 10;
+  string closed_at = 11;
+}
+
+message AlertRule {
+  uint32 id = 1;
+  string name = 2;
+  string condition = 3;
+  string severity = 4;
+  string notification_channels = 5;
+  bool is_active = 6;
+}

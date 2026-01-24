@@ -122,12 +122,16 @@ services:
     container_name: itcmdb-cmdb-service
     ports:
       - "5002:5002"
+      - "50002:50002"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       CMDB_ENV: production
       CMDB_SERVER_PORT: "5002"
+      CMDB_GRPC_PORT: "50002"
       CMDB_LOG_LEVEL: info
       CMDB_DATABASE_HOST: postgres
       CMDB_DATABASE_PORT: 5432
@@ -135,6 +139,10 @@ services:
       CMDB_DATABASE_PASSWORD: postgres
       CMDB_DATABASE_DBNAME: itcmdb
       CMDB_DATABASE_SSLMODE: disable
+      CMDB_REDIS_HOST: redis
+      CMDB_REDIS_PORT: 6379
+      CMDB_REDIS_PASSWORD: ${REDIS_PASSWORD:-itcmdb_redis_pass_2026}
+      CMDB_REDIS_DB: 0
       CMDB_JWT_SECRET: your-secret-key-change-in-production
       CMDB_JWT_EXPIRATION: 24h
     networks:

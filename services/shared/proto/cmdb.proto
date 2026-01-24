@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package cmdb;
+
+option go_package = "github.com/itcmdb/shared/proto/cmdb";
+
+import "google/protobuf/struct.proto";
+
+// CMDB服务
+service CMDBService {
+  // 获取CI实例
+  rpc GetCIInstance(GetCIInstanceRequest) returns (GetCIInstanceResponse);
+
+  // 获取CI实例列表
+  rpc GetCIInstances(GetCIInstancesRequest) returns (GetCIInstancesResponse);
+
+  // 获取CI类型
+  rpc GetCIType(GetCITypeRequest) returns (GetCITypeResponse);
+
+  // 获取CI类型列表
+  rpc GetCITypes(GetCITypesRequest) returns (GetCITypesResponse);
+
+  // 获取CI关系
+  rpc GetCIRelations(GetCIRelationsRequest) returns (GetCIRelationsResponse);
+}
+
+message GetCIInstanceRequest {
+  uint32 id = 1;
+}
+
+message GetCIInstanceResponse {
+  CIInstance instance = 1;
+}
+
+message GetCIInstancesRequest {
+  uint32 ci_type_id = 1;
+  map<string, string> filters = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetCIInstancesResponse {
+  repeated CIInstance instances = 1;
+  int64 total = 2;
+}
+
+message GetCITypeRequest {
+  uint32 id = 1;
+}
+
+message GetCITypeResponse {
+  CIType ci_type = 1;
+}
+
+message GetCITypesRequest {
+}
+
+message GetCITypesResponse {
+  repeated CIType ci_types = 1;
+}
+
+message GetCIRelationsRequest {
+  uint32 ci_id = 1;
+}
+
+message GetCIRelationsResponse {
+  repeated CIRelation relations = 1;
+}
+
+message CIInstance {
+  uint32 id = 1;
+  uint32 ci_type_id = 2;
+  string name = 3;
+  string status = 4;
+  google.protobuf.Struct attributes = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  CIType ci_type = 8;
+}
+
+message CIType {
+  uint32 id = 1;
+  string name = 2;
+  string display_name = 3;
+  string icon = 4;
+  string description = 5;
+  bool is_active = 6;
+}
+
+message CIRelation {
+  uint32 id = 1;
+  uint32 parent_id = 2;
+  uint32 child_id = 3;
+  string relation_type = 4;
+  string description = 5;
+  CIInstance parent = 6;
+  CIInstance child = 7;
+}
