@@ -5,8 +5,10 @@ import { Server as ServerIcon } from 'lucide-react'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useCMDBStore, CIInstance } from '@/stores/cmdbStore'
 import ImportExportModal from '@/components/CMDB/ImportExportModal'
+import { useNavigate } from 'react-router-dom'
 
 export default function CMDBServers() {
+  const navigate = useNavigate()
   const {
     instances,
     total,
@@ -131,7 +133,7 @@ export default function CMDBServers() {
       key: 'name',
       render: (text: string, record: CIInstance) => (
         <a
-          onClick={() => handleEdit(record)}
+          onClick={() => navigate(`/cmdb/instances/${record.id}`)}
           className="text-brand-primary hover:underline cursor-pointer"
         >
           {text}
