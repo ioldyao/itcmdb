@@ -27,6 +27,7 @@ import AlertRules from '@/pages/Alert/Rules'
 import AlertHistory from '@/pages/Alert/History'
 
 // Admin Pages
+import AdminLayout from '@/pages/Admin'
 import AdminUsers from '@/pages/Admin/Users'
 import AdminRoles from '@/pages/Admin/Roles'
 import AdminAudit from '@/pages/Admin/Audit'
@@ -78,6 +79,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'admin',
+        element: <AdminLayout />,
         children: [
           { index: true, element: <Navigate to="/admin/users" replace /> },
           { path: 'users', element: <AdminUsers /> },
