@@ -5,7 +5,7 @@ import (
 
 	"github.com/itcmdb/cmdb-service/internal/models"
 	"github.com/itcmdb/cmdb-service/internal/service"
-	pb "github.com/itcmdb/shared/proto"
+	pb "github.com/itcmdb/shared/proto/cmdb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"

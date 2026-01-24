@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	pb "github.com/itcmdb/shared/proto"
+	pb "github.com/itcmdb/shared/proto/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

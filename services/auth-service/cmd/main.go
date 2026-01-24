@@ -22,7 +22,7 @@ import (
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
 	"github.com/itcmdb/shared/pkg/response"
-	pb "github.com/itcmdb/shared/proto"
+	pb "github.com/itcmdb/shared/proto/auth"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"

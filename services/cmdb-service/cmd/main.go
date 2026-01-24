@@ -18,7 +18,7 @@ import (
 	kafkapkg "github.com/itcmdb/shared/pkg/kafka"
 	"github.com/itcmdb/shared/pkg/logger"
 	"github.com/itcmdb/shared/pkg/middleware"
-	pb "github.com/itcmdb/shared/proto"
+	pb "github.com/itcmdb/shared/proto/cmdb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
