@@ -15,6 +15,7 @@ import (
 	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/cache"
 	"github.com/itcmdb/shared/pkg/database"
+	kafkapkg "github.com/itcmdb/shared/pkg/kafka"
 	"github.com/itcmdb/shared/pkg/logger"
 	pb "github.com/itcmdb/shared/proto"
 	"go.uber.org/zap"
@@ -64,6 +65,13 @@ func main() {
 	kafkaBrokers := []string{"kafka:9092"}
 	if err := audit.InitProducer(kafkaBrokers); err != nil {
 		logger.Warn("Failed to initialize audit producer, audit logging disabled", zap.Error(err))
+	}
+
+	// 初始化Kafka事件生产者
+	if err := kafkapkg.InitEventProducer(kafkaBrokers); err != nil {
+		logger.Warn("Failed to initialize event producer, event publishing disabled", zap.Error(err))
+	} else {
+		logger.Info("Kafka event producer initialized")
 	}
 
 	db := database.Get()

@@ -7,6 +7,7 @@ import (
 
 	"github.com/itcmdb/cmdb-service/internal/models"
 	"github.com/itcmdb/cmdb-service/internal/repository"
+	kafkapkg "github.com/itcmdb/shared/pkg/kafka"
 )
 
 type CIService interface {
@@ -132,6 +133,23 @@ func (s *ciService) CreateCIInstance(req *CreateCIInstanceRequest, userID uint) 
 	// 记录历史
 	s.recordHistory(instance.ID, userID, "create", "", "", "")
 
+	// 发布CI创建事件
+	go func() {
+		eventData := map[string]interface{}{
+			"ci_id":      instance.ID,
+			"ci_type_id": instance.CITypeID,
+			"ci_name":    instance.Name,
+			"action":     "create",
+			"changed_by": userID,
+			"new_value": map[string]interface{}{
+				"name":       instance.Name,
+				"status":     instance.Status,
+				"attributes": instance.Attributes,
+			},
+		}
+		kafkapkg.PublishCIEvent(kafkapkg.EventCIChanged, eventData)
+	}()
+
 	return instance, nil
 }
 
@@ -174,6 +192,26 @@ func (s *ciService) UpdateCIInstance(id uint, req *UpdateCIInstanceRequest, user
 		return nil, err
 	}
 
+	// 发布CI更新事件
+	go func() {
+		var oldValue, newValue map[string]interface{}
+		json.Unmarshal(oldData, &oldValue)
+
+		newData, _ := json.Marshal(instance)
+		json.Unmarshal(newData, &newValue)
+
+		eventData := map[string]interface{}{
+			"ci_id":      instance.ID,
+			"ci_type_id": instance.CITypeID,
+			"ci_name":    instance.Name,
+			"action":     "update",
+			"changed_by": userID,
+			"old_value":  oldValue,
+			"new_value":  newValue,
+		}
+		kafkapkg.PublishCIEvent(kafkapkg.EventCIChanged, eventData)
+	}()
+
 	return instance, nil
 }
 
@@ -186,7 +224,23 @@ func (s *ciService) DeleteCIInstance(id uint, userID uint) error {
 	// 记录删除历史
 	s.recordHistory(id, userID, "delete", "", instance.Name, "")
 
-	return s.repo.DeleteCIInstance(id)
+	if err := s.repo.DeleteCIInstance(id); err != nil {
+		return err
+	}
+
+	// 发布CI删除事件
+	go func() {
+		eventData := map[string]interface{}{
+			"ci_id":      instance.ID,
+			"ci_type_id": instance.CITypeID,
+			"ci_name":    instance.Name,
+			"action":     "delete",
+			"changed_by": userID,
+		}
+		kafkapkg.PublishCIEvent(kafkapkg.EventCIDeleted, eventData)
+	}()
+
+	return nil
 }
 
 // CI Relations
@@ -215,6 +269,19 @@ func (s *ciService) CreateCIRelation(req *CreateCIRelationRequest, userID uint) 
 	if err := s.repo.CreateCIRelation(relation); err != nil {
 		return nil, err
 	}
+
+	// 发布CI关系变更事件
+	go func() {
+		eventData := map[string]interface{}{
+			"relation_id":   relation.ID,
+			"parent_id":     relation.ParentID,
+			"child_id":      relation.ChildID,
+			"relation_type": relation.RelationType,
+			"action":        "create",
+			"changed_by":    userID,
+		}
+		kafkapkg.PublishCIEvent(kafkapkg.EventCIRelationshipChanged, eventData)
+	}()
 
 	return relation, nil
 }
