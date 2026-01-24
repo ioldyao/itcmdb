@@ -85,7 +85,7 @@ func (s *CMDBServer) GetCITypes(ctx context.Context, req *pb.GetCITypesRequest) 
 	pbTypes := make([]*pb.CIType, 0, len(types))
 	for _, t := range types {
 		pbTypes = append(pbTypes, &pb.CIType{
-			Id:          uint32(t.ID),
+			Id:          uint64(t.ID),
 			Name:        t.Name,
 			DisplayName: t.DisplayName,
 			Icon:        t.Icon,
@@ -110,9 +110,9 @@ func (s *CMDBServer) GetCIRelations(ctx context.Context, req *pb.GetCIRelationsR
 	pbRelations := make([]*pb.CIRelation, 0, len(relations))
 	for _, rel := range relations {
 		pbRel := &pb.CIRelation{
-			Id:           uint32(rel.ID),
-			ParentId:     uint32(rel.ParentID),
-			ChildId:      uint32(rel.ChildID),
+			Id:           uint64(rel.ID),
+			ParentId:     uint64(rel.ParentID),
+			ChildId:      uint64(rel.ChildID),
 			RelationType: rel.RelationType,
 			Description:  rel.Description,
 		}
@@ -152,8 +152,8 @@ func convertCIInstanceToPB(instance *models.CIInstance) (*pb.CIInstance, error) 
 	}
 
 	pbInst := &pb.CIInstance{
-		Id:         uint32(instance.ID),
-		CiTypeId:   uint32(instance.CITypeID),
+		Id:         uint64(instance.ID),
+		CiTypeId:   uint64(instance.CITypeID),
 		Name:       instance.Name,
 		Status:     instance.Status,
 		Attributes: attrs,
@@ -164,7 +164,7 @@ func convertCIInstanceToPB(instance *models.CIInstance) (*pb.CIInstance, error) 
 	// 转换CI类型
 	if instance.CIType != nil {
 		pbInst.CiType = &pb.CIType{
-			Id:          uint32(instance.CIType.ID),
+			Id:          uint64(instance.CIType.ID),
 			Name:        instance.CIType.Name,
 			DisplayName: instance.CIType.DisplayName,
 			Icon:        instance.CIType.Icon,
