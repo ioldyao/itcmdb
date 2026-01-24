@@ -8,6 +8,7 @@ import (
 type AuditRepository interface {
 	CreateBatch(logs []models.AuditLog) error
 	GetLogs(offset, limit int, userID *uint, action, resource, startTime, endTime *string) ([]models.AuditLog, int64, error)
+	GetStats(startTime, endTime *string) (int64, map[string]int64, map[string]int64, error)
 }
 
 type auditRepository struct {
@@ -59,4 +60,51 @@ func (r *auditRepository) GetLogs(offset, limit int, userID *uint, action, resou
 	}
 
 	return logs, total, nil
+}
+
+func (r *auditRepository) GetStats(startTime, endTime *string) (int64, map[string]int64, map[string]int64, error) {
+	var total int64
+	byAction := make(map[string]int64)
+	byResource := make(map[string]int64)
+
+	query := r.db.Model(&models.AuditLog{})
+
+	// 时间范围筛选
+	if startTime != nil {
+		query = query.Where("created_at >= ?", *startTime)
+	}
+	if endTime != nil {
+		query = query.Where("created_at <= ?", *endTime)
+	}
+
+	// 获取总数
+	if err := query.Count(&total).Error; err != nil {
+		return 0, nil, nil, err
+	}
+
+	// 按操作类型统计
+	var actionStats []struct {
+		Action string
+		Count  int64
+	}
+	if err := query.Select("action, COUNT(*) as count").Group("action").Scan(&actionStats).Error; err != nil {
+		return 0, nil, nil, err
+	}
+	for _, stat := range actionStats {
+		byAction[stat.Action] = stat.Count
+	}
+
+	// 按资源类型统计
+	var resourceStats []struct {
+		Resource string
+		Count    int64
+	}
+	if err := query.Select("resource, COUNT(*) as count").Group("resource").Scan(&resourceStats).Error; err != nil {
+		return 0, nil, nil, err
+	}
+	for _, stat := range resourceStats {
+		byResource[stat.Resource] = stat.Count
+	}
+
+	return total, byAction, byResource, nil
 }

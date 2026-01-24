@@ -157,7 +157,7 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, userService service
 		{
 			auth.POST("/register", registerHandler(userService, jwtManager))
 			auth.POST("/login", loginHandler(userService, jwtManager))
-			auth.POST("/logout", logoutHandler())
+			auth.POST("/logout", jwtManager.AuthMiddleware(), logoutHandler())
 			auth.POST("/refresh", refreshHandler(jwtManager))
 		}
 
@@ -283,6 +283,10 @@ func loginHandler(userService service.UserService, jwtManager *auth.JWTManager) 
 		// 验证用户
 		user, err := userService.ValidateUser(req.Username, req.Password)
 		if err != nil {
+			// 记录登录失败的审计日志
+			audit.LogError(c, "login", "user", nil, "invalid username or password", gin.H{
+				"username": req.Username,
+			})
 			c.JSON(401, response.Error("Unauthorized", "invalid username or password"))
 			return
 		}
@@ -301,6 +305,13 @@ func loginHandler(userService service.UserService, jwtManager *auth.JWTManager) 
 			return
 		}
 
+		// 记录登录成功的审计日志
+		userIDUint := user.ID
+		audit.LogSuccess(c, "login", "user", &userIDUint, gin.H{
+			"username": user.Username,
+			"email":    user.Email,
+		})
+
 		c.JSON(200, response.Success(gin.H{
 			"token": token,
 			"user": gin.H{
@@ -316,6 +327,18 @@ func loginHandler(userService service.UserService, jwtManager *auth.JWTManager) 
 
 func logoutHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 获取用户信息（如果已认证）
+		userID, exists := auth.GetUserID(c)
+		username, _ := auth.GetUsername(c)
+
+		// 记录登出审计日志
+		if exists {
+			userIDUint := uint(userID)
+			audit.LogSuccess(c, "logout", "user", &userIDUint, gin.H{
+				"username": username,
+			})
+		}
+
 		// TODO: 实现token黑名单逻辑
 		c.JSON(200, response.Success(nil))
 	}

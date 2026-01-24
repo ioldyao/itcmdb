@@ -4,8 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // JSONB 自定义类型用于存储动态属性

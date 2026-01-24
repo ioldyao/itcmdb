@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/itcmdb/cmdb-service/internal/service"
+	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/response"
 )
 
@@ -83,10 +84,16 @@ func (h *CIHandler) CreateCIInstance(c *gin.Context) {
 
 	instance, err := h.ciService.CreateCIInstance(&req, uid)
 	if err != nil {
+		audit.LogError(c, "create", "ci_instances", nil, err.Error(), req)
 		c.JSON(400, response.Error("Failed to create CI instance", err.Error()))
 		return
 	}
 
+	audit.LogSuccess(c, "create", "ci_instances", &instance.ID, map[string]interface{}{
+		"ci_type_id": req.CITypeID,
+		"ci_name":    req.Name,
+		"status":     instance.Status,
+	})
 	c.JSON(201, response.Success(instance))
 }
 
@@ -110,12 +117,18 @@ func (h *CIHandler) UpdateCIInstance(c *gin.Context) {
 		uid = 1
 	}
 
-	instance, err := h.ciService.UpdateCIInstance(uint(id), &req, uid)
+	instanceID := uint(id)
+	instance, err := h.ciService.UpdateCIInstance(instanceID, &req, uid)
 	if err != nil {
+		audit.LogError(c, "update", "ci_instances", &instanceID, err.Error(), req)
 		c.JSON(400, response.Error("Failed to update CI instance", err.Error()))
 		return
 	}
 
+	audit.LogSuccess(c, "update", "ci_instances", &instance.ID, map[string]interface{}{
+		"ci_name": req.Name,
+		"status":  instance.Status,
+	})
 	c.JSON(200, response.Success(instance))
 }
 
@@ -133,11 +146,16 @@ func (h *CIHandler) DeleteCIInstance(c *gin.Context) {
 		uid = 1
 	}
 
-	if err := h.ciService.DeleteCIInstance(uint(id), uid); err != nil {
+	instanceID := uint(id)
+	if err := h.ciService.DeleteCIInstance(instanceID, uid); err != nil {
+		audit.LogError(c, "delete", "ci_instances", &instanceID, err.Error(), nil)
 		c.JSON(400, response.Error("Failed to delete CI instance", err.Error()))
 		return
 	}
 
+	audit.LogSuccess(c, "delete", "ci_instances", &instanceID, map[string]interface{}{
+		"ci_instance_id": instanceID,
+	})
 	c.JSON(200, response.Success(nil))
 }
 

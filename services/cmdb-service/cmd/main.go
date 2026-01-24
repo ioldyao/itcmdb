@@ -10,6 +10,7 @@ import (
 	"github.com/itcmdb/cmdb-service/internal/repository"
 	"github.com/itcmdb/cmdb-service/internal/service"
 	"github.com/itcmdb/shared/pkg/auth"
+	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
 	"go.uber.org/zap"
@@ -40,6 +41,12 @@ func main() {
 		viper.GetString("jwt.secret"),
 		viper.GetDuration("jwt.expiration"),
 	)
+
+	// 初始化审计日志Kafka生产者
+	kafkaBrokers := []string{"kafka:9092"}
+	if err := audit.InitProducer(kafkaBrokers); err != nil {
+		logger.Warn("Failed to initialize audit producer, audit logging disabled", zap.Error(err))
+	}
 
 	db := database.Get()
 	ciRepo := repository.NewCIRepository(db)

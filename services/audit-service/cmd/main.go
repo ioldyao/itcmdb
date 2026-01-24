@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"github.com/itcmdb/audit-service/internal/consumer"
+	"github.com/itcmdb/audit-service/internal/handlers"
 	"github.com/itcmdb/audit-service/internal/repository"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
@@ -44,10 +46,13 @@ func main() {
 	// 初始化repository
 	db := database.Get()
 	auditRepo := repository.NewAuditRepository(db)
+	auditHandler := handlers.NewAuditHandler(auditRepo)
 
 	// 创建Kafka消费者
+	brokers := viper.GetStringSlice("kafka.brokers")
+	groupID := viper.GetString("kafka.group_id")
 	consumerConfig := getKafkaConfig()
-	kafkaConsumer, err := sarama.NewConsumerGroup(consumerConfig)
+	kafkaConsumer, err := sarama.NewConsumerGroup(brokers, groupID, consumerConfig)
 	if err != nil {
 		logger.Fatal("Failed to create Kafka consumer", zap.Error(err))
 	}
@@ -63,7 +68,25 @@ func main() {
 		}
 	}()
 
-	logger.Info("Audit service started", zap.String("addr", fmt.Sprintf(":%s", viper.GetString("server.port"))))
+	// 设置Gin
+	if viper.GetString("server.env") == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	r := gin.Default()
+
+	// 注册路由
+	setupRoutes(r, auditHandler)
+
+	// 启动HTTP服务器
+	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
+	go func() {
+		if err := r.Run(addr); err != nil {
+			logger.Fatal("Failed to start HTTP server", zap.Error(err))
+		}
+	}()
+
+	logger.Info("Audit service started", zap.String("addr", addr))
 
 	// 等待中断信号
 	sigterm := make(chan os.Signal, 1)
@@ -131,9 +154,23 @@ func getKafkaConfig() *sarama.Config {
 	config.Consumer.Return.Errors = true
 	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
-
-	brokers := viper.GetStringSlice("kafka.brokers")
 	config.Net.KeepAlive = 30 * time.Second
 
 	return config
+}
+
+func setupRoutes(r *gin.Engine, auditHandler *handlers.AuditHandler) {
+	api := r.Group("/api/v1")
+	{
+		audit := api.Group("/audit")
+		{
+			audit.GET("", auditHandler.GetAuditLogs)
+			audit.GET("/stats", auditHandler.GetAuditStats)
+		}
+	}
+
+	// Health check
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 }

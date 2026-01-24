@@ -30,6 +30,7 @@ func NewProducer(brokers []string, topic string) (*Producer, error) {
 	config := sarama.NewConfig()
 	config.Producer.RequiredAcks = sarama.WaitForAll
 	config.Producer.Retry.Max = 5
+	config.Producer.Return.Successes = true
 	config.Version = sarama.V2_8_0_0
 
 	producer, err := sarama.NewSyncProducer(brokers, config)
@@ -69,7 +70,7 @@ func (p *Producer) SendAuditEvent(event AuditEvent) error {
 		zap.String("action", event.Action),
 		zap.String("resource", event.Resource),
 		zap.Int32("partition", partition),
-		zap.Int64("offset", offset)),
+		zap.Int64("offset", offset),
 	)
 
 	return nil

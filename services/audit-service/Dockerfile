@@ -5,18 +5,19 @@ WORKDIR /app
 # 安装依赖
 RUN apk add --no-cache git
 
-# 复制shared和service代码
+# 设置Go代理
+ENV GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+
+# 复制shared代码
 COPY shared /app/shared
+
+# 复制audit-service代码
 COPY audit-service /app/service
 
 WORKDIR /app/service
 
-# 下载依赖
-RUN go mod download
-RUN go mod tidy
-
-# 编译
-RUN CGO_ENABLED=0 GOOS=linux go build -o audit-service ./cmd/main.go
+# 下载依赖并编译
+RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -o audit-service ./cmd/main.go
 
 # 运行时镜像
 FROM alpine:latest
@@ -29,7 +30,7 @@ WORKDIR /root
 COPY --from=builder /app/service/audit-service .
 
 # 复制配置文件
-COPY audit-service/internal/config/config.yaml /etc/audit-service/
+COPY --from=builder /app/service/internal/config/config.yaml /etc/audit-service/
 
 EXPOSE 5007
 
