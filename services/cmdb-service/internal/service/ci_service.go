@@ -27,6 +27,10 @@ type CIService interface {
 
 	// CI History
 	GetCIHistory(ciID uint, limit int) ([]models.CIHistory, error)
+
+	// Import/Export
+	ExportCIInstances(ciTypeID uint) ([]byte, error)
+	ImportCIInstances(ciTypeID uint, data []byte, userID uint) (*ImportResult, error)
 }
 
 type ciService struct {
@@ -58,6 +62,12 @@ type CreateCIRelationRequest struct {
 	ChildID      uint   `json:"child_id" binding:"required"`
 	RelationType string `json:"relation_type" binding:"required"`
 	Description  string `json:"description"`
+}
+
+type ImportResult struct {
+	Success int      `json:"success"`
+	Failed  int      `json:"failed"`
+	Errors  []string `json:"errors"`
 }
 
 // CI Types
@@ -243,4 +253,92 @@ func (s *ciService) recordHistory(ciID, userID uint, action, fieldName, oldValue
 		ChangedAt: time.Now(),
 	}
 	s.repo.CreateCIHistory(history)
+}
+
+// Import/Export
+
+func (s *ciService) ExportCIInstances(ciTypeID uint) ([]byte, error) {
+	// 获取所有CI实例
+	instances, _, err := s.repo.GetCIInstances(ciTypeID, nil, 1, 10000)
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为JSON格式
+	data, err := json.MarshalIndent(instances, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func (s *ciService) ImportCIInstances(ciTypeID uint, data []byte, userID uint) (*ImportResult, error) {
+	result := &ImportResult{
+		Success: 0,
+		Failed:  0,
+		Errors:  []string{},
+	}
+
+	// 解析JSON数据
+	var instances []map[string]interface{}
+	if err := json.Unmarshal(data, &instances); err != nil {
+		result.Errors = append(result.Errors, "Invalid JSON format: "+err.Error())
+		return result, err
+	}
+
+	// 验证CI类型
+	ciType, err := s.repo.GetCITypeByID(ciTypeID)
+	if err != nil {
+		result.Errors = append(result.Errors, "CI type not found")
+		return result, err
+	}
+
+	// 逐个导入CI实例
+	for i, instData := range instances {
+		name, ok := instData["name"].(string)
+		if !ok || name == "" {
+			result.Failed++
+			result.Errors = append(result.Errors, "Row "+string(rune(i+1))+": missing or invalid name")
+			continue
+		}
+
+		status, _ := instData["status"].(string)
+		if status == "" {
+			status = "active"
+		}
+
+		attributes, _ := instData["attributes"].(map[string]interface{})
+		tags, _ := instData["tags"].(map[string]interface{})
+
+		// 验证必填属性
+		if err := s.validateAttributes(attributes, ciType.Attributes); err != nil {
+			result.Failed++
+			result.Errors = append(result.Errors, "Row "+string(rune(i+1))+": "+err.Error())
+			continue
+		}
+
+		// 创建CI实例
+		instance := &models.CIInstance{
+			CITypeID:   ciTypeID,
+			Name:       name,
+			Status:     status,
+			Attributes: attributes,
+			Tags:       tags,
+			CreatedBy:  userID,
+			UpdatedBy:  userID,
+		}
+
+		if err := s.repo.CreateCIInstance(instance); err != nil {
+			result.Failed++
+			result.Errors = append(result.Errors, "Row "+string(rune(i+1))+": "+err.Error())
+			continue
+		}
+
+		// 记录历史
+		s.recordHistory(instance.ID, userID, "create", "", "", "")
+		result.Success++
+	}
+
+	return result, nil
 }

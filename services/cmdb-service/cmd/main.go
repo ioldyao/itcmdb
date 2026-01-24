@@ -124,6 +124,8 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, ciHandler *handlers
 			ci.GET("/instances/:id/history", ciHandler.GetCIHistory)
 			ci.GET("/relations", ciHandler.GetCIRelations)
 			ci.POST("/relations", ciHandler.CreateCIRelation)
+			ci.GET("/export", ciHandler.ExportCIInstances)
+			ci.POST("/import", ciHandler.ImportCIInstances)
 		}
 
 		// 角色管理

@@ -217,3 +217,66 @@ func (h *CIHandler) GetCIHistory(c *gin.Context) {
 
 	c.JSON(200, response.Success(history))
 }
+
+// ExportCIInstances 导出CI实例
+func (h *CIHandler) ExportCIInstances(c *gin.Context) {
+	ciTypeID, _ := strconv.Atoi(c.Query("ci_type_id"))
+
+	data, err := h.ciService.ExportCIInstances(uint(ciTypeID))
+	if err != nil {
+		c.JSON(500, response.Error("Failed to export CI instances", err.Error()))
+		return
+	}
+
+	// 设置响应头
+	c.Header("Content-Type", "application/json")
+	c.Header("Content-Disposition", "attachment; filename=ci_instances.json")
+	c.Data(200, "application/json", data)
+}
+
+// ImportCIInstances 导入CI实例
+func (h *CIHandler) ImportCIInstances(c *gin.Context) {
+	ciTypeID, _ := strconv.Atoi(c.Query("ci_type_id"))
+	if ciTypeID == 0 {
+		c.JSON(400, response.Error("Invalid request", "ci_type_id is required"))
+		return
+	}
+
+	// 读取上传的文件
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(400, response.Error("Invalid request", "file is required"))
+		return
+	}
+
+	// 打开文件
+	src, err := file.Open()
+	if err != nil {
+		c.JSON(500, response.Error("Failed to open file", err.Error()))
+		return
+	}
+	defer src.Close()
+
+	// 读取文件内容
+	data := make([]byte, file.Size)
+	if _, err := src.Read(data); err != nil {
+		c.JSON(500, response.Error("Failed to read file", err.Error()))
+		return
+	}
+
+	// 获取用户ID
+	userID, _ := c.Get("user_id")
+	uid, ok := userID.(uint)
+	if !ok {
+		uid = 1
+	}
+
+	// 导入数据
+	result, err := h.ciService.ImportCIInstances(uint(ciTypeID), data, uid)
+	if err != nil {
+		c.JSON(400, response.Error("Failed to import CI instances", err.Error()))
+		return
+	}
+
+	c.JSON(200, response.Success(result))
+}
