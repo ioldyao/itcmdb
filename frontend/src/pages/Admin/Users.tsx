@@ -37,17 +37,16 @@ export default function AdminUsers() {
   const fetchUsers = async () => {
     setLoading(true)
     try {
-      // TODO: 实现获取用户列表的 API
-      // const response = await fetch('/api/v1/users', {
-      //   headers: { Authorization: `Bearer ${token}` },
-      // })
-      // const data = await response.json()
+      const response = await fetch('/api/v1/users', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await response.json()
 
-      // 临时使用模拟数据
-      const mockUsers: User[] = [
-        { id: 1, username: 'admin', email: 'admin@itcmdb.com', full_name: 'System Administrator', status: 'active' },
-      ]
-      setUsers(mockUsers)
+      if (data.code === 0) {
+        setUsers(data.data || [])
+      } else {
+        message.error(data.message || '获取用户列表失败')
+      }
     } catch (error) {
       message.error('获取用户列表失败')
     } finally {
@@ -178,16 +177,20 @@ export default function AdminUsers() {
   }
 
   // 删除用户
-  const handleDelete = async (_id: number) => {
+  const handleDelete = async (id: number) => {
     try {
-      // TODO: 实现删除用户的 API
-      // await fetch(`/api/v1/users/${_id}`, {
-      //   method: 'DELETE',
-      //   headers: { Authorization: `Bearer ${token}` },
-      // })
+      const response = await fetch(`/api/v1/users/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await response.json()
 
-      message.success('删除成功')
-      fetchUsers()
+      if (data.code === 0) {
+        message.success('删除成功')
+        fetchUsers()
+      } else {
+        message.error(data.message || '删除失败')
+      }
     } catch (error) {
       message.error('删除失败')
     }
@@ -197,16 +200,26 @@ export default function AdminUsers() {
   const handleSubmit = async (values: any) => {
     try {
       if (editingUser) {
-        // TODO: 实现更新用户的 API
-        // await fetch(`/api/v1/users/${editingUser.id}`, {
-        //   method: 'PUT',
-        //   headers: {
-        //     'Content-Type': 'application/json',
-        //     Authorization: `Bearer ${token}`,
-        //   },
-        //   body: JSON.stringify(values),
-        // })
-        message.success('更新成功')
+        // 更新用户
+        const response = await fetch(`/api/v1/users/${editingUser.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            full_name: values.full_name,
+            status: values.status,
+          }),
+        })
+
+        const data = await response.json()
+        if (data.code === 0) {
+          message.success('更新成功')
+        } else {
+          message.error(data.message || '更新失败')
+          return
+        }
       } else {
         // 创建用户
         const response = await fetch('/api/v1/auth/register', {
