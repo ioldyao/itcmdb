@@ -4,6 +4,7 @@ import { Card, Tabs, Descriptions, Tag, Button, Spin, message } from 'antd'
 import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons'
 import { useCMDBStore, CIInstance } from '@/stores/cmdbStore'
 import CIHistoryTimeline from '@/components/CMDB/CIHistoryTimeline'
+import CIRelationGraph from '@/components/CMDB/CIRelationGraph'
 import dayjs from 'dayjs'
 
 export default function CIDetail() {
@@ -131,11 +132,7 @@ export default function CIDetail() {
             {
               key: 'relations',
               label: '关系图谱',
-              children: (
-                <div className="text-center text-gray-500 py-8">
-                  关系图谱功能开发中...
-                </div>
-              ),
+              children: <CIRelationGraph ciId={instance.id} ciName={instance.name} />,
             },
           ]}
         />
