@@ -46,12 +46,20 @@ func main() {
 	ciService := service.NewCIService(ciRepo)
 	ciHandler := handlers.NewCIHandler(ciService)
 
+	// 角色和标签服务
+	roleRepo := repository.NewRoleRepository(db)
+	tagRepo := repository.NewTagRepository(db)
+	roleService := service.NewRoleService(roleRepo, ciRepo)
+	tagService := service.NewTagService(tagRepo, ciRepo)
+	roleHandler := handlers.NewRoleHandler(roleService, jwtManager)
+	tagHandler := handlers.NewTagHandler(tagService, jwtManager)
+
 	if viper.GetString("env") == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	r := gin.Default()
-	setupRoutes(r, jwtManager, ciHandler)
+	setupRoutes(r, jwtManager, ciHandler, roleHandler, tagHandler)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
 	logger.Info("CMDB service starting", zap.String("addr", addr))
@@ -93,10 +101,11 @@ func loadConfig() error {
 	return nil
 }
 
-func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, ciHandler *handlers.CIHandler) {
+func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, ciHandler *handlers.CIHandler, roleHandler *handlers.RoleHandler, tagHandler *handlers.TagHandler) {
 	api := r.Group("/api/v1")
 	api.Use(jwtManager.AuthMiddleware())
 	{
+		// CI管理
 		ci := api.Group("/ci")
 		{
 			ci.GET("/types", ciHandler.GetCITypes)
@@ -109,6 +118,51 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, ciHandler *handlers
 			ci.GET("/relations", ciHandler.GetCIRelations)
 			ci.POST("/relations", ciHandler.CreateCIRelation)
 		}
+
+		// 角色管理
+		roles := api.Group("/roles")
+		{
+			// CI角色
+			roles.GET("/ci", roleHandler.GetCIRoles)
+			roles.POST("/ci", roleHandler.CreateCIRole)
+			roles.PUT("/ci/:id", roleHandler.UpdateCIRole)
+			roles.DELETE("/ci/:id", roleHandler.DeleteCIRole)
+
+			// 负责人角色
+			roles.GET("/owner", roleHandler.GetOwnerRoles)
+			roles.POST("/owner", roleHandler.CreateOwnerRole)
+			roles.PUT("/owner/:id", roleHandler.UpdateOwnerRole)
+			roles.DELETE("/owner/:id", roleHandler.DeleteOwnerRole)
+		}
+
+		// CI实例角色关联
+		api.GET("/ci/instances/:id/roles", roleHandler.GetCIInstanceRoles)
+		api.POST("/ci/instances/:id/roles", roleHandler.AssignCIRole)
+		api.DELETE("/ci/instances/:id/roles", roleHandler.RemoveCIRole)
+
+		// 标签分类
+		tags := api.Group("/tags")
+		{
+			tags.GET("/categories", tagHandler.GetTagCategories)
+			tags.POST("/categories", tagHandler.CreateTagCategory)
+			tags.PUT("/categories/:id", tagHandler.UpdateTagCategory)
+			tags.DELETE("/categories/:id", tagHandler.DeleteTagCategory)
+
+			tags.GET("", tagHandler.GetTags)
+			tags.POST("", tagHandler.CreateTag)
+			tags.GET("/stats", tagHandler.GetTagStats)
+			tags.PUT("/:id", tagHandler.UpdateTag)
+			tags.DELETE("/:id", tagHandler.DeleteTag)
+		}
+
+		// CI实例标签操作
+		api.GET("/ci/instances/:id/tags", tagHandler.GetCITags)
+		api.POST("/ci/instances/:id/tags", tagHandler.AssignTag)
+		api.DELETE("/ci/instances/:id/tags/:tagId", tagHandler.RemoveTag)
+
+		// 批量操作
+		api.POST("/tags/batch/assign", tagHandler.BatchAssignTags)
+		api.DELETE("/tags/batch/remove", tagHandler.BatchRemoveTags)
 	}
 
 	r.GET("/health", func(c *gin.Context) {

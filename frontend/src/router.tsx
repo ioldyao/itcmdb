@@ -8,10 +8,13 @@ import Dashboard from '@/pages/Dashboard'
 import Profile from '@/pages/Profile'
 
 // CMDB Pages
+import CMDBLayout from '@/pages/CMDB'
 import CMDBServers from '@/pages/CMDB/Servers'
 import CMDBNetworks from '@/pages/CMDB/Networks'
 import CMDBApplications from '@/pages/CMDB/Applications'
 import CMDBContainers from '@/pages/CMDB/Containers'
+import CIRoles from '@/pages/CMDB/Roles'
+import Tags from '@/pages/CMDB/Tags'
 
 // Ticket Pages
 import TicketList from '@/pages/Ticket/List'
@@ -46,12 +49,15 @@ const router = createBrowserRouter([
       { path: 'profile', element: <Profile /> },
       {
         path: 'cmdb',
+        element: <CMDBLayout />,
         children: [
           { index: true, element: <Navigate to="/cmdb/servers" replace /> },
           { path: 'servers', element: <CMDBServers /> },
           { path: 'networks', element: <CMDBNetworks /> },
           { path: 'applications', element: <CMDBApplications /> },
           { path: 'containers', element: <CMDBContainers /> },
+          { path: 'roles', element: <CIRoles /> },
+          { path: 'tags', element: <Tags /> },
         ],
       },
       {
