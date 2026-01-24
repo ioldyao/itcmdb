@@ -165,10 +165,13 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, userService service
 		users := api.Group("/users")
 		users.Use(jwtManager.AuthMiddleware())
 		{
+			users.GET("", getAllUsersHandler(userService))
 			users.GET("/me", getMeHandler(userService))
 			users.PUT("/me", updateMeHandler(userService))
 			users.GET("/me/permissions", getMyPermissionsHandler(userService))
 			users.GET("/:id/permissions", getPermissionsHandler(userService))
+			users.PUT("/:id", updateUserHandler(userService))
+			users.DELETE("/:id", deleteUserHandler(userService))
 		}
 
 		// 角色管理（需要认证）
@@ -427,6 +430,91 @@ func getMyPermissionsHandler(userService service.UserService) gin.HandlerFunc {
 		}
 
 		c.JSON(200, response.Success(permissions))
+	}
+}
+
+// getAllUsersHandler 获取所有用户列表
+func getAllUsersHandler(userService service.UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		users, err := userService.GetAllUsers()
+		if err != nil {
+			c.JSON(500, response.Error("Internal Error", "failed to get users"))
+			return
+		}
+
+		// 过滤敏感信息
+		var userList []gin.H
+		for _, user := range users {
+			userList = append(userList, gin.H{
+				"id":        user.ID,
+				"username":  user.Username,
+				"email":     user.Email,
+				"full_name": user.FullName,
+				"status":    user.Status,
+			})
+		}
+
+		c.JSON(200, response.Success(userList))
+	}
+}
+
+// updateUserHandler 更新用户信息
+func updateUserHandler(userService service.UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		idStr := c.Param("id")
+		id, err := strconv.ParseUint(idStr, 10, 32)
+		if err != nil {
+			c.JSON(400, response.Error("Bad Request", "invalid user id"))
+			return
+		}
+
+		var req struct {
+			FullName string `json:"full_name"`
+			Status   string `json:"status"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, response.Error("Bad Request", "invalid request"))
+			return
+		}
+
+		updates := make(map[string]interface{})
+		if req.FullName != "" {
+			updates["full_name"] = req.FullName
+		}
+		if req.Status != "" {
+			if req.Status != "active" && req.Status != "inactive" {
+				c.JSON(400, response.Error("Bad Request", "invalid status"))
+				return
+			}
+			updates["status"] = req.Status
+		}
+
+		if err := userService.UpdateUser(uint(id), updates); err != nil {
+			c.JSON(400, response.Error("Bad Request", err.Error()))
+			return
+		}
+
+		c.JSON(200, response.Success(nil))
+	}
+}
+
+// deleteUserHandler 删除用户
+func deleteUserHandler(userService service.UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		idStr := c.Param("id")
+		id, err := strconv.ParseUint(idStr, 10, 32)
+		if err != nil {
+			c.JSON(400, response.Error("Bad Request", "invalid user id"))
+			return
+		}
+
+		if err := userService.DeleteUser(uint(id)); err != nil {
+			c.JSON(500, response.Error("Internal Error", "failed to delete user"))
+			return
+		}
+
+		c.JSON(200, response.Success(nil))
 	}
 }
 

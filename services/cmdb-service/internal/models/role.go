@@ -42,6 +42,11 @@ type RolePermission struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+// TableName specifies the table name for CMDB RolePermission
+func (RolePermission) TableName() string {
+	return "cmdb_role_permissions"
+}
+
 // CIInstanceRole CI实例角色关联
 type CIInstanceRole struct {
 	ID         uint      `gorm:"primarykey" json:"id"`

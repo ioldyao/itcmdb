@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Table, Button, Modal, Form, Input, Select, Space, message, Popconfirm, Tag } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -12,6 +12,12 @@ interface User {
   status: string
 }
 
+interface Role {
+  id: number
+  name: string
+  description: string
+}
+
 export default function AdminUsers() {
   const { token } = useAuthStore()
   const [users, setUsers] = useState<User[]>([])
@@ -19,6 +25,13 @@ export default function AdminUsers() {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [form] = Form.useForm()
+
+  // 角色管理相关状态
+  const [roleModalVisible, setRoleModalVisible] = useState(false)
+  const [managingUser, setManagingUser] = useState<User | null>(null)
+  const [allRoles, setAllRoles] = useState<Role[]>([])
+  const [userRoleIds, setUserRoleIds] = useState<number[]>([])
+  const [roleLoading, setRoleLoading] = useState(false)
 
   // 获取用户列表
   const fetchUsers = async () => {
@@ -44,7 +57,106 @@ export default function AdminUsers() {
 
   useEffect(() => {
     fetchUsers()
+    fetchAllRoles()
   }, [])
+
+  // 获取所有角色
+  const fetchAllRoles = async () => {
+    try {
+      const response = await fetch('/api/v1/roles', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await response.json()
+      if (data.code === 0) {
+        setAllRoles(data.data || [])
+      }
+    } catch (error) {
+      console.error('获取角色列表失败:', error)
+    }
+  }
+
+  // 获取用户的角色
+  const fetchUserRoles = async (userId: number) => {
+    setRoleLoading(true)
+    try {
+      const response = await fetch(`/api/v1/user-roles/user/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await response.json()
+      if (data.code === 0) {
+        const roles = data.data || []
+        setUserRoleIds(roles.map((r: Role) => r.id))
+      }
+    } catch (error) {
+      message.error('获取用户角色失败')
+    } finally {
+      setRoleLoading(false)
+    }
+  }
+
+  // 打开角色管理模态框
+  const handleManageRoles = (user: User) => {
+    setManagingUser(user)
+    setRoleModalVisible(true)
+    fetchUserRoles(user.id)
+  }
+
+  // 保存用户角色
+  const handleSaveRoles = async () => {
+    if (!managingUser) return
+
+    setRoleLoading(true)
+    try {
+      // 获取当前用户角色
+      const response = await fetch(`/api/v1/user-roles/user/${managingUser.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await response.json()
+      const currentRoles = data.code === 0 ? (data.data || []) : []
+      const currentRoleIds = currentRoles.map((r: Role) => r.id)
+
+      // 计算需要添加和删除的角色
+      const toAdd = userRoleIds.filter(id => !currentRoleIds.includes(id))
+      const toRemove = currentRoleIds.filter((id: number) => !userRoleIds.includes(id))
+
+      // 添加新角色
+      for (const roleId of toAdd) {
+        await fetch('/api/v1/user-roles', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            user_id: managingUser.id,
+            role_id: roleId,
+          }),
+        })
+      }
+
+      // 删除角色
+      for (const roleId of toRemove) {
+        await fetch('/api/v1/user-roles', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            user_id: managingUser.id,
+            role_id: roleId,
+          }),
+        })
+      }
+
+      message.success('角色分配成功')
+      setRoleModalVisible(false)
+    } catch (error) {
+      message.error('角色分配失败')
+    } finally {
+      setRoleLoading(false)
+    }
+  }
 
   // 打开新增用户模态框
   const handleAdd = () => {
@@ -164,6 +276,13 @@ export default function AdminUsers() {
       key: 'action',
       render: (_, record) => (
         <Space>
+          <Button
+            type="link"
+            icon={<UserOutlined />}
+            onClick={() => handleManageRoles(record)}
+          >
+            管理角色
+          </Button>
           <Button
             type="link"
             icon={<EditOutlined />}
@@ -287,6 +406,38 @@ export default function AdminUsers() {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 角色管理模态框 */}
+      <Modal
+        title={`管理用户角色 - ${managingUser?.username || ''}`}
+        open={roleModalVisible}
+        onCancel={() => {
+          setRoleModalVisible(false)
+          setUserRoleIds([])
+        }}
+        onOk={handleSaveRoles}
+        confirmLoading={roleLoading}
+        width={600}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <p>为用户 <strong>{managingUser?.full_name}</strong> 分配角色：</p>
+        </div>
+        <Select
+          mode="multiple"
+          style={{ width: '100%' }}
+          placeholder="选择角色"
+          value={userRoleIds}
+          onChange={setUserRoleIds}
+          loading={roleLoading}
+          options={allRoles.map(role => ({
+            label: `${role.name} - ${role.description || ''}`,
+            value: role.id,
+          }))}
+        />
+        <div style={{ marginTop: 16, color: '#666', fontSize: 12 }}>
+          已选择 {userRoleIds.length} 个角色
+        </div>
       </Modal>
     </div>
   )

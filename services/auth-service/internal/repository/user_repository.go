@@ -9,6 +9,7 @@ type UserRepository interface {
 	Create(user *models.User) error
 	FindByUsername(username string) (*models.User, error)
 	FindByID(id uint) (*models.User, error)
+	GetAllUsers() ([]models.User, error)
 	Update(user *models.User) error
 	Delete(id uint) error
 	GetUserPermissions(userID uint) ([]string, error)
@@ -50,6 +51,14 @@ func (r *userRepository) FindByID(id uint) (*models.User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+// GetAllUsers 获取所有用户
+func (r *userRepository) GetAllUsers() ([]models.User, error) {
+	var users []models.User
+	db := database.Get()
+	err := db.Find(&users).Error
+	return users, err
 }
 
 // Update 更新用户

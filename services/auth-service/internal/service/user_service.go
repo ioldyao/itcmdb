@@ -15,7 +15,9 @@ type UserService interface {
 	Register(username, email, password, fullName string) (*models.User, error)
 	ValidateUser(username, password string) (*models.User, error)
 	GetUserByID(id uint) (*models.User, error)
+	GetAllUsers() ([]models.User, error)
 	UpdateUser(id uint, updates map[string]interface{}) error
+	DeleteUser(id uint) error
 	GetUserPermissions(userID uint) ([]string, error)
 }
 
@@ -137,6 +139,16 @@ func (s *userService) UpdateUser(id uint, updates map[string]interface{}) error 
 	}
 
 	return s.repo.Update(user)
+}
+
+// GetAllUsers 获取所有用户列表
+func (s *userService) GetAllUsers() ([]models.User, error) {
+	return s.repo.GetAllUsers()
+}
+
+// DeleteUser 删除用户
+func (s *userService) DeleteUser(id uint) error {
+	return s.repo.Delete(id)
 }
 
 // GetUserPermissions 获取用户权限
