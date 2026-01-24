@@ -264,6 +264,7 @@ services:
       - alert-service
     networks:
       - frontend-network
+      - backend-network
     restart: unless-stopped
 
   # API Gateway (使用Nginx)
