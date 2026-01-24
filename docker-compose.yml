@@ -24,12 +24,15 @@ services:
   redis:
     image: redis:7-alpine
     container_name: itcmdb-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-itcmdb_redis_pass_2026}
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-itcmdb_redis_pass_2026}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-itcmdb_redis_pass_2026}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
