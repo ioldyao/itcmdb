@@ -3,7 +3,6 @@ package handlers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/itcmdb/cmdb-service/internal/service"
-	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/response"
 	"net/http"
 	"strconv"
@@ -11,13 +10,11 @@ import (
 
 type TagHandler struct {
 	tagService service.TagService
-	jwtManager *auth.JWTManager
 }
 
-func NewTagHandler(tagService service.TagService, jwtManager *auth.JWTManager) *TagHandler {
+func NewTagHandler(tagService service.TagService) *TagHandler {
 	return &TagHandler{
 		tagService: tagService,
-		jwtManager: jwtManager,
 	}
 }
 

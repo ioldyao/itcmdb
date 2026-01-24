@@ -136,6 +136,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      auth-service:
+        condition: service_started
     environment:
       CMDB_ENV: production
       CMDB_SERVER_PORT: "5002"
@@ -151,8 +153,7 @@ services:
       CMDB_REDIS_PORT: 6379
       CMDB_REDIS_PASSWORD: ${REDIS_PASSWORD:-itcmdb_redis_pass_2026}
       CMDB_REDIS_DB: 0
-      CMDB_JWT_SECRET: your-secret-key-change-in-production
-      CMDB_JWT_EXPIRATION: 24h
+      CMDB_AUTH_GRPC_ADDRESS: auth-service:50001
     networks:
       - backend-network
       - data-network

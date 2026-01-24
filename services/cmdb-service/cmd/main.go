@@ -11,12 +11,13 @@ import (
 	grpcserver "github.com/itcmdb/cmdb-service/internal/grpc"
 	"github.com/itcmdb/cmdb-service/internal/repository"
 	"github.com/itcmdb/cmdb-service/internal/service"
-	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/cache"
 	"github.com/itcmdb/shared/pkg/database"
+	grpcclient "github.com/itcmdb/shared/pkg/grpc"
 	kafkapkg "github.com/itcmdb/shared/pkg/kafka"
 	"github.com/itcmdb/shared/pkg/logger"
+	"github.com/itcmdb/shared/pkg/middleware"
 	pb "github.com/itcmdb/shared/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -55,11 +56,17 @@ func main() {
 		logger.Info("Redis cache connected")
 	}
 
-	// 初始化依赖
-	jwtManager := auth.NewJWTManager(
-		viper.GetString("jwt.secret"),
-		viper.GetDuration("jwt.expiration"),
-	)
+	// 初始化Auth服务gRPC客户端
+	authServiceAddr := viper.GetString("auth.grpc.address")
+	if authServiceAddr == "" {
+		authServiceAddr = "auth-service:50001"
+	}
+	authClient, err := grpcclient.NewAuthClient(authServiceAddr)
+	if err != nil {
+		logger.Fatal("Failed to connect to Auth service", zap.Error(err))
+	}
+	defer authClient.Close()
+	logger.Info("Connected to Auth service via gRPC", zap.String("address", authServiceAddr))
 
 	// 初始化审计日志Kafka生产者
 	kafkaBrokers := []string{"kafka:9092"}
@@ -84,8 +91,8 @@ func main() {
 	tagRepo := repository.NewTagRepository(db)
 	roleService := service.NewRoleService(roleRepo, ciRepo)
 	tagService := service.NewTagService(tagRepo, ciRepo)
-	roleHandler := handlers.NewRoleHandler(roleService, jwtManager)
-	tagHandler := handlers.NewTagHandler(tagService, jwtManager)
+	roleHandler := handlers.NewRoleHandler(roleService)
+	tagHandler := handlers.NewTagHandler(tagService)
 
 	if viper.GetString("env") == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -96,7 +103,7 @@ func main() {
 
 	// 启动REST API服务器
 	r := gin.Default()
-	setupRoutes(r, jwtManager, ciHandler, roleHandler, tagHandler)
+	setupRoutes(r, authClient, ciHandler, roleHandler, tagHandler)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
 	logger.Info("CMDB REST API service starting", zap.String("addr", addr))
@@ -147,6 +154,7 @@ func loadConfig() error {
 	viper.BindEnv("redis.password", "CMDB_REDIS_PASSWORD")
 	viper.BindEnv("redis.db", "CMDB_REDIS_DB")
 	viper.BindEnv("grpc.port", "CMDB_GRPC_PORT")
+	viper.BindEnv("auth.grpc.address", "CMDB_AUTH_GRPC_ADDRESS")
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("CMDB")
@@ -167,14 +175,15 @@ func loadConfig() error {
 	viper.SetDefault("redis.port", 6379)
 	viper.SetDefault("redis.password", "itcmdb_redis_pass_2026")
 	viper.SetDefault("redis.db", 0)
+	viper.SetDefault("auth.grpc.address", "auth-service:50001")
 
 	viper.ReadInConfig()
 	return nil
 }
 
-func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, ciHandler *handlers.CIHandler, roleHandler *handlers.RoleHandler, tagHandler *handlers.TagHandler) {
+func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *handlers.CIHandler, roleHandler *handlers.RoleHandler, tagHandler *handlers.TagHandler) {
 	api := r.Group("/api/v1")
-	api.Use(jwtManager.AuthMiddleware())
+	api.Use(middleware.GRPCAuthMiddleware(authClient))
 	{
 		// CI管理
 		ci := api.Group("/ci")

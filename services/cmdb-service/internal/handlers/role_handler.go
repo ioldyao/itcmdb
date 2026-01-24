@@ -3,7 +3,6 @@ package handlers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/itcmdb/cmdb-service/internal/service"
-	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/response"
 	"net/http"
 	"strconv"
@@ -11,13 +10,11 @@ import (
 
 type RoleHandler struct {
 	roleService service.RoleService
-	jwtManager  *auth.JWTManager
 }
 
-func NewRoleHandler(roleService service.RoleService, jwtManager *auth.JWTManager) *RoleHandler {
+func NewRoleHandler(roleService service.RoleService) *RoleHandler {
 	return &RoleHandler{
 		roleService: roleService,
-		jwtManager:  jwtManager,
 	}
 }
 
