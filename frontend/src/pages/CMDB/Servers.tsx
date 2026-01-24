@@ -64,6 +64,9 @@ export default function CMDBServers() {
       os: record.attributes?.os || '',
       cpu_cores: record.attributes?.cpu_cores || '',
       memory_gb: record.attributes?.memory_gb || '',
+      gpu_model: record.attributes?.gpu_model || '',
+      gpu_count: record.attributes?.gpu_count || '',
+      gpu_memory_gb: record.attributes?.gpu_memory_gb || '',
     })
     setIsModalOpen(true)
   }
@@ -85,6 +88,9 @@ export default function CMDBServers() {
         os: values.os,
         cpu_cores: values.cpu_cores,
         memory_gb: values.memory_gb,
+        gpu_model: values.gpu_model || '',
+        gpu_count: values.gpu_count || 0,
+        gpu_memory_gb: values.gpu_memory_gb || 0,
       }
 
       if (editingInstance) {
@@ -153,6 +159,24 @@ export default function CMDBServers() {
       dataIndex: 'attributes',
       key: 'memory_gb',
       render: (attr: Record<string, any>) => attr?.memory_gb ? `${attr.memory_gb} GB` : '-',
+    },
+    {
+      title: 'GPU型号',
+      dataIndex: 'attributes',
+      key: 'gpu_model',
+      render: (attr: Record<string, any>) => attr?.gpu_model || '-',
+    },
+    {
+      title: 'GPU数量',
+      dataIndex: 'attributes',
+      key: 'gpu_count',
+      render: (attr: Record<string, any>) => attr?.gpu_count || '-',
+    },
+    {
+      title: 'GPU显存',
+      dataIndex: 'attributes',
+      key: 'gpu_memory_gb',
+      render: (attr: Record<string, any>) => attr?.gpu_memory_gb ? `${attr.gpu_memory_gb} GB` : '-',
     },
     {
       title: '状态',
@@ -282,11 +306,14 @@ export default function CMDBServers() {
           layout="vertical"
           initialValues={{
             status: 'active',
-          ci_type_id: 1,
-          ip_address: '',
+            ci_type_id: 1,
+            ip_address: '',
             os: '',
             cpu_cores: '',
             memory_gb: '',
+            gpu_model: '',
+            gpu_count: '',
+            gpu_memory_gb: '',
           }}
         >
           <Form.Item
@@ -322,6 +349,15 @@ export default function CMDBServers() {
             rules={[{ required: true, message: '请输入内存大小' }]}
           >
             <Input type="number" placeholder="例如: 16" min={1} />
+          </Form.Item>
+          <Form.Item label="GPU型号" name="gpu_model">
+            <Input placeholder="例如: NVIDIA Tesla T4" />
+          </Form.Item>
+          <Form.Item label="GPU数量" name="gpu_count">
+            <Input type="number" placeholder="例如: 4" min={0} />
+          </Form.Item>
+          <Form.Item label="GPU显存 (GB)" name="gpu_memory_gb">
+            <Input type="number" placeholder="例如: 16" min={0} step={0.5} />
           </Form.Item>
           <Form.Item label="状态" name="status" rules={[{ required: true }]}>
             <Select>
