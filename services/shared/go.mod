@@ -9,6 +9,8 @@ require (
 	github.com/redis/go-redis/v9 v9.4.0
 	github.com/segmentio/kafka-go v0.4.47
 	go.uber.org/zap v1.21.0
+	google.golang.org/grpc v1.60.1
+	google.golang.org/protobuf v1.34.1
 	gorm.io/driver/postgres v1.5.4
 	gorm.io/gorm v1.25.7
 )

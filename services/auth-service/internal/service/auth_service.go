@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"time"
 
 	"github.com/itcmdb/auth-service/internal/models"
 	"github.com/itcmdb/shared/pkg/auth"
@@ -25,7 +24,7 @@ func NewAuthService(jwtManager *auth.JWTManager) AuthService {
 
 // ValidateToken 验证JWT令牌
 func (s *authService) ValidateToken(token string) (*auth.Claims, error) {
-	claims, err := s.jwtManager.ValidateToken(token)
+	claims, err := s.jwtManager.Verify(token)
 	if err != nil {
 		return nil, errors.New("invalid token")
 	}
@@ -34,13 +33,7 @@ func (s *authService) ValidateToken(token string) (*auth.Claims, error) {
 
 // GenerateToken 生成JWT令牌
 func (s *authService) GenerateToken(user *models.User) (string, error) {
-	claims := &auth.Claims{
-		UserID:   user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-	}
-
-	token, err := s.jwtManager.GenerateToken(claims)
+	token, err := s.jwtManager.Generate(int64(user.ID), user.Username, []string{})
 	if err != nil {
 		return "", err
 	}
