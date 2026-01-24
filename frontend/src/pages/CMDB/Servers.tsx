@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Table, Button, Input, Select, Tag, Space, Modal, Form, message, Popconfirm } from 'antd'
-import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
+import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, ImportOutlined, ExportOutlined } from '@ant-design/icons'
 import { Server as ServerIcon } from 'lucide-react'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useCMDBStore, CIInstance } from '@/stores/cmdbStore'
+import ImportExportModal from '@/components/CMDB/ImportExportModal'
 
 export default function CMDBServers() {
   const {
@@ -24,6 +25,7 @@ export default function CMDBServers() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingInstance, setEditingInstance] = useState<CIInstance | null>(null)
+  const [importExportVisible, setImportExportVisible] = useState(false)
   const [form] = Form.useForm()
 
   useEffect(() => {
@@ -267,6 +269,9 @@ export default function CMDBServers() {
         <Button icon={<ReloadOutlined size={16} />} onClick={() => fetchInstances(1, page, pageSize)}>
           刷新
         </Button>
+        <Button icon={<ImportOutlined size={16} />} onClick={() => setImportExportVisible(true)}>
+          导入/导出
+        </Button>
         <Button type="primary" icon={<PlusOutlined size={16} />} onClick={handleCreate}>
           添加服务器
         </Button>
@@ -369,6 +374,18 @@ export default function CMDBServers() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* 导入/导出模态框 */}
+      <ImportExportModal
+        visible={importExportVisible}
+        ciTypeId={1}
+        ciTypeName="服务器"
+        onClose={() => setImportExportVisible(false)}
+        onSuccess={() => {
+          fetchInstances(1, page, pageSize)
+          setImportExportVisible(false)
+        }}
+      />
     </div>
   )
 }
