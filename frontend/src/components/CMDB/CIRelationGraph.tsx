@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Card, Empty, Spin, Button, Modal, Form, Select, Input, message, Tag } from 'antd'
 import { PlusOutlined, LinkOutlined } from '@ant-design/icons'
-import { useCMDBStore, CIRelation, CIInstance } from '@/stores/cmdbStore'
+import { useCMDBStore, CIRelation } from '@/stores/cmdbStore'
 
 interface CIRelationGraphProps {
   ciId: number
