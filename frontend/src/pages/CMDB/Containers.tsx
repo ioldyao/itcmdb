@@ -40,14 +40,6 @@ export default function CMDBContainers() {
     decommissioned: { text: '已下线', color: 'red' },
   }
 
-  // 容器类型映射
-  const containerTypeConfig = {
-    docker: { text: 'Docker', color: 'blue' },
-    kubernetes: { text: 'Kubernetes', color: 'purple' },
-    openshift: { text: 'OpenShift', color: 'red' },
-    ecs: { text: 'ECS', color: 'orange' },
-  }
-
   const handleSearch = () => {
     setFilters({ name: searchText, status: statusFilter, container_type: typeFilter })
   }
@@ -158,12 +150,11 @@ export default function CMDBContainers() {
     },
     {
       title: '容器类型',
-      dataIndex: 'attributes',
-      key: 'container_type',
-      render: (attr: Record<string, any>) => {
-        const type = attr?.container_type
-        const config = containerTypeConfig[type as keyof typeof containerTypeConfig]
-        return <Tag color={config?.color}>{config?.text || type}</Tag>
+      dataIndex: 'ci_type',
+      key: 'ci_type',
+      render: (ciType: any) => {
+        if (!ciType) return '-'
+        return <Tag color="blue">{ciType.display_name || ciType.name}</Tag>
       },
     },
     {
@@ -183,6 +174,11 @@ export default function CMDBContainers() {
       dataIndex: 'attributes',
       key: 'image',
       render: (attr: Record<string, any>) => {
+        // 优先使用自动发现的 container_image
+        const containerImage = attr?.container_image
+        if (containerImage) return containerImage
+
+        // 兼容手动创建的容器
         const image = attr?.image_name
         const tag = attr?.image_tag
         if (image && tag) return `${image}:${tag}`
@@ -190,22 +186,50 @@ export default function CMDBContainers() {
       },
     },
     {
-      title: 'CPU限制',
+      title: 'CPU使用率',
       dataIndex: 'attributes',
-      key: 'cpu_limit',
-      render: (attr: Record<string, any>) => attr?.cpu_limit || '-',
+      key: 'cpu_usage',
+      render: (attr: Record<string, any>) => {
+        const cpu = attr?.cpu_usage_percent
+        if (cpu !== undefined && cpu !== null) {
+          return `${cpu.toFixed(2)}%`
+        }
+        return '-'
+      },
     },
     {
-      title: '内存限制',
+      title: '内存使用',
       dataIndex: 'attributes',
-      key: 'memory_limit',
-      render: (attr: Record<string, any>) => attr?.memory_limit || '-',
+      key: 'memory_usage',
+      render: (attr: Record<string, any>) => {
+        const usage = attr?.memory_usage_mb
+        const limit = attr?.memory_limit_mb
+        if (usage !== undefined && usage !== null) {
+          if (limit) {
+            return `${usage.toFixed(0)}MB / ${limit.toFixed(0)}MB`
+          }
+          return `${usage.toFixed(0)}MB`
+        }
+        return '-'
+      },
     },
     {
-      title: '节点数',
+      title: '运行时间',
       dataIndex: 'attributes',
-      key: 'node_count',
-      render: (attr: Record<string, any>) => attr?.node_count || '-',
+      key: 'uptime',
+      render: (attr: Record<string, any>) => {
+        const uptime = attr?.uptime_seconds
+        if (uptime !== undefined && uptime !== null) {
+          const hours = Math.floor(uptime / 3600)
+          const minutes = Math.floor((uptime % 3600) / 60)
+          if (hours > 24) {
+            const days = Math.floor(hours / 24)
+            return `${days}天${hours % 24}小时`
+          }
+          return `${hours}小时${minutes}分钟`
+        }
+        return '-'
+      },
     },
     {
       title: '状态',

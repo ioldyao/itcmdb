@@ -8,8 +8,8 @@ WORKDIR /app
 
 # 设置 npm 镜像源为淘宝镜像
 COPY package*.json ./
-RUN npm config set registry https://registry.npmmirror.com && \
-    npm install --registry=https://registry.npmmirror.com
+RUN npm config set registry https://registry.npmmirror.com && npm install -d
+# RUN npm install 
 
 COPY . .
 RUN npm run build
