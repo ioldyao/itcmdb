@@ -9,6 +9,7 @@ type ConfigRepository interface {
 	GetAllConfigs() ([]models.SystemConfig, error)
 	GetConfigsByCategory(category string) ([]models.SystemConfig, error)
 	GetConfig(category, key string) (*models.SystemConfig, error)
+	GetConfigByID(id uint) (*models.SystemConfig, error)
 	CreateConfig(config *models.SystemConfig) error
 	UpdateConfig(config *models.SystemConfig) error
 	DeleteConfig(id uint) error
@@ -38,6 +39,15 @@ func (r *configRepository) GetConfigsByCategory(category string) ([]models.Syste
 func (r *configRepository) GetConfig(category, key string) (*models.SystemConfig, error) {
 	var config models.SystemConfig
 	err := r.db.Where("category = ? AND key = ? AND is_active = ?", category, key, true).First(&config).Error
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+
+func (r *configRepository) GetConfigByID(id uint) (*models.SystemConfig, error) {
+	var config models.SystemConfig
+	err := r.db.First(&config, id).Error
 	if err != nil {
 		return nil, err
 	}

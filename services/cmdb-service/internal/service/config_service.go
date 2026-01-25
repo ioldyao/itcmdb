@@ -173,8 +173,8 @@ func (s *configService) CreateConfig(req *CreateConfigRequest, userID uint) (*mo
 
 func (s *configService) UpdateConfig(id uint, req *UpdateConfigRequest, userID uint) (*models.SystemConfig, error) {
 	// 通过 ID 获取配置
-	var config models.SystemConfig
-	if err := s.repo.(*configRepository).db.First(&config, id).Error; err != nil {
+	config, err := s.repo.GetConfigByID(id)
+	if err != nil {
 		return nil, errors.New("config not found")
 	}
 
@@ -287,8 +287,8 @@ func (s *configService) decrypt(ciphertext string) (string, error) {
 		return "", errors.New("ciphertext too short")
 	}
 
-	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	nonce, ciphertextBytes := data[:nonceSize], data[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, ciphertextBytes, nil)
 	if err != nil {
 		return "", err
 	}
