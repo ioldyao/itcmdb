@@ -22,6 +22,9 @@ service CMDBService {
 
   // 获取CI关系
   rpc GetCIRelations(GetCIRelationsRequest) returns (GetCIRelationsResponse);
+
+  // 上报服务器硬件信息
+  rpc ReportHardwareInfo(HardwareInfoReport) returns (HardwareInfoResponse);
 }
 
 message GetCIInstanceRequest {
@@ -95,4 +98,92 @@ message CIRelation {
   string description = 5;
   CIInstance parent = 6;
   CIInstance child = 7;
+}
+
+// ==================== 硬件信息上报 ====================
+
+// 硬件信息上报
+message HardwareInfoReport {
+  ReportInfo report_info = 1;
+  repeated MemoryInfo memory = 2;
+  repeated StorageInfo storage = 3;
+  repeated GPUInfo gpu = 4;
+  repeated NetworkInfo network = 5;
+  repeated PowerSupplyInfo power_supply = 6;
+  repeated OpticalModuleInfo optical_modules = 7;
+}
+
+// 上报信息
+message ReportInfo {
+  string timestamp = 1;
+  string hostname = 2;
+  string system_serial = 3;
+}
+
+// 内存信息
+message MemoryInfo {
+  string size = 1;
+  string form_factor = 2;
+  string locator = 3;
+  string type = 4;
+  string speed = 5;
+  string manufacturer = 6;
+  string part_number = 7;
+  string serial = 8;
+}
+
+// 存储信息
+message StorageInfo {
+  string name = 1;
+  string size = 2;
+  string model = 3;
+  string serial = 4;
+}
+
+// GPU信息
+message GPUInfo {
+  string gpu_id = 1;
+  string product_name = 2;
+  string serial = 3;
+}
+
+// 网卡信息
+message NetworkInfo {
+  string vendor = 1;
+  string model = 2;
+  string speed = 3;
+  string mac = 4;
+  string firmware = 5;
+  string serial = 6;
+}
+
+// 电源信息
+message PowerSupplyInfo {
+  string location = 1;
+  string name = 2;
+  string manufacturer = 3;
+  string serial = 4;
+  string model = 5;
+  string capacity = 6;
+}
+
+// 光模块信息
+message OpticalModuleInfo {
+  string pci_addr = 1;
+  string port = 2;
+  string ib_ca = 3;
+  string identifier = 4;
+  string vendor_name = 5;
+  string part_number = 6;
+  string serial_number = 7;
+  string speed = 8;
+  string temperature = 9;
+  string wavelength = 10;
+}
+
+// 硬件信息上报响应
+message HardwareInfoResponse {
+  bool success = 1;
+  string message = 2;
+  uint64 ci_instance_id = 3;
 }

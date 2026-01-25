@@ -2,6 +2,9 @@ package grpcserver
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/itcmdb/cmdb-service/internal/models"
 	"github.com/itcmdb/cmdb-service/internal/service"
@@ -174,4 +177,282 @@ func convertCIInstanceToPB(instance *models.CIInstance) (*pb.CIInstance, error) 
 	}
 
 	return pbInst, nil
+}
+
+// ReportHardwareInfo 上报服务器硬件信息
+func (s *CMDBServer) ReportHardwareInfo(ctx context.Context, req *pb.HardwareInfoReport) (*pb.HardwareInfoResponse, error) {
+	// 转换硬件信息为attributes
+	attributes := make(map[string]interface{})
+
+	// 基本信息
+	if req.ReportInfo != nil {
+		attributes["hostname"] = req.ReportInfo.Hostname
+		attributes["system_serial"] = req.ReportInfo.SystemSerial
+		attributes["last_hardware_report"] = req.ReportInfo.Timestamp
+	}
+
+	// 内存信息（转换为JSON字符串）
+	if len(req.Memory) > 0 {
+		memoryData := convertMemoryInfoToMap(req.Memory)
+		attributes["memory_info"] = memoryData
+		attributes["memory_slots"] = len(req.Memory)
+	}
+
+	// 存储信息
+	if len(req.Storage) > 0 {
+		storageData := convertStorageInfoToMap(req.Storage)
+		attributes["storage_info"] = storageData
+		attributes["storage_count"] = len(req.Storage)
+
+		// 计算总存储容量
+		totalStorage := 0.0
+		for _, storage := range req.Storage {
+			size := parseSize(storage.Size)
+			totalStorage += size
+		}
+		attributes["total_storage_gb"] = totalStorage
+	}
+
+	// GPU信息
+	if len(req.Gpu) > 0 {
+		gpuData := convertGPUInfoToMap(req.Gpu)
+		attributes["gpu_info"] = gpuData
+		attributes["gpu_count"] = len(req.Gpu)
+	}
+
+	// 网卡信息
+	if len(req.Network) > 0 {
+		networkData := convertNetworkInfoToMap(req.Network)
+		attributes["network_info"] = networkData
+		attributes["network_count"] = len(req.Network)
+	}
+
+	// 电源信息
+	if len(req.PowerSupply) > 0 {
+		psuData := convertPowerSupplyInfoToMap(req.PowerSupply)
+		attributes["power_supply_info"] = psuData
+		attributes["power_supply_count"] = len(req.PowerSupply)
+
+		// 计算总电源容量
+		totalCapacity := 0.0
+		for _, psu := range req.PowerSupply {
+			capacity := parseCapacity(psu.Capacity)
+			totalCapacity += capacity
+		}
+		attributes["total_power_capacity_w"] = totalCapacity
+	}
+
+	// 光模块信息
+	if len(req.OpticalModules) > 0 {
+		opticalData := convertOpticalModuleInfoToMap(req.OpticalModules)
+		attributes["optical_modules_info"] = opticalData
+		attributes["optical_modules_count"] = len(req.OpticalModules)
+	}
+
+	// 使用hostname作为服务器名称，如果不存在则使用system_serial
+	serverName := req.ReportInfo.Hostname
+	if serverName == "" {
+		serverName = req.ReportInfo.SystemSerial
+	}
+
+	// 查找是否已存在该服务器的CI实例
+	// 优先通过system_serial查找，其次通过hostname
+	existingInstance, err := s.findServerBySerialOrHost(req.ReportInfo.SystemSerial, req.ReportInfo.Hostname)
+	var instanceID uint64
+
+	if err == nil && existingInstance != nil {
+		// 更新现有实例
+		updateReq := &service.UpdateCIInstanceRequest{
+			Name: serverName,
+			Attributes: attributes,
+			Status: "active",
+		}
+
+		_, err = s.ciService.UpdateCIInstance(existingInstance.ID, updateReq, 1) // userID=1 for system
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to update server instance: %v", err)
+		}
+		instanceID = uint64(existingInstance.ID)
+	} else {
+		// 创建新实例
+		createReq := &service.CreateCIInstanceRequest{
+			CITypeID: 1, // 服务器类型
+			Name: serverName,
+			Attributes: attributes,
+			Status: "active",
+		}
+
+		instance, err := s.ciService.CreateCIInstance(createReq, 1) // userID=1 for system
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to create server instance: %v", err)
+		}
+		instanceID = uint64(instance.ID)
+	}
+
+	return &pb.HardwareInfoResponse{
+		Success:     true,
+		Message:     "Hardware info reported successfully",
+		CiInstanceId: instanceID,
+	}, nil
+}
+
+// findServerBySerialOrHost 通过序列号或主机名查找服务器
+func (s *CMDBServer) findServerBySerialOrHost(serial, host string) (*models.CIInstance, error) {
+	// 先通过system_serial查找
+	if serial != "" {
+		filters := map[string]interface{}{
+			"system_serial": serial,
+		}
+		instances, _, err := s.ciService.GetCIInstances(1, filters, 1, 1)
+		if err == nil && len(instances) > 0 {
+			return &instances[0], nil
+		}
+	}
+
+	// 再通过hostname查找
+	if host != "" {
+		filters := map[string]interface{}{
+			"hostname": host,
+		}
+		instances, _, err := s.ciService.GetCIInstances(1, filters, 1, 1)
+		if err == nil && len(instances) > 0 {
+			return &instances[0], nil
+		}
+	}
+
+	return nil, fmt.Errorf("server not found")
+}
+
+// 辅助转换函数
+func convertMemoryInfoToMap(memories []*pb.MemoryInfo) interface{} {
+	result := make([]map[string]string, 0, len(memories))
+	for _, m := range memories {
+		result = append(result, map[string]string{
+			"size":         m.Size,
+			"form_factor":  m.FormFactor,
+			"locator":      m.Locator,
+			"type":         m.Type,
+			"speed":        m.Speed,
+			"manufacturer":  m.Manufacturer,
+			"part_number":   m.PartNumber,
+			"serial":        m.Serial,
+		})
+	}
+	return result
+}
+
+func convertStorageInfoToMap(storages []*pb.StorageInfo) interface{} {
+	result := make([]map[string]string, 0, len(storages))
+	for _, s := range storages {
+		result = append(result, map[string]string{
+			"name":   s.Name,
+			"size":   s.Size,
+			"model":  s.Model,
+			"serial": s.Serial,
+		})
+	}
+	return result
+}
+
+func convertGPUInfoToMap(gpus []*pb.GPUInfo) interface{} {
+	result := make([]map[string]string, 0, len(gpus))
+	for _, g := range gpus {
+		result = append(result, map[string]string{
+			"gpu_id":       g.GpuId,
+			"product_name": g.ProductName,
+			"serial":       g.Serial,
+		})
+	}
+	return result
+}
+
+func convertNetworkInfoToMap(networks []*pb.NetworkInfo) interface{} {
+	result := make([]map[string]string, 0, len(networks))
+	for _, n := range networks {
+		result = append(result, map[string]string{
+			"vendor":   n.Vendor,
+			"model":    n.Model,
+			"speed":    n.Speed,
+			"mac":      n.Mac,
+			"firmware": n.Firmware,
+			"serial":   n.Serial,
+		})
+	}
+	return result
+}
+
+func convertPowerSupplyInfoToMap(psus []*pb.PowerSupplyInfo) interface{} {
+	result := make([]map[string]string, 0, len(psus))
+	for _, p := range psus {
+		result = append(result, map[string]string{
+			"location":     p.Location,
+			"name":         p.Name,
+			"manufacturer": p.Manufacturer,
+			"serial":       p.Serial,
+			"model":        p.Model,
+			"capacity":     p.Capacity,
+		})
+	}
+	return result
+}
+
+func convertOpticalModuleInfoToMap(modules []*pb.OpticalModuleInfo) interface{} {
+	result := make([]map[string]string, 0, len(modules))
+	for _, m := range modules {
+		result = append(result, map[string]string{
+			"pci_addr":       m.PciAddr,
+			"port":           m.Port,
+			"ib_ca":          m.IbCa,
+			"identifier":     m.Identifier,
+			"vendor_name":     m.VendorName,
+			"part_number":    m.PartNumber,
+			"serial_number":  m.SerialNumber,
+			"speed":          m.Speed,
+			"temperature":    m.Temperature,
+			"wavelength":     m.Wavelength,
+		})
+	}
+	return result
+}
+
+// parseSize 解析大小字符串（例如 "894.3G", "3.5T"）
+func parseSize(sizeStr string) float64 {
+	if sizeStr == "" || sizeStr == "None" {
+		return 0
+	}
+
+	var value float64
+	var unit string
+	_, err := fmt.Sscanf(sizeStr, "%f%s", &value, &unit)
+	if err != nil {
+		return 0
+	}
+
+	switch unit {
+	case "T", "TB":
+		return value * 1024
+	case "G", "GB":
+		return value
+	case "M", "MB":
+		return value / 1024
+	case "K", "KB":
+		return value / 1024 / 1024
+	default:
+		// 假设默认单位是GB
+		return value
+	}
+}
+
+// parseCapacity 解析电源容量（例如 "3000 W"）
+func parseCapacity(capStr string) float64 {
+	if capStr == "" {
+		return 0
+	}
+
+	var value float64
+	_, err := fmt.Sscanf(capStr, "%f", &value)
+	if err != nil {
+		return 0
+	}
+	return value
 }
