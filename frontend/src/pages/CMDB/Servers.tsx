@@ -9,6 +9,35 @@ import { useTagStore } from '@/stores/tagStore'
 import ImportExportModal from '@/components/CMDB/ImportExportModal'
 import { useNavigate } from 'react-router-dom'
 
+// 格式化内存大小（将 KB 转换为合适的单位）
+function formatMemorySize(memoryStr: string): string {
+  if (!memoryStr) return '-'
+
+  // 解析字符串，例如 "2113464020 kB"
+  const match = memoryStr.match(/^([\d.]+)\s*(\w+)$/)
+  if (!match) return memoryStr
+
+  const value = parseFloat(match[1])
+  const unit = match[2].toUpperCase()
+
+  // 如果已经是 kB，转换为 GB
+  if (unit === 'KB' || unit === 'K') {
+    const gb = value / 1024 / 1024
+    if (gb >= 1024) {
+      return `${(gb / 1024).toFixed(2)} TB`
+    }
+    return `${gb.toFixed(2)} GB`
+  }
+
+  // 如果是 MB，转换为 GB
+  if (unit === 'MB' || unit === 'M') {
+    const gb = value / 1024
+    return `${gb.toFixed(2)} GB`
+  }
+
+  return memoryStr
+}
+
 export default function CMDBServers() {
   const navigate = useNavigate()
   const {
@@ -199,7 +228,14 @@ export default function CMDBServers() {
       title: '操作系统',
       dataIndex: 'attributes',
       key: 'os',
-      render: (attr: Record<string, any>) => attr?.os || '-',
+      render: (attr: Record<string, any>) => {
+        // 优先显示 os 字段（手动输入），否则显示 os_name 和 os_version
+        if (attr?.os) return attr.os
+        if (attr?.os_name) {
+          return attr.os_version ? `${attr.os_name} ${attr.os_version}` : attr.os_name
+        }
+        return '-'
+      },
     },
     {
       title: 'CPU核数',
@@ -211,13 +247,31 @@ export default function CMDBServers() {
       title: '内存',
       dataIndex: 'attributes',
       key: 'memory_gb',
-      render: (attr: Record<string, any>) => attr?.memory_gb ? `${attr.memory_gb} GB` : '-',
+      render: (attr: Record<string, any>) => {
+        // 优先显示 memory_gb（手动输入，单位GB），否则显示 memory_total 并转换单位
+        if (attr?.memory_gb) return `${attr.memory_gb} GB`
+        if (attr?.memory_total) return formatMemorySize(attr.memory_total)
+        return '-'
+      },
     },
     {
       title: 'GPU型号',
       dataIndex: 'attributes',
       key: 'gpu_model',
-      render: (attr: Record<string, any>) => attr?.gpu_model || '-',
+      render: (attr: Record<string, any>) => {
+        // 优先显示 gpu_model（手动输入），否则从 gpu_info 数组中提取
+        if (attr?.gpu_model) return attr.gpu_model
+        if (attr?.gpu_info && Array.isArray(attr.gpu_info) && attr.gpu_info.length > 0) {
+          // 显示第一个 GPU 的产品名称
+          const gpuName = attr.gpu_info[0]?.product_name
+          // 如果有多个 GPU，显示数量
+          if (attr.gpu_info.length > 1) {
+            return `${gpuName} 等 ${attr.gpu_count || attr.gpu_info.length} 个`
+          }
+          return gpuName || '-'
+        }
+        return '-'
+      },
     },
     {
       title: 'GPU数量',

@@ -12,6 +12,35 @@ interface HardwareInfo {
   attributes: Record<string, any>
 }
 
+// 格式化内存大小（将 KB 转换为合适的单位）
+function formatMemorySize(memoryStr: string): string {
+  if (!memoryStr) return '-'
+
+  // 解析字符串，例如 "2113464020 kB"
+  const match = memoryStr.match(/^([\d.]+)\s*(\w+)$/)
+  if (!match) return memoryStr
+
+  const value = parseFloat(match[1])
+  const unit = match[2].toUpperCase()
+
+  // 如果已经是 kB，转换为 GB
+  if (unit === 'KB' || unit === 'K') {
+    const gb = value / 1024 / 1024
+    if (gb >= 1024) {
+      return `${(gb / 1024).toFixed(2)} TB`
+    }
+    return `${gb.toFixed(2)} GB`
+  }
+
+  // 如果是 MB，转换为 GB
+  if (unit === 'MB' || unit === 'M') {
+    const gb = value / 1024
+    return `${gb.toFixed(2)} GB`
+  }
+
+  return memoryStr
+}
+
 export default function ServerHardwareInfo({ attributes }: HardwareInfo) {
   const {
     hostname,
@@ -65,11 +94,6 @@ export default function ServerHardwareInfo({ attributes }: HardwareInfo) {
     { label: '物理核心数', value: cpu_cores || '-' },
     { label: '逻辑线程数', value: cpu_threads || '-' },
   ]
-
-  // 内存概览信息
-  const memoryOverviewInfo = memory_total ? [
-    { label: '内存总量', value: memory_total },
-  ] : []
 
   // 内存表格列
   const memoryColumns = [
@@ -162,11 +186,20 @@ export default function ServerHardwareInfo({ attributes }: HardwareInfo) {
               valueStyle={{ color: '#1890ff' }}
             />
           </Col>
-          <Col span={4}>
+          <Col span={3}>
             <Statistic
               title="内存插槽"
               value={memory_slots || 0}
               suffix="条"
+              prefix={<ApiOutlined />}
+              valueStyle={{ color: '#3f8600' }}
+            />
+          </Col>
+          <Col span={3}>
+            <Statistic
+              title="内存总量"
+              value={formatMemorySize(memory_total || '').split(' ')[0]}
+              suffix={formatMemorySize(memory_total || '').split(' ')[1] || ''}
               prefix={<ApiOutlined />}
               valueStyle={{ color: '#3f8600' }}
             />
