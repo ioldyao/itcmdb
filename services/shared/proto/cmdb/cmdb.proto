@@ -27,6 +27,12 @@ service CMDBService {
   rpc ReportHardwareInfo(HardwareInfoReport) returns (HardwareInfoResponse);
 }
 
+// HardwareService - Agent使用的硬件信息上报服务（别名）
+service HardwareService {
+  // 上报服务器硬件信息
+  rpc ReportHardwareInfo(HardwareInfoReport) returns (HardwareInfoResponse);
+}
+
 message GetCIInstanceRequest {
   uint64 id = 1;
 }

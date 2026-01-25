@@ -157,6 +157,7 @@ func startGRPCServer(ciService service.CIService) {
 	grpcServer := grpc.NewServer()
 	cmdbServer := grpcserver.NewCMDBServer(ciService)
 	pb.RegisterCMDBServiceServer(grpcServer, cmdbServer)
+	pb.RegisterHardwareServiceServer(grpcServer, cmdbServer) // 注册HardwareService（使用同一个server实例）
 
 	// 注册反射服务，用于grpcurl等工具
 	reflection.Register(grpcServer)
