@@ -111,12 +111,15 @@ message CIRelation {
 // 硬件信息上报
 message HardwareInfoReport {
   ReportInfo report_info = 1;
-  repeated MemoryInfo memory = 2;
-  repeated StorageInfo storage = 3;
-  repeated GPUInfo gpu = 4;
-  repeated NetworkInfo network = 5;
-  repeated PowerSupplyInfo power_supply = 6;
-  repeated OpticalModuleInfo optical_modules = 7;
+  CPUInfo cpu = 2;
+  SystemInfo system = 3;
+  repeated MemoryInfo memory = 4;
+  string memory_total = 5;  // 内存总量（如 "2113464020 kB"）
+  repeated StorageInfo storage = 6;
+  repeated GPUInfo gpu = 7;
+  repeated NetworkInfo network = 8;
+  repeated PowerSupplyInfo power_supply = 9;
+  repeated OpticalModuleInfo optical_modules = 10;
 }
 
 // 上报信息
@@ -124,6 +127,22 @@ message ReportInfo {
   string timestamp = 1;
   string hostname = 2;
   string system_serial = 3;
+}
+
+// CPU信息
+message CPUInfo {
+  string model_name = 1;  // CPU型号（如 "Intel(R) Xeon(R) Platinum 8468"）
+  int32 cores = 2;        // 物理核心数
+  int32 threads = 3;      // 逻辑线程数
+  int32 sockets = 4;      // CPU插座数（物理CPU数量）
+}
+
+// 系统信息
+message SystemInfo {
+  string os_name = 1;        // 操作系统名称（如 "Rocky Linux"）
+  string os_version = 2;     // 系统版本（如 "8.6 (Green Obsidian)"）
+  string kernel_version = 3;  // 内核版本（如 "4.18.0-372.9.1.el8.x86_64"）
+  string architecture = 4;    // 系统架构（如 "x86_64"）
 }
 
 // 内存信息

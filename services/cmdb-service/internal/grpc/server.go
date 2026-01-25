@@ -190,6 +190,27 @@ func (s *CMDBServer) ReportHardwareInfo(ctx context.Context, req *pb.HardwareInf
 		attributes["last_hardware_report"] = req.ReportInfo.Timestamp
 	}
 
+	// CPU信息
+	if req.Cpu != nil {
+		attributes["cpu_model"] = req.Cpu.ModelName
+		attributes["cpu_cores"] = req.Cpu.Cores
+		attributes["cpu_threads"] = req.Cpu.Threads
+		attributes["cpu_sockets"] = req.Cpu.Sockets
+	}
+
+	// 系统信息
+	if req.System != nil {
+		attributes["os_name"] = req.System.OsName
+		attributes["os_version"] = req.System.OsVersion
+		attributes["kernel_version"] = req.System.KernelVersion
+		attributes["architecture"] = req.System.Architecture
+	}
+
+	// 内存总量
+	if req.MemoryTotal != "" {
+		attributes["memory_total"] = req.MemoryTotal
+	}
+
 	// 内存信息（转换为JSON字符串）
 	if len(req.Memory) > 0 {
 		memoryData := convertMemoryInfoToMap(req.Memory)

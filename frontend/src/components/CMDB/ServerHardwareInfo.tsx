@@ -17,6 +17,15 @@ export default function ServerHardwareInfo({ attributes }: HardwareInfo) {
     hostname,
     system_serial,
     last_hardware_report,
+    cpu_model,
+    cpu_cores,
+    cpu_threads,
+    cpu_sockets,
+    os_name,
+    os_version,
+    kernel_version,
+    architecture,
+    memory_total,
     memory_info,
     memory_slots,
     gpu_info,
@@ -40,6 +49,27 @@ export default function ServerHardwareInfo({ attributes }: HardwareInfo) {
       value: last_hardware_report ? new Date(last_hardware_report).toLocaleString('zh-CN') : '-',
     },
   ]
+
+  // 系统信息
+  const systemInfo = [
+    { label: '操作系统', value: os_name || '-' },
+    { label: '系统版本', value: os_version || '-' },
+    { label: '内核版本', value: kernel_version || '-' },
+    { label: '系统架构', value: architecture || '-' },
+  ]
+
+  // CPU信息
+  const cpuInfo = [
+    { label: 'CPU型号', value: cpu_model || '-' },
+    { label: '物理CPU数量', value: cpu_sockets || '-' },
+    { label: '物理核心数', value: cpu_cores || '-' },
+    { label: '逻辑线程数', value: cpu_threads || '-' },
+  ]
+
+  // 内存概览信息
+  const memoryOverviewInfo = memory_total ? [
+    { label: '内存总量', value: memory_total },
+  ] : []
 
   // 内存表格列
   const memoryColumns = [
@@ -107,6 +137,33 @@ export default function ServerHardwareInfo({ attributes }: HardwareInfo) {
         <Row gutter={16}>
           <Col span={4}>
             <Statistic
+              title="物理CPU"
+              value={cpu_sockets || 0}
+              suffix="颗"
+              prefix={<ApiOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Col>
+          <Col span={4}>
+            <Statistic
+              title="物理核心"
+              value={cpu_cores || 0}
+              suffix="核"
+              prefix={<ApiOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Col>
+          <Col span={4}>
+            <Statistic
+              title="逻辑线程"
+              value={cpu_threads || 0}
+              suffix="线程"
+              prefix={<ApiOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Col>
+          <Col span={4}>
+            <Statistic
               title="内存插槽"
               value={memory_slots || 0}
               suffix="条"
@@ -172,6 +229,32 @@ export default function ServerHardwareInfo({ attributes }: HardwareInfo) {
           ))}
         </Descriptions>
       </Card>
+
+      {/* CPU信息 */}
+      {cpu_model && (
+        <Card title={<><ApiOutlined /> CPU信息</>}>
+          <Descriptions column={2} bordered size="small">
+            {cpuInfo.map((info, index) => (
+              <Descriptions.Item key={index} label={info.label}>
+                {info.value}
+              </Descriptions.Item>
+            ))}
+          </Descriptions>
+        </Card>
+      )}
+
+      {/* 系统信息 */}
+      {(os_name || kernel_version) && (
+        <Card title={<><DashboardOutlined /> 系统信息</>}>
+          <Descriptions column={2} bordered size="small">
+            {systemInfo.map((info, index) => (
+              <Descriptions.Item key={index} label={info.label}>
+                {info.value}
+              </Descriptions.Item>
+            ))}
+          </Descriptions>
+        </Card>
+      )}
 
       {/* 内存信息 */}
       {Array.isArray(memory_info) && memory_info.length > 0 && (
