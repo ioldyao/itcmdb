@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/json"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/itcmdb/cmdb-service/internal/models"
@@ -185,13 +184,12 @@ func (s *ciService) UpdateCIInstance(id uint, req *UpdateCIInstanceRequest, user
 
 		// 只有在 attributes 真正发生变化时才记录历史
 		if string(oldAttrs) != string(newAttrs) {
-			// 计算变化的字段数量
+			// 计算变化的字段
 			changedFields := s.getChangedAttributes(instance.Attributes, req.Attributes)
 
 			if len(changedFields) > 0 {
-				// 记录变化的字段（简化显示，不记录完整 JSON）
-				fieldList := strings.Join(changedFields, ", ")
-				s.recordHistory(id, userID, "update", "attributes", "-", fieldList)
+				// 记录完整的旧值和新值 JSON，方便查看具体变更内容
+				s.recordHistory(id, userID, "update", "attributes", string(oldAttrs), string(newAttrs))
 			}
 		}
 
