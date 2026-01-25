@@ -14,6 +14,7 @@ import (
 
 type CMDBServer struct {
 	pb.UnimplementedCMDBServiceServer
+	pb.UnimplementedHardwareServiceServer
 	ciService service.CIService
 }
 
