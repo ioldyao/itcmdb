@@ -11,7 +11,7 @@ dayjs.locale('zh-cn')
 
 // 忽略的字段和子字段配置（与后端保持一致）
 const IGNORED_FIELDS = new Set(['last_hardware_report'])
-const IGNORED_SUB_FIELDS = {
+const IGNORED_SUB_FIELDS: Record<string, Set<string>> = {
   optical_modules_info: new Set(['temperature']),
 }
 
