@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/itcmdb/cmdb-service/internal/models"
@@ -162,12 +163,12 @@ func (s *ciService) UpdateCIInstance(id uint, req *UpdateCIInstanceRequest, user
 	// 记录变更
 	oldData, _ := json.Marshal(instance)
 
-	if req.Name != "" {
+	if req.Name != "" && req.Name != instance.Name {
 		s.recordHistory(id, userID, "update", "name", instance.Name, req.Name)
 		instance.Name = req.Name
 	}
 
-	if req.Status != "" {
+	if req.Status != "" && req.Status != instance.Status {
 		s.recordHistory(id, userID, "update", "status", instance.Status, req.Status)
 		instance.Status = req.Status
 	}
@@ -177,8 +178,23 @@ func (s *ciService) UpdateCIInstance(id uint, req *UpdateCIInstanceRequest, user
 		if err := s.validateAttributes(req.Attributes, instance.CIType.Attributes); err != nil {
 			return nil, err
 		}
-		newData, _ := json.Marshal(req.Attributes)
-		s.recordHistory(id, userID, "update", "attributes", string(oldData), string(newData))
+
+		// 比较新旧 attributes 是否真的发生了变化
+		oldAttrs, _ := json.Marshal(instance.Attributes)
+		newAttrs, _ := json.Marshal(req.Attributes)
+
+		// 只有在 attributes 真正发生变化时才记录历史
+		if string(oldAttrs) != string(newAttrs) {
+			// 计算变化的字段数量
+			changedFields := s.getChangedAttributes(instance.Attributes, req.Attributes)
+
+			if len(changedFields) > 0 {
+				// 记录变化的字段（简化显示，不记录完整 JSON）
+				fieldList := strings.Join(changedFields, ", ")
+				s.recordHistory(id, userID, "update", "attributes", "-", fieldList)
+			}
+		}
+
 		instance.Attributes = req.Attributes
 	}
 
@@ -296,6 +312,37 @@ func (s *ciService) GetCIHistory(ciID uint, limit int) ([]models.CIHistory, erro
 }
 
 // Helper functions
+
+// getChangedAttributes 比较两个 attributes 并返回变化的字段列表
+func (s *ciService) getChangedAttributes(oldAttrs, newAttrs map[string]interface{}) []string {
+	changedFields := []string{}
+
+	// 检查新 attrs 中有哪些字段与旧 attrs 不同
+	for key, newValue := range newAttrs {
+		oldValue, exists := oldAttrs[key]
+		if !exists {
+			// 新增的字段
+			changedFields = append(changedFields, key+"(新增)")
+			continue
+		}
+
+		// 比较值是否相同
+		oldJSON, _ := json.Marshal(oldValue)
+		newJSON, _ := json.Marshal(newValue)
+		if string(oldJSON) != string(newJSON) {
+			changedFields = append(changedFields, key)
+		}
+	}
+
+	// 检查是否有字段被删除
+	for key := range oldAttrs {
+		if _, exists := newAttrs[key]; !exists {
+			changedFields = append(changedFields, key+"(删除)")
+		}
+	}
+
+	return changedFields
+}
 
 func (s *ciService) validateAttributes(attrs map[string]interface{}, definitions []models.CIAttribute) error {
 	// 检查必填属性
