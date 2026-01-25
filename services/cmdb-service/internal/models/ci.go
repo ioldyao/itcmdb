@@ -136,5 +136,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&CIInstance{},
 		&CIRelation{},
 		&CIHistory{},
+		&SystemConfig{},
 	)
 }
