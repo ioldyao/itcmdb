@@ -78,6 +78,9 @@ export default function CMDBContainers() {
       cpu_limit: record.attributes?.cpu_limit || '',
       memory_limit: record.attributes?.memory_limit || '',
       node_count: record.attributes?.node_count || '',
+      container_id: record.attributes?.container_id || '',
+      cadvisor_endpoint: record.attributes?.cadvisor_endpoint || '',
+      host_id: record.attributes?.host_id || '',
     })
     setIsModalOpen(true)
   }
@@ -103,6 +106,11 @@ export default function CMDBContainers() {
         cpu_limit: values.cpu_limit,
         memory_limit: values.memory_limit,
         node_count: values.node_count,
+        // cAdvisor 监控相关
+        container_id: values.container_id || '',
+        cadvisor_endpoint: values.cadvisor_endpoint || '',
+        // 宿主机关联
+        host_id: values.host_id || '',
       }
 
       if (editingInstance) {
@@ -349,6 +357,9 @@ export default function CMDBContainers() {
             cpu_limit: '',
             memory_limit: '',
             node_count: '',
+            container_id: '',
+            cadvisor_endpoint: '',
+            host_id: '',
           }}
         >
           <Form.Item
@@ -391,6 +402,20 @@ export default function CMDBContainers() {
           <Form.Item label="节点数量" name="node_count">
             <Input type="number" placeholder="例如: 3" min={1} />
           </Form.Item>
+
+          {/* cAdvisor 监控配置 */}
+          <Form.Item label="容器ID" name="container_id">
+            <Input placeholder="Docker容器ID，例如: abc123def456" />
+          </Form.Item>
+          <Form.Item label="cAdvisor端点" name="cadvisor_endpoint">
+            <Input placeholder="例如: http://192.168.1.100:8080" />
+          </Form.Item>
+
+          {/* 宿主机关联 */}
+          <Form.Item label="宿主机ID" name="host_id">
+            <Input type="number" placeholder="关联的宿主机CI实例ID" />
+          </Form.Item>
+
           <Form.Item label="状态" name="status" rules={[{ required: true }]}>
             <Select>
               <Select.Option value="active">运行中</Select.Option>

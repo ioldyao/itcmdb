@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"github.com/itcmdb/cmdb-service/internal/handlers"
 	grpcserver "github.com/itcmdb/cmdb-service/internal/grpc"
+	"github.com/itcmdb/cmdb-service/internal/models"
 	"github.com/itcmdb/cmdb-service/internal/repository"
 	"github.com/itcmdb/cmdb-service/internal/service"
 	"github.com/itcmdb/shared/pkg/audit"
@@ -90,7 +92,7 @@ func main() {
 		logger.Info("Kafka event producer initialized")
 	}
 
-	db := database.Get()
+	// 初始化服务和处理器
 	ciRepo := repository.NewCIRepository(db)
 	ciService := service.NewCIService(ciRepo)
 	ciHandler := handlers.NewCIHandler(ciService)
@@ -103,6 +105,28 @@ func main() {
 	roleHandler := handlers.NewRoleHandler(roleService)
 	tagHandler := handlers.NewTagHandler(tagService)
 
+	// 监控服务（使用VictoriaMetrics）
+	vmEndpoint := viper.GetString("victoriametrics.endpoint")
+	vmUsername := viper.GetString("victoriametrics.username")
+	vmPassword := viper.GetString("victoriametrics.password")
+	monitoringService := service.NewMonitoringService(ciRepo, vmEndpoint, vmUsername, vmPassword)
+	monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
+
+	// 启动容器自动同步服务（如果配置了VictoriaMetrics）
+	if vmEndpoint != "" {
+		syncInterval := viper.GetDuration("victoriametrics.sync_interval")
+		if syncInterval == 0 {
+			syncInterval = 5 * time.Minute // 默认5分钟同步一次
+		}
+
+		promClient := monitoringService.GetPrometheusClient()
+		if promClient != nil {
+			containerSyncService := service.NewContainerSyncService(ciRepo, promClient, syncInterval)
+			containerSyncService.Start()
+			logger.Info("Container auto-sync service started", zap.Duration("interval", syncInterval))
+		}
+	}
+
 	if viper.GetString("env") == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -112,7 +136,7 @@ func main() {
 
 	// 启动REST API服务器
 	r := gin.Default()
-	setupRoutes(r, authClient, ciHandler, roleHandler, tagHandler)
+	setupRoutes(r, authClient, ciHandler, roleHandler, tagHandler, monitoringHandler)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
 	logger.Info("CMDB REST API service starting", zap.String("addr", addr))
@@ -164,6 +188,10 @@ func loadConfig() error {
 	viper.BindEnv("redis.db", "CMDB_REDIS_DB")
 	viper.BindEnv("grpc.port", "CMDB_GRPC_PORT")
 	viper.BindEnv("auth.grpc.address", "CMDB_AUTH_GRPC_ADDRESS")
+	viper.BindEnv("victoriametrics.endpoint", "CMDB_VICTORIAMETRICS_ENDPOINT")
+	viper.BindEnv("victoriametrics.username", "CMDB_VICTORIAMETRICS_USERNAME")
+	viper.BindEnv("victoriametrics.password", "CMDB_VICTORIAMETRICS_PASSWORD")
+	viper.BindEnv("victoriametrics.sync_interval", "CMDB_VICTORIAMETRICS_SYNC_INTERVAL")
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("CMDB")
@@ -185,12 +213,16 @@ func loadConfig() error {
 	viper.SetDefault("redis.password", "itcmdb_redis_pass_2026")
 	viper.SetDefault("redis.db", 0)
 	viper.SetDefault("auth.grpc.address", "auth-service:50001")
+	viper.SetDefault("victoriametrics.endpoint", "")
+	viper.SetDefault("victoriametrics.username", "")
+	viper.SetDefault("victoriametrics.password", "")
+	viper.SetDefault("victoriametrics.sync_interval", "5m")
 
 	viper.ReadInConfig()
 	return nil
 }
 
-func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *handlers.CIHandler, roleHandler *handlers.RoleHandler, tagHandler *handlers.TagHandler) {
+func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *handlers.CIHandler, roleHandler *handlers.RoleHandler, tagHandler *handlers.TagHandler, monitoringHandler *handlers.MonitoringHandler) {
 	api := r.Group("/api/v1")
 	api.Use(middleware.GRPCAuthMiddleware(authClient))
 	{
@@ -254,6 +286,14 @@ func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *ha
 		// 批量操作
 		api.POST("/tags/batch/assign", tagHandler.BatchAssignTags)
 		api.DELETE("/tags/batch/remove", tagHandler.BatchRemoveTags)
+
+		// 监控管理
+		monitoring := api.Group("/monitoring")
+		{
+			monitoring.GET("/containers/:id/stats", monitoringHandler.GetContainerStats)
+			monitoring.GET("/cadvisor/health", monitoringHandler.HealthCheckCAdvisor)
+			monitoring.GET("/victoriametrics/health", monitoringHandler.HealthCheckVictoriaMetrics)
+		}
 	}
 
 	r.GET("/health", func(c *gin.Context) {

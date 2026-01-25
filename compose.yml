@@ -154,6 +154,9 @@ services:
       CMDB_REDIS_PASSWORD: ${REDIS_PASSWORD:-itcmdb_redis_pass_2026}
       CMDB_REDIS_DB: 0
       CMDB_AUTH_GRPC_ADDRESS: auth-service:50001
+      CMDB_VICTORIAMETRICS_ENDPOINT: https://10.120.43.230:8109
+      CMDB_VICTORIAMETRICS_USERNAME: admin
+      CMDB_VICTORIAMETRICS_PASSWORD: prometheus@123
     networks:
       - backend-network
       - data-network

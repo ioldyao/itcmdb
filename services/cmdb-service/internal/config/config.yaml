@@ -17,3 +17,9 @@ database:
   password: postgres
   dbname: itcmdb
   sslmode: disable
+
+victoriametrics:
+  endpoint: https://10.120.43.230:8109
+  username: admin
+  password: prometheus@123
+  sync_interval: 5m  # 容器同步间隔，默认5分钟

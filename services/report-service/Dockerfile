@@ -1,4 +1,8 @@
 FROM golang:1.23-alpine AS builder
+
+# 设置 Alpine 镜像源为阿里云
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+
 WORKDIR /app
 
 # 设置Go代理为阿里云
@@ -20,7 +24,10 @@ RUN go mod tidy
 RUN CGO_ENABLED=0 GOOS=linux go build -o report-service ./cmd/main.go
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates tzdata
+
+# 设置 Alpine 镜像源为阿里云
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk --no-cache add ca-certificates tzdata
 WORKDIR /root/
 COPY --from=builder /app/service/report-service .
 COPY report-service/internal/config/config.yaml /etc/report-service/
