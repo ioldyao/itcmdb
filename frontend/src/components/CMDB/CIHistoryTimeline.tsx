@@ -95,21 +95,42 @@ export default function CIHistoryTimeline({ ciId, limit = 50 }: CIHistoryTimelin
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 字段: {item.field_name}
               </div>
-              {item.old_value && (
+
+              {/* 特殊处理 attributes 字段的显示 */}
+              {item.field_name === 'attributes' ? (
                 <div className="text-sm">
-                  <span className="text-gray-500">旧值: </span>
-                  <span className="text-red-600 dark:text-red-400 line-through">
-                    {item.old_value}
-                  </span>
+                  {item.new_value && item.new_value !== '-' && item.new_value !== 'null' ? (
+                    <div>
+                      <span className="text-gray-500">变化内容: </span>
+                      <span className="text-blue-600 dark:text-blue-400 font-medium">
+                        {item.new_value}
+                      </span>
+                      <span className="text-gray-400 text-xs ml-2">
+                        (已排除实时数据如温度、上报时间等)
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
-              )}
-              {item.new_value && (
-                <div className="text-sm">
-                  <span className="text-gray-500">新值: </span>
-                  <span className="text-green-600 dark:text-green-400 font-medium">
-                    {item.new_value}
-                  </span>
-                </div>
+              ) : (
+                <>
+                  {/* 其他字段的正常显示 */}
+                  {item.old_value && item.old_value !== '-' && (
+                    <div className="text-sm">
+                      <span className="text-gray-500">旧值: </span>
+                      <span className="text-red-600 dark:text-red-400 line-through">
+                        {item.old_value}
+                      </span>
+                    </div>
+                  )}
+                  {item.new_value && item.new_value !== '-' && (
+                    <div className="text-sm">
+                      <span className="text-gray-500">新值: </span>
+                      <span className="text-green-600 dark:text-green-400 font-medium">
+                        {item.new_value}
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </Card>
