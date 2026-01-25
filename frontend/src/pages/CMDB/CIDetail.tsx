@@ -5,6 +5,7 @@ import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons'
 import { useCMDBStore, CIInstance } from '@/stores/cmdbStore'
 import CIHistoryTimeline from '@/components/CMDB/CIHistoryTimeline'
 import CIRelationGraph from '@/components/CMDB/CIRelationGraph'
+import ServerHardwareInfo from '@/components/CMDB/ServerHardwareInfo'
 import dayjs from 'dayjs'
 
 export default function CIDetail() {
@@ -61,6 +62,9 @@ export default function CIDetail() {
 
   const statusConfig = getStatusConfig(instance.status)
 
+  // 判断是否是服务器类型
+  const isServer = instance.ci_type?.name === 'server' || instance.ci_type_id === 1
+
   return (
     <div className="p-8">
       {/* 页面头部 */}
@@ -98,7 +102,11 @@ export default function CIDetail() {
             {
               key: 'basic',
               label: '基本信息',
-              children: (
+              children: isServer ? (
+                // 服务器类型显示硬件信息组件
+                <ServerHardwareInfo attributes={instance.attributes || {}} />
+              ) : (
+                // 其他类型显示传统属性列表
                 <Descriptions column={2} bordered>
                   <Descriptions.Item label="ID">{instance.id}</Descriptions.Item>
                   <Descriptions.Item label="名称">{instance.name}</Descriptions.Item>
@@ -115,12 +123,14 @@ export default function CIDetail() {
                     {dayjs(instance.updated_at).format('YYYY-MM-DD HH:mm:ss')}
                   </Descriptions.Item>
 
-                  {/* 动态属性 */}
-                  {instance.attributes && Object.entries(instance.attributes).map(([key, value]) => (
-                    <Descriptions.Item label={key} key={key}>
-                      {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                    </Descriptions.Item>
-                  ))}
+                  {/* 动态属性 - 排除硬件相关字段 */}
+                  {instance.attributes && Object.entries(instance.attributes)
+                    .filter(([key]) => !key.includes('_info') && !key.includes('_count') && key !== 'hostname' && key !== 'system_serial' && key !== 'last_hardware_report' && key !== 'total_storage_gb' && key !== 'total_power_capacity_w')
+                    .map(([key, value]) => (
+                      <Descriptions.Item label={key} key={key}>
+                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                      </Descriptions.Item>
+                    ))}
                 </Descriptions>
               ),
             },
