@@ -4,8 +4,8 @@ import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutli
 import { Server as ServerIcon } from 'lucide-react'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useCMDBStore, CIInstance } from '@/stores/cmdbStore'
-import { useRoleStore, CIRole } from '@/stores/roleStore'
-import { useTagStore, Tag as TagType } from '@/stores/tagStore'
+import { useRoleStore } from '@/stores/roleStore'
+import { useTagStore } from '@/stores/tagStore'
 import ImportExportModal from '@/components/CMDB/ImportExportModal'
 import { useNavigate } from 'react-router-dom'
 
@@ -37,8 +37,6 @@ export default function CMDBServers() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingInstance, setEditingInstance] = useState<CIInstance | null>(null)
   const [importExportVisible, setImportExportVisible] = useState(false)
-  const [selectedRoles, setSelectedRoles] = useState<number[]>([])
-  const [selectedTags, setSelectedTags] = useState<number[]>([])
   const [form] = Form.useForm()
 
   useEffect(() => {
@@ -84,9 +82,6 @@ export default function CMDBServers() {
 
     const roleIds = roles.map((r: any) => r.role_id || r.id)
     const tagIds = tagsData.map((t: any) => t.tag_id || t.id)
-
-    setSelectedRoles(roleIds)
-    setSelectedTags(tagIds)
 
     form.setFieldsValue({
       name: record.name,
@@ -168,8 +163,6 @@ export default function CMDBServers() {
       }
       setIsModalOpen(false)
       form.resetFields()
-      setSelectedRoles([])
-      setSelectedTags([])
     } catch (error) {
       message.error('操作失败')
       console.error(error)
