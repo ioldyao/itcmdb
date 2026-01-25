@@ -95,6 +95,7 @@ interface CMDBState {
   page: number
   pageSize: number
   filters: Record<string, any>
+  currentCITypeID: number  // 当前过滤的CI类型ID
   loading: boolean
 
   // Actions
@@ -152,6 +153,7 @@ export const useCMDBStore = create<CMDBState>()(
       page: 1,
       pageSize: 20,
       filters: {},
+      currentCITypeID: 0,
       loading: false,
 
       fetchCITypes: async () => {
@@ -175,7 +177,7 @@ export const useCMDBStore = create<CMDBState>()(
       },
 
       fetchInstances: async (ciTypeID = 0, page = 1, pageSize = 20) => {
-        set({ loading: true })
+        set({ loading: true, currentCITypeID: ciTypeID })
         try {
           const token = getAuthToken()
           if (!token) {
@@ -268,7 +270,9 @@ export const useCMDBStore = create<CMDBState>()(
           })
           const result: ApiResponse<CIInstance> = await response.json()
           if (result.code === 0) {
-            await get().fetchInstances()
+            // 使用当前保存的 CI 类型 ID 来刷新列表
+            const state = get()
+            await get().fetchInstances(state.currentCITypeID, state.page, state.pageSize)
             return result.data
           }
           throw new Error(result.message)
@@ -294,7 +298,9 @@ export const useCMDBStore = create<CMDBState>()(
           })
           const result: ApiResponse<CIInstance> = await response.json()
           if (result.code === 0) {
-            await get().fetchInstances()
+            // 使用当前保存的 CI 类型 ID 来刷新列表
+            const state = get()
+            await get().fetchInstances(state.currentCITypeID, state.page, state.pageSize)
             await get().fetchInstance(id)
             return
           }
@@ -319,7 +325,9 @@ export const useCMDBStore = create<CMDBState>()(
           })
           const result: ApiResponse<null> = await response.json()
           if (result.code === 0) {
-            await get().fetchInstances()
+            // 使用当前保存的 CI 类型 ID 来刷新列表
+            const state = get()
+            await get().fetchInstances(state.currentCITypeID, state.page, state.pageSize)
             return
           }
           throw new Error(result.message)
@@ -403,7 +411,7 @@ export const useCMDBStore = create<CMDBState>()(
       partialize: (state) =>
         Object.fromEntries(
           Object.entries(state).filter(([key]) =>
-            !['instances', 'selectedInstance', 'loading'].includes(key)
+            !['instances', 'selectedInstance', 'loading', 'currentCITypeID'].includes(key)
           )
         ),
     }
