@@ -397,11 +397,11 @@ WHERE r.name = 'admin'
 ON CONFLICT DO NOTHING;
 
 -- 插入默认CI类型
-INSERT INTO ci_types (name, icon, description) VALUES
-('server', 'ServerOutlined', '服务器/主机'),
-('network', 'CloudServerOutlined', '网络设备'),
-('application', 'AppstoreOutlined', '应用服务'),
-('container', 'ContainerOutlined', '容器/K8s集群')
+INSERT INTO ci_types (name, icon, description, display_name) VALUES
+('server', 'ServerOutlined', '服务器/主机', '服务器'),
+('network', 'CloudServerOutlined', '网络设备', '网络设备'),
+('application', 'AppstoreOutlined', '应用服务', '应用服务'),
+('container', 'ContainerOutlined', '容器/K8s集群', '容器')
 ON CONFLICT (name) DO NOTHING;
 
 -- 插入默认工作流
