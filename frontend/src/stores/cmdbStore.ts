@@ -108,6 +108,11 @@ interface CMDBState {
   fetchHistory: (ciId: number, limit?: number) => Promise<CIHistory[]>
   fetchRelations: (ciId: number) => Promise<CIRelation[]>
   createRelation: (data: CreateCIRelationRequest) => Promise<CIRelation>
+  // 角色和标签操作
+  fetchInstanceRoles: (ciId: number) => Promise<any[]>
+  assignInstanceRoles: (ciId: number, roleIds: number[]) => Promise<void>
+  fetchInstanceTags: (ciId: number) => Promise<any[]>
+  assignInstanceTags: (ciId: number, tagIds: number[]) => Promise<void>
   setFilters: (filters: Record<string, any>) => void
   resetFilters: () => void
 }
@@ -405,6 +410,85 @@ export const useCMDBStore = create<CMDBState>()(
       setFilters: (filters) => set({ filters, page: 1 }),
 
       resetFilters: () => set({ filters: {}, page: 1 }),
+
+      // ==================== 角色和标签操作 ====================
+
+      fetchInstanceRoles: async (ciId: number) => {
+        try {
+          const token = getAuthToken()
+          const response = await fetch(`/api/v1/ci/instances/${ciId}/roles`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          const result: ApiResponse<any[]> = await response.json()
+          if (result.code === 0) {
+            return result.data
+          }
+          return []
+        } catch (error) {
+          console.error('Failed to fetch instance roles:', error)
+          return []
+        }
+      },
+
+      assignInstanceRoles: async (ciId: number, roleIds: number[]) => {
+        try {
+          const token = getAuthToken()
+          const response = await fetch(`/api/v1/ci/instances/${ciId}/roles`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ role_type: 'ci_role', role_ids: roleIds }),
+          })
+          const result: ApiResponse<any> = await response.json()
+          if (result.code !== 0) {
+            throw new Error(result.message)
+          }
+        } catch (error) {
+          console.error('Failed to assign roles:', error)
+          throw error
+        }
+      },
+
+      fetchInstanceTags: async (ciId: number) => {
+        try {
+          const token = getAuthToken()
+          const response = await fetch(`/api/v1/ci/instances/${ciId}/tags`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          const result: ApiResponse<any[]> = await response.json()
+          if (result.code === 0) {
+            return result.data
+          }
+          return []
+        } catch (error) {
+          console.error('Failed to fetch instance tags:', error)
+          return []
+        }
+      },
+
+      assignInstanceTags: async (ciId: number, tagIds: number[]) => {
+        try {
+          const token = getAuthToken()
+          // 批量分配标签
+          await Promise.all(
+            tagIds.map(tagId =>
+              fetch(`/api/v1/ci/instances/${ciId}/tags`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ tag_id: tagId }),
+              })
+            )
+          )
+        } catch (error) {
+          console.error('Failed to assign tags:', error)
+          throw error
+        }
+      },
     }),
     {
       name: 'cmdb-storage',

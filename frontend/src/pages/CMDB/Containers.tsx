@@ -4,6 +4,8 @@ import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutli
 import { Container as ContainerIcon } from 'lucide-react'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useCMDBStore, CIInstance } from '@/stores/cmdbStore'
+import { useRoleStore, CIRole } from '@/stores/roleStore'
+import { useTagStore, Tag as TagType } from '@/stores/tagStore'
 
 export default function CMDBContainers() {
   const {
@@ -16,21 +18,33 @@ export default function CMDBContainers() {
     createInstance,
     updateInstance,
     deleteInstance,
+    fetchInstanceRoles,
+    assignInstanceRoles,
+    fetchInstanceTags,
+    assignInstanceTags,
     setFilters,
     resetFilters,
   } = useCMDBStore()
+
+  const { ciRoles, fetchCIRoles } = useRoleStore()
+  const { tags, fetchTags } = useTagStore()
 
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [typeFilter, setTypeFilter] = useState<string>('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingInstance, setEditingInstance] = useState<CIInstance | null>(null)
+  const [selectedRoles, setSelectedRoles] = useState<number[]>([])
+  const [selectedTags, setSelectedTags] = useState<number[]>([])
   const [form] = Form.useForm()
 
   useEffect(() => {
     // 假设容器类型的 ci_type_id 是 4
     fetchInstances(4, page, pageSize)
-  }, [fetchInstances, page, pageSize])
+    // 加载角色和标签列表
+    fetchCIRoles()
+    fetchTags()
+  }, [fetchInstances, fetchCIRoles, fetchTags, page, pageSize])
 
   // 状态映射
   const statusConfig = {
@@ -57,8 +71,21 @@ export default function CMDBContainers() {
     setIsModalOpen(true)
   }
 
-  const handleEdit = (record: CIInstance) => {
+  const handleEdit = async (record: CIInstance) => {
     setEditingInstance(record)
+
+    // 加载设备的角色和标签
+    const [roles, tagsData] = await Promise.all([
+      fetchInstanceRoles(record.id),
+      fetchInstanceTags(record.id),
+    ])
+
+    const roleIds = roles.map((r: any) => r.role_id || r.id)
+    const tagIds = tagsData.map((t: any) => t.tag_id || t.id)
+
+    setSelectedRoles(roleIds)
+    setSelectedTags(tagIds)
+
     form.setFieldsValue({
       name: record.name,
       status: record.status,
@@ -73,6 +100,8 @@ export default function CMDBContainers() {
       container_id: record.attributes?.container_id || '',
       cadvisor_endpoint: record.attributes?.cadvisor_endpoint || '',
       host_id: record.attributes?.host_id || '',
+      roles: roleIds,
+      tags: tagIds,
     })
     setIsModalOpen(true)
   }
@@ -111,20 +140,47 @@ export default function CMDBContainers() {
           status: values.status,
           attributes,
         })
+
+        // 分配角色和标签
+        const roles = values.roles || []
+        const tags = values.tags || []
+
+        if (roles.length > 0) {
+          await assignInstanceRoles(editingInstance.id, roles)
+        }
+        if (tags.length > 0) {
+          await assignInstanceTags(editingInstance.id, tags)
+        }
+
         message.success('更新成功')
       } else {
-        await createInstance({
+        const instance = await createInstance({
           ci_type_id: 4, // 容器类型
           name: values.name,
           status: values.status,
           attributes,
         })
+
+        // 分配角色和标签
+        const roles = values.roles || []
+        const tags = values.tags || []
+
+        if (roles.length > 0) {
+          await assignInstanceRoles(instance.id, roles)
+        }
+        if (tags.length > 0) {
+          await assignInstanceTags(instance.id, tags)
+        }
+
         message.success('创建成功')
       }
       setIsModalOpen(false)
       form.resetFields()
+      setSelectedRoles([])
+      setSelectedTags([])
     } catch (error) {
       message.error('操作失败')
+      console.error(error)
     }
   }
 
@@ -447,6 +503,40 @@ export default function CMDBContainers() {
               <Select.Option value="maintenance">维护中</Select.Option>
               <Select.Option value="decommissioned">已下线</Select.Option>
             </Select>
+          </Form.Item>
+          <Form.Item label="角色" name="roles">
+            <Select
+              mode="multiple"
+              placeholder="选择角色"
+              options={ciRoles.map(role => ({
+                label: role.display_name,
+                value: role.id,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item label="标签" name="tags">
+            <Select
+              mode="multiple"
+              placeholder="选择标签"
+              options={tags.map(tag => ({
+                label: (
+                  <span>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 12,
+                        height: 12,
+                        backgroundColor: tag.color,
+                        borderRadius: 2,
+                        marginRight: 8,
+                      }}
+                    />
+                    {tag.display_name}
+                  </span>
+                ),
+                value: tag.id,
+              }))}
+            />
           </Form.Item>
         </Form>
       </Modal>
