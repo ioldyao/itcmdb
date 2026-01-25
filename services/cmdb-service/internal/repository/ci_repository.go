@@ -91,6 +91,14 @@ func (r *ciRepository) GetCIInstances(ciTypeID uint, filters map[string]interfac
 		query = query.Where("name ILIKE ?", "%"+name+"%")
 	}
 
+	// 处理 JSONB attributes 字段的查询
+	if systemSerial, ok := filters["system_serial"].(string); ok && systemSerial != "" {
+		query = query.Where("attributes->>'system_serial' = ?", systemSerial)
+	}
+	if hostname, ok := filters["hostname"].(string); ok && hostname != "" {
+		query = query.Where("attributes->>'hostname' = ?", hostname)
+	}
+
 	// 获取总数
 	query.Count(&total)
 
