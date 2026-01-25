@@ -233,21 +233,37 @@ func (s *ContainerSyncService) createContainerCI(
 	container prometheus.ContainerInfo,
 	ciTypeID uint,
 ) error {
+	// 获取容器的资源信息
+	stats, err := s.prometheusClient.GetContainerStats(ctx, container.Name)
+
 	attributes := map[string]interface{}{
-		"container_name":    container.Name,
-		"container_id":      container.ID,
-		"container_image":   container.Image,
-		"is_online":         container.IsRunning,
-		"last_seen":         container.LastSeen.Format(time.RFC3339),
+		"container_name":       container.Name,
+		"container_id":         container.ID,
+		"container_image":      container.Image,
+		"is_online":            container.IsRunning,
+		"last_seen":            container.LastSeen.Format(time.RFC3339),
 		"container_id_history": []string{container.ID},
-		"sync_source":       "victoriametrics",
-		"auto_discovered":   true,
+		"sync_source":          "victoriametrics",
+		"auto_discovered":      true,
+	}
+
+	// 如果成功获取资源信息，添加到 attributes
+	if err == nil && stats != nil {
+		attributes["cpu_usage_percent"] = stats.CPUUsagePercent
+		attributes["memory_usage_mb"] = stats.MemoryUsageMB
+		attributes["memory_limit_mb"] = stats.MemoryLimitMB
+		attributes["network_rx_bytes"] = stats.NetworkRxBytes
+		attributes["network_tx_bytes"] = stats.NetworkTxBytes
+		attributes["disk_usage_mb"] = stats.DiskUsageMB
+		attributes["uptime_seconds"] = stats.UptimeSeconds
+		attributes["last_stats_update"] = time.Now().Format(time.RFC3339)
 	}
 
 	instance := &models.CIInstance{
 		CITypeID:   ciTypeID,
 		Name:       container.Name,
 		Attributes: attributes,
+		Status:     "active",
 	}
 
 	if err := s.ciRepo.CreateCIInstance(instance); err != nil {
@@ -256,7 +272,8 @@ func (s *ContainerSyncService) createContainerCI(
 
 	logger.Info("Created container CI instance",
 		zap.String("name", container.Name),
-		zap.String("id", container.ID))
+		zap.String("id", container.ID),
+		zap.Bool("has_stats", stats != nil))
 
 	return nil
 }
@@ -314,6 +331,20 @@ func (s *ContainerSyncService) updateContainerCI(
 	// 更新镜像信息（如果变化）
 	if oldImage, _ := existing.Attributes["container_image"].(string); oldImage != container.Image {
 		existing.Attributes["container_image"] = container.Image
+		needsUpdate = true
+	}
+
+	// 更新资源信息
+	stats, err := s.prometheusClient.GetContainerStats(ctx, container.Name)
+	if err == nil && stats != nil {
+		existing.Attributes["cpu_usage_percent"] = stats.CPUUsagePercent
+		existing.Attributes["memory_usage_mb"] = stats.MemoryUsageMB
+		existing.Attributes["memory_limit_mb"] = stats.MemoryLimitMB
+		existing.Attributes["network_rx_bytes"] = stats.NetworkRxBytes
+		existing.Attributes["network_tx_bytes"] = stats.NetworkTxBytes
+		existing.Attributes["disk_usage_mb"] = stats.DiskUsageMB
+		existing.Attributes["uptime_seconds"] = stats.UptimeSeconds
+		existing.Attributes["last_stats_update"] = time.Now().Format(time.RFC3339)
 		needsUpdate = true
 	}
 

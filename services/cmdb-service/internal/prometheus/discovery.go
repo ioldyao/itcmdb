@@ -40,19 +40,23 @@ func (c *Client) DiscoverContainers(ctx context.Context) ([]ContainerInfo, error
 
 	for _, result := range results {
 		name := result.Metric["name"]
-		id := result.Metric["id"]
+		idPath := result.Metric["id"]
 		image := result.Metric["image"]
 
 		if name == "" {
 			continue
 		}
 
+		// 从 id 路径中提取实际的容器 ID
+		// 格式: /system.slice/docker-{container_id}.scope
+		containerID := extractContainerID(idPath)
+
 		// 检查容器是否在线（最近 5 分钟内有数据）
 		isRunning := c.isContainerRunning(ctx, name)
 
 		containers = append(containers, ContainerInfo{
 			Name:      name,
-			ID:        id,
+			ID:        containerID,
 			Image:     image,
 			LastSeen:  now,
 			IsRunning: isRunning,
@@ -64,6 +68,42 @@ func (c *Client) DiscoverContainers(ctx context.Context) ([]ContainerInfo, error
 		zap.Int("running", countRunning(containers)))
 
 	return containers, nil
+}
+
+// extractContainerID 从 cgroup 路径中提取容器 ID
+// 输入格式: /system.slice/docker-{container_id}.scope
+// 输出: {container_id}
+func extractContainerID(idPath string) string {
+	if idPath == "" {
+		return ""
+	}
+
+	// 查找 "docker-" 前缀
+	dockerPrefix := "docker-"
+	startIdx := -1
+	for i := 0; i < len(idPath)-len(dockerPrefix); i++ {
+		if idPath[i:i+len(dockerPrefix)] == dockerPrefix {
+			startIdx = i + len(dockerPrefix)
+			break
+		}
+	}
+
+	if startIdx == -1 {
+		// 如果没有找到 docker- 前缀，返回原始值
+		return idPath
+	}
+
+	// 查找 ".scope" 后缀
+	endIdx := len(idPath)
+	scopeSuffix := ".scope"
+	for i := startIdx; i < len(idPath)-len(scopeSuffix); i++ {
+		if idPath[i:i+len(scopeSuffix)] == scopeSuffix {
+			endIdx = i
+			break
+		}
+	}
+
+	return idPath[startIdx:endIdx]
 }
 
 // isContainerRunning 检查容器是否在运行（最近 5 分钟内有指标数据）
