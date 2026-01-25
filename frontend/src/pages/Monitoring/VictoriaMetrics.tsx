@@ -32,6 +32,18 @@ export default function VictoriaMetrics() {
           Authorization: `Bearer ${token}`,
         },
       })
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          message.error('需要管理员权限才能访问配置管理')
+        } else if (response.status === 401) {
+          message.error('认证失败，请重新登录')
+        } else {
+          message.error('加载配置失败')
+        }
+        return
+      }
+
       const result = await response.json()
 
       if (result.code === 0 && result.data) {
@@ -43,6 +55,8 @@ export default function VictoriaMetrics() {
         })
 
         form.setFieldsValue(formData)
+      } else {
+        message.error(result.message || '加载配置失败')
       }
     } catch (error) {
       console.error('Failed to load configs:', error)

@@ -315,8 +315,9 @@ func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *ha
 			monitoring.GET("/victoriametrics/health", monitoringHandler.HealthCheckVictoriaMetrics)
 		}
 
-		// 系统配置管理
+		// 系统配置管理（仅管理员可访问）
 		configs := api.Group("/configs")
+		configs.Use(middleware.GRPCAdminOnlyMiddleware(authClient))
 		{
 			configs.GET("", configHandler.GetAllConfigs)
 			configs.GET("/category/:category", configHandler.GetConfigsByCategory)

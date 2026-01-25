@@ -82,3 +82,32 @@ func GRPCPermissionMiddleware(authClient *grpcclient.AuthClient, resource, actio
 		c.Next()
 	}
 }
+
+// GRPCAdminOnlyMiddleware 管理员权限检查中间件
+func GRPCAdminOnlyMiddleware(authClient *grpcclient.AuthClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(403, response.Error("未找到用户信息", ""))
+			c.Abort()
+			return
+		}
+
+		// 通过gRPC调用Auth服务检查是否为管理员
+		resp, err := authClient.CheckPermission(c.Request.Context(), userID.(uint64), "system", "admin")
+		if err != nil {
+			logger.Error("Failed to check admin permission via gRPC", zap.Error(err))
+			c.JSON(403, response.Error("权限检查失败", err.Error()))
+			c.Abort()
+			return
+		}
+
+		if !resp.Allowed {
+			c.JSON(403, response.Error("需要管理员权限", ""))
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
