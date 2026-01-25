@@ -105,10 +105,29 @@ func main() {
 	roleHandler := handlers.NewRoleHandler(roleService)
 	tagHandler := handlers.NewTagHandler(tagService)
 
-	// 监控服务（使用VictoriaMetrics）
+	// 配置服务
+	configRepo := repository.NewConfigRepository(db)
+	encryptionKey := viper.GetString("config.encryption_key")
+	configService := service.NewConfigService(configRepo, encryptionKey)
+	configHandler := handlers.NewConfigHandler(configService)
+
+	// 监控服务（优先从数据库读取配置，否则使用环境变量）
 	vmEndpoint := viper.GetString("victoriametrics.endpoint")
 	vmUsername := viper.GetString("victoriametrics.username")
 	vmPassword := viper.GetString("victoriametrics.password")
+
+	// 尝试从数据库读取 VictoriaMetrics 配置
+	if dbEndpoint, err := configService.GetConfigValue("monitoring", "victoriametrics_endpoint"); err == nil && dbEndpoint != "" {
+		vmEndpoint = dbEndpoint
+		logger.Info("Using VictoriaMetrics endpoint from database", zap.String("endpoint", vmEndpoint))
+	}
+	if dbUsername, err := configService.GetConfigValue("monitoring", "victoriametrics_username"); err == nil && dbUsername != "" {
+		vmUsername = dbUsername
+	}
+	if dbPassword, err := configService.GetConfigValue("monitoring", "victoriametrics_password"); err == nil && dbPassword != "" {
+		vmPassword = dbPassword
+	}
+
 	monitoringService := service.NewMonitoringService(ciRepo, vmEndpoint, vmUsername, vmPassword)
 	monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
 
@@ -136,7 +155,7 @@ func main() {
 
 	// 启动REST API服务器
 	r := gin.Default()
-	setupRoutes(r, authClient, ciHandler, roleHandler, tagHandler, monitoringHandler)
+	setupRoutes(r, authClient, ciHandler, roleHandler, tagHandler, monitoringHandler, configHandler)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
 	logger.Info("CMDB REST API service starting", zap.String("addr", addr))
@@ -223,7 +242,7 @@ func loadConfig() error {
 	return nil
 }
 
-func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *handlers.CIHandler, roleHandler *handlers.RoleHandler, tagHandler *handlers.TagHandler, monitoringHandler *handlers.MonitoringHandler) {
+func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *handlers.CIHandler, roleHandler *handlers.RoleHandler, tagHandler *handlers.TagHandler, monitoringHandler *handlers.MonitoringHandler, configHandler *handlers.ConfigHandler) {
 	api := r.Group("/api/v1")
 	api.Use(middleware.GRPCAuthMiddleware(authClient))
 	{
@@ -294,6 +313,17 @@ func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *ha
 			monitoring.GET("/containers/:id/stats", monitoringHandler.GetContainerStats)
 			monitoring.GET("/cadvisor/health", monitoringHandler.HealthCheckCAdvisor)
 			monitoring.GET("/victoriametrics/health", monitoringHandler.HealthCheckVictoriaMetrics)
+		}
+
+		// 系统配置管理
+		configs := api.Group("/configs")
+		{
+			configs.GET("", configHandler.GetAllConfigs)
+			configs.GET("/category/:category", configHandler.GetConfigsByCategory)
+			configs.POST("", configHandler.CreateConfig)
+			configs.PUT("/:id", configHandler.UpdateConfig)
+			configs.DELETE("/:id", configHandler.DeleteConfig)
+			configs.POST("/batch", configHandler.BatchUpdateConfigs)
 		}
 	}
 

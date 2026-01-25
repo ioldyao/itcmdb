@@ -172,8 +172,9 @@ func (s *configService) CreateConfig(req *CreateConfigRequest, userID uint) (*mo
 }
 
 func (s *configService) UpdateConfig(id uint, req *UpdateConfigRequest, userID uint) (*models.SystemConfig, error) {
-	config, err := s.repo.GetConfig("", "")
-	if err != nil {
+	// 通过 ID 获取配置
+	var config models.SystemConfig
+	if err := s.repo.(*configRepository).db.First(&config, id).Error; err != nil {
 		return nil, errors.New("config not found")
 	}
 
@@ -196,7 +197,7 @@ func (s *configService) UpdateConfig(id uint, req *UpdateConfigRequest, userID u
 	}
 	config.UpdatedBy = userID
 
-	if err := s.repo.UpdateConfig(config); err != nil {
+	if err := s.repo.UpdateConfig(&config); err != nil {
 		return nil, err
 	}
 
@@ -205,7 +206,7 @@ func (s *configService) UpdateConfig(id uint, req *UpdateConfigRequest, userID u
 		config.Value = req.Value
 	}
 
-	return config, nil
+	return &config, nil
 }
 
 func (s *configService) DeleteConfig(id uint) error {
