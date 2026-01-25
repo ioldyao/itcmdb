@@ -322,6 +322,11 @@ func (s *ciService) getChangedAttributes(oldAttrs, newAttrs map[string]interface
 		"last_hardware_report": true, // 最后上报时间，每次上报都会更新
 	}
 
+	// 实时变化的子字段（比较时忽略）
+	ignoreSubFields := map[string][]string{
+		"optical_modules_info": {"temperature"}, // 光模块温度是实时数据
+	}
+
 	// 检查新 attrs 中有哪些字段与旧 attrs 不同
 	for key, newValue := range newAttrs {
 		// 跳过忽略的字段
@@ -339,8 +344,25 @@ func (s *ciService) getChangedAttributes(oldAttrs, newAttrs map[string]interface
 		// 比较值是否相同
 		oldJSON, _ := json.Marshal(oldValue)
 		newJSON, _ := json.Marshal(newValue)
+
+		// 如果是直接比较不同，检查是否因为有实时数据字段导致
 		if string(oldJSON) != string(newJSON) {
-			changedFields = append(changedFields, key)
+			// 如果该字段有需要忽略的子字段（如 optical_modules_info 的 temperature）
+			if subFieldsToIgnore, ok := ignoreSubFields[key]; ok {
+				// 清理实时数据后再比较
+				cleanedOld := s.cleanRealtimeData(oldValue, subFieldsToIgnore)
+				cleanedNew := s.cleanRealtimeData(newValue, subFieldsToIgnore)
+				cleanedOldJSON, _ := json.Marshal(cleanedOld)
+				cleanedNewJSON, _ := json.Marshal(cleanedNew)
+
+				// 只有在清理后仍然不同才认为是真正的变化
+				if string(cleanedOldJSON) != string(cleanedNewJSON) {
+					changedFields = append(changedFields, key)
+				}
+			} else {
+				// 没有需要忽略的子字段，直接记录变化
+				changedFields = append(changedFields, key)
+			}
 		}
 	}
 
@@ -355,6 +377,38 @@ func (s *ciService) getChangedAttributes(oldAttrs, newAttrs map[string]interface
 	}
 
 	return changedFields
+}
+
+// cleanRealtimeData 清理实时数据字段（用于比较）
+func (s *ciService) cleanRealtimeData(data interface{}, fieldsToClean []string) interface{} {
+	// 如果是数组，清理每个元素的指定字段
+	if arr, ok := data.([]interface{}); ok {
+		result := []interface{}{}
+		for _, item := range arr {
+			if itemMap, ok := item.(map[string]interface{}); ok {
+				cleaned := make(map[string]interface{})
+				for k, v := range itemMap {
+					// 跳过需要清理的字段
+					shouldClean := false
+					for _, fieldToClean := range fieldsToClean {
+						if k == fieldToClean {
+							shouldClean = true
+							break
+						}
+					}
+					if !shouldClean {
+						cleaned[k] = v
+					}
+				}
+				result = append(result, cleaned)
+			} else {
+				result = append(result, item)
+			}
+		}
+		return result
+	}
+
+	return data
 }
 
 func (s *ciService) validateAttributes(attrs map[string]interface{}, definitions []models.CIAttribute) error {
