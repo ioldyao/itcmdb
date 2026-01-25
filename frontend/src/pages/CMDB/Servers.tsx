@@ -116,6 +116,8 @@ export default function CMDBServers() {
       name: record.name,
       status: record.status,
       ip_address: record.attributes?.ip_address || '',
+      data_center: record.attributes?.data_center || '',
+      rack_position: record.attributes?.rack_position || '',
       os: record.attributes?.os || '',
       cpu_cores: record.attributes?.cpu_cores || '',
       memory_gb: record.attributes?.memory_gb || '',
@@ -142,6 +144,8 @@ export default function CMDBServers() {
       const values = await form.validateFields()
       const attributes = {
         ip_address: values.ip_address,
+        data_center: values.data_center || '',
+        rack_position: values.rack_position || '',
         os: values.os,
         cpu_cores: values.cpu_cores,
         memory_gb: values.memory_gb,
@@ -418,6 +422,8 @@ export default function CMDBServers() {
             status: 'active',
             ci_type_id: 1,
             ip_address: '',
+            data_center: '',
+            rack_position: '',
             os: '',
             cpu_cores: '',
             memory_gb: '',
@@ -442,6 +448,12 @@ export default function CMDBServers() {
             ]}
           >
             <Input placeholder="例如: 192.168.1.100" />
+          </Form.Item>
+          <Form.Item label="机房" name="data_center">
+            <Input placeholder="例如: 北京机房A" />
+          </Form.Item>
+          <Form.Item label="机架位" name="rack_position">
+            <Input placeholder="例如: A01-U12" />
           </Form.Item>
           <Form.Item label="操作系统" name="os" rules={[{ required: true, message: '请输入操作系统' }]}>
             <Input placeholder="例如: CentOS 7.9" />

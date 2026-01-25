@@ -11,8 +11,10 @@ import dayjs from 'dayjs'
 export default function CIDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { fetchInstance } = useCMDBStore()
+  const { fetchInstance, fetchInstanceRoles, fetchInstanceTags } = useCMDBStore()
   const [instance, setInstance] = useState<CIInstance | null>(null)
+  const [roles, setRoles] = useState<any[]>([])
+  const [tags, setTags] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -26,6 +28,14 @@ export default function CIDetail() {
     try {
       const data = await fetchInstance(ciId)
       setInstance(data)
+
+      // 加载角色和标签
+      const [rolesData, tagsData] = await Promise.all([
+        fetchInstanceRoles(ciId),
+        fetchInstanceTags(ciId),
+      ])
+      setRoles(rolesData)
+      setTags(tagsData)
     } catch (error) {
       message.error('加载CI实例失败')
       console.error('Failed to load CI instance:', error)
@@ -104,7 +114,11 @@ export default function CIDetail() {
               label: '基本信息',
               children: isServer ? (
                 // 服务器类型显示硬件信息组件
-                <ServerHardwareInfo attributes={instance.attributes || {}} />
+                <ServerHardwareInfo
+                  attributes={instance.attributes || {}}
+                  roles={roles}
+                  tags={tags}
+                />
               ) : (
                 // 其他类型显示传统属性列表
                 <Descriptions column={2} bordered>

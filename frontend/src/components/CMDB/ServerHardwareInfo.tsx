@@ -1,4 +1,4 @@
-import { Card, Table, Row, Col, Statistic, Descriptions } from 'antd'
+import { Card, Table, Row, Col, Statistic, Descriptions, Tag } from 'antd'
 import {
   HddOutlined,
   ThunderboltOutlined,
@@ -10,6 +10,8 @@ import {
 
 interface HardwareInfo {
   attributes: Record<string, any>
+  roles?: any[]
+  tags?: any[]
 }
 
 // 格式化内存大小（将 KB 转换为合适的单位）
@@ -41,11 +43,13 @@ function formatMemorySize(memoryStr: string): string {
   return memoryStr
 }
 
-export default function ServerHardwareInfo({ attributes }: HardwareInfo) {
+export default function ServerHardwareInfo({ attributes, roles = [], tags = [] }: HardwareInfo) {
   const {
     hostname,
     system_serial,
     last_hardware_report,
+    data_center,
+    rack_position,
     cpu_model,
     cpu_cores,
     cpu_threads,
@@ -73,6 +77,8 @@ export default function ServerHardwareInfo({ attributes }: HardwareInfo) {
   const basicInfo = [
     { label: '主机名', value: hostname || '-' },
     { label: '系统序列号', value: system_serial || '-' },
+    { label: '机房', value: data_center || '-' },
+    { label: '机架位', value: rack_position || '-' },
     {
       label: '最后上报时间',
       value: last_hardware_report ? new Date(last_hardware_report).toLocaleString('zh-CN') : '-',
@@ -260,6 +266,32 @@ export default function ServerHardwareInfo({ attributes }: HardwareInfo) {
               {info.value}
             </Descriptions.Item>
           ))}
+          <Descriptions.Item label="角色" span={3}>
+            {roles && roles.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {roles.map((role: any) => (
+                  <Tag key={role.id} color="blue">
+                    {role.display_name || role.name}
+                  </Tag>
+                ))}
+              </div>
+            ) : (
+              '-'
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="标签" span={3}>
+            {tags && tags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag: any) => (
+                  <Tag key={tag.id} color={tag.color || 'default'}>
+                    {tag.display_name || tag.name}
+                  </Tag>
+                ))}
+              </div>
+            ) : (
+              '-'
+            )}
+          </Descriptions.Item>
         </Descriptions>
       </Card>
 
