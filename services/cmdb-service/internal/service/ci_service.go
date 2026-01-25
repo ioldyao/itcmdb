@@ -317,8 +317,18 @@ func (s *ciService) GetCIHistory(ciID uint, limit int) ([]models.CIHistory, erro
 func (s *ciService) getChangedAttributes(oldAttrs, newAttrs map[string]interface{}) []string {
 	changedFields := []string{}
 
+	// 忽略的字段（不记录为变更）
+	ignoredFields := map[string]bool{
+		"last_hardware_report": true, // 最后上报时间，每次上报都会更新
+	}
+
 	// 检查新 attrs 中有哪些字段与旧 attrs 不同
 	for key, newValue := range newAttrs {
+		// 跳过忽略的字段
+		if ignoredFields[key] {
+			continue
+		}
+
 		oldValue, exists := oldAttrs[key]
 		if !exists {
 			// 新增的字段
@@ -334,8 +344,11 @@ func (s *ciService) getChangedAttributes(oldAttrs, newAttrs map[string]interface
 		}
 	}
 
-	// 检查是否有字段被删除
+	// 检查是否有字段被删除（同样忽略特定字段）
 	for key := range oldAttrs {
+		if ignoredFields[key] {
+			continue
+		}
 		if _, exists := newAttrs[key]; !exists {
 			changedFields = append(changedFields, key+"(删除)")
 		}
