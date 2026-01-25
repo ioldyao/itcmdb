@@ -197,7 +197,7 @@ func (s *configService) UpdateConfig(id uint, req *UpdateConfigRequest, userID u
 	}
 	config.UpdatedBy = userID
 
-	if err := s.repo.UpdateConfig(&config); err != nil {
+	if err := s.repo.UpdateConfig(config); err != nil {
 		return nil, err
 	}
 
@@ -206,7 +206,7 @@ func (s *configService) UpdateConfig(id uint, req *UpdateConfigRequest, userID u
 		config.Value = req.Value
 	}
 
-	return &config, nil
+	return config, nil
 }
 
 func (s *configService) DeleteConfig(id uint) error {
