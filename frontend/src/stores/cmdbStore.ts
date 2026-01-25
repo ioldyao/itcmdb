@@ -433,18 +433,19 @@ export const useCMDBStore = create<CMDBState>()(
       assignInstanceRoles: async (ciId: number, roleIds: number[]) => {
         try {
           const token = getAuthToken()
-          const response = await fetch(`/api/v1/ci/instances/${ciId}/roles`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ role_type: 'ci_role', role_ids: roleIds }),
-          })
-          const result: ApiResponse<any> = await response.json()
-          if (result.code !== 0) {
-            throw new Error(result.message)
-          }
+          // 逐个分配角色
+          await Promise.all(
+            roleIds.map(roleId =>
+              fetch(`/api/v1/ci/instances/${ciId}/roles`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ role_type: 'ci_role', role_id: roleId }),
+              })
+            )
+          )
         } catch (error) {
           console.error('Failed to assign roles:', error)
           throw error
