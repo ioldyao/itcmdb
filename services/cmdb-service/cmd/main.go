@@ -11,6 +11,8 @@ import (
 	"github.com/itcmdb/cmdb-service/internal/handlers"
 	grpcserver "github.com/itcmdb/cmdb-service/internal/grpc"
 	"github.com/itcmdb/cmdb-service/internal/models"
+	"github.com/itcmdb/cmdb-service/internal/prometheus"
+	prometheuspkg "github.com/itcmdb/cmdb-service/internal/prometheus"
 	"github.com/itcmdb/cmdb-service/internal/repository"
 	"github.com/itcmdb/cmdb-service/internal/service"
 	"github.com/itcmdb/shared/pkg/audit"
@@ -111,38 +113,62 @@ func main() {
 	configService := service.NewConfigService(configRepo, encryptionKey)
 	configHandler := handlers.NewConfigHandler(configService)
 
-	// 监控服务（优先从数据库读取配置，否则使用环境变量）
-	vmEndpoint := viper.GetString("victoriametrics.endpoint")
-	vmUsername := viper.GetString("victoriametrics.username")
-	vmPassword := viper.GetString("victoriametrics.password")
+	// 监控服务（支持多数据源配置）
+	// 优先从数据库读取配置，否则使用配置文件
+	vmDatasources := loadVictoriaMetricsDatasources(viper, configService)
 
-	// 尝试从数据库读取 VictoriaMetrics 配置
-	if dbEndpoint, err := configService.GetConfigValue("monitoring", "victoriametrics_endpoint"); err == nil && dbEndpoint != "" {
-		vmEndpoint = dbEndpoint
-		logger.Info("Using VictoriaMetrics endpoint from database", zap.String("endpoint", vmEndpoint))
-	}
-	if dbUsername, err := configService.GetConfigValue("monitoring", "victoriametrics_username"); err == nil && dbUsername != "" {
-		vmUsername = dbUsername
-	}
-	if dbPassword, err := configService.GetConfigValue("monitoring", "victoriametrics_password"); err == nil && dbPassword != "" {
-		vmPassword = dbPassword
-	}
+	if len(vmDatasources) > 0 {
+		// 使用多数据源配置
+		logger.Info("Using multiple VictoriaMetrics datasources", zap.Int("count", len(vmDatasources)))
 
-	monitoringService := service.NewMonitoringService(ciRepo, vmEndpoint, vmUsername, vmPassword)
-	monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
+		multiClient := prometheuspkg.NewMultiDataSourceClient(vmDatasources)
 
-	// 启动容器自动同步服务（如果配置了VictoriaMetrics）
-	if vmEndpoint != "" {
+		monitoringService := service.NewMonitoringServiceWithMultiSource(ciRepo, multiClient)
+		monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
+
+		// 启动多数据源容器自动同步服务
 		syncInterval := viper.GetDuration("victoriametrics.sync_interval")
 		if syncInterval == 0 {
 			syncInterval = 5 * time.Minute // 默认5分钟同步一次
 		}
 
-		promClient := monitoringService.GetPrometheusClient()
-		if promClient != nil {
-			containerSyncService := service.NewContainerSyncService(ciRepo, promClient, syncInterval)
-			containerSyncService.Start()
-			logger.Info("Container auto-sync service started", zap.Duration("interval", syncInterval))
+		multiSourceSyncService := service.NewMultiSourceContainerSyncService(ciRepo, multiClient, syncInterval)
+		multiSourceSyncService.Start()
+		logger.Info("Multi-source container auto-sync service started", zap.Duration("interval", syncInterval))
+	} else {
+		// 使用单数据源配置（向后兼容）
+		vmEndpoint := viper.GetString("victoriametrics.endpoint")
+		vmUsername := viper.GetString("victoriametrics.username")
+		vmPassword := viper.GetString("victoriametrics.password")
+
+		// 尝试从数据库读取 VictoriaMetrics 配置
+		if dbEndpoint, err := configService.GetConfigValue("monitoring", "victoriametrics_endpoint"); err == nil && dbEndpoint != "" {
+			vmEndpoint = dbEndpoint
+			logger.Info("Using VictoriaMetrics endpoint from database", zap.String("endpoint", vmEndpoint))
+		}
+		if dbUsername, err := configService.GetConfigValue("monitoring", "victoriametrics_username"); err == nil && dbUsername != "" {
+			vmUsername = dbUsername
+		}
+		if dbPassword, err := configService.GetConfigValue("monitoring", "victoriametrics_password"); err == nil && dbPassword != "" {
+			vmPassword = dbPassword
+		}
+
+		monitoringService := service.NewMonitoringService(ciRepo, vmEndpoint, vmUsername, vmPassword)
+		monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
+
+		// 启动单数据源容器自动同步服务（如果配置了VictoriaMetrics）
+		if vmEndpoint != "" {
+			syncInterval := viper.GetDuration("victoriametrics.sync_interval")
+			if syncInterval == 0 {
+				syncInterval = 5 * time.Minute // 默认5分钟同步一次
+			}
+
+			promClient := monitoringService.GetPrometheusClient()
+			if promClient != nil {
+				containerSyncService := service.NewContainerSyncService(ciRepo, promClient, syncInterval)
+				containerSyncService.Start()
+				logger.Info("Container auto-sync service started", zap.Duration("interval", syncInterval))
+			}
 		}
 	}
 
@@ -352,4 +378,23 @@ func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *ha
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
+}
+
+// loadVictoriaMetricsDatasources 加载VictoriaMetrics多数据源配置
+func loadVictoriaMetricsDatasources(v *viper.Viper, configService *service.ConfigService) []prometheus.VictoriaMetricsDataSource {
+	// 尝试从配置文件读取多数据源配置
+	var datasources []prometheus.VictoriaMetricsDataSource
+
+	if v.IsSet("victoriametrics.datasources") {
+		if err := v.UnmarshalKey("victoriametrics.datasources", &datasources); err == nil && len(datasources) > 0 {
+			logger.Info("Loaded VictoriaMetrics datasources from config file", zap.Int("count", len(datasources)))
+			return datasources
+		}
+	}
+
+	// 尝试从数据库读取多数据源配置
+	// TODO: 实现从数据库读取多数据源配置的逻辑
+	// 目前返回空列表，系统将使用单数据源配置（向后兼容）
+
+	return []prometheus.VictoriaMetricsDataSource{}
 }

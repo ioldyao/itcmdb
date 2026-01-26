@@ -377,14 +377,90 @@ if !hasPermission(c, "ci", "delete") {
 
 ### 配置说明
 
+ITCMDB支持**单数据源**和**多数据源**两种配置方式，推荐使用多数据源配置以实现更灵活的容器管理。
+
+#### 多数据源配置（推荐）
+
 在 `services/cmdb-service/internal/config/config.yaml` 中配置：
+
+```yaml
+victoriametrics:
+  # 多数据源配置
+  datasources:
+    - name: "主数据中心"
+      id: "primary-dc"
+      endpoint: https://victoriametrics-primary.example.com:8429
+      username: admin
+      password: your_password
+      enabled: true
+      # 可选：指定这个数据源负责哪些容器（通过容器名前缀匹配）
+      container_prefix: ["prod-", "staging-"]
+      # 可选：标签，会自动添加到从该数据源同步的容器上
+      labels:
+        location: "主数据中心"
+        environment: "production"
+
+    - name: "备数据中心"
+      id: "secondary-dc"
+      endpoint: https://victoriametrics-backup.example.com:8429
+      username: admin
+      password: backup_password
+      enabled: true
+      labels:
+        location: "备数据中心"
+        environment: "dr"
+
+    - name: "开发环境"
+      id: "dev-env"
+      endpoint: https://victoriametrics-dev.example.com:8429
+      username: dev_user
+      password: dev_password
+      enabled: false  # 可以禁用某个数据源
+      labels:
+        location: "开发环境"
+        environment: "development"
+
+  sync_interval: 5m  # 同步间隔，默认5分钟
+```
+
+#### 单数据源配置（向后兼容）
+
+如果只有一个VictoriaMetrics实例，可以使用简化的单数据源配置：
 
 ```yaml
 victoriametrics:
   endpoint: https://your-victoriametrics:8429
   username: your_username
   password: your_password
-  sync_interval: 5m  # 同步间隔
+  sync_interval: 5m
+```
+
+### 多数据源特性
+
+- **并发同步** - 从多个数据源并发发现和同步容器
+- **数据源隔离** - 每个数据源独立配置认证信息和标签
+- **容器过滤** - 通过 `container_prefix` 指定数据源负责的容器
+- **自动标签** - 数据源的 `labels` 会自动添加到同步的容器上
+- **健康检查** - 定期检查所有数据源的健康状态
+- **容错机制** - 单个数据源故障不影响其他数据源的同步
+
+### 容器属性
+
+从多数据源同步的容器包含以下额外属性：
+
+```json
+{
+  "datasource_id": "primary-dc",           // 数据源ID
+  "datasource_name": "主数据中心",         // 数据源名称
+  "datasource_labels": {                  // 数据源标签
+    "location": "主数据中心",
+    "environment": "production"
+  },
+  "container_name": "prod-web-server-1",
+  "container_id": "abc123...",
+  "is_online": true,
+  "last_seen": "2026-01-26T12:00:00Z"
+}
 ```
 
 ### 同步特性
@@ -394,6 +470,7 @@ victoriametrics:
 - **重建检测** - 识别容器重建（Container ID变化）
 - **历史记录** - 记录容器ID变更历史
 - **资源监控** - 同步CPU、内存、网络等指标
+- **数据源切换** - 检测容器在不同数据源间的迁移
 
 ### 支持的指标
 
