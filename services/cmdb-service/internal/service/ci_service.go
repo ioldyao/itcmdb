@@ -1,9 +1,9 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
-	"time"
 
 	"github.com/itcmdb/cmdb-service/internal/models"
 	"github.com/itcmdb/cmdb-service/internal/repository"
@@ -126,12 +126,11 @@ func (s *ciService) CreateCIInstance(req *CreateCIInstanceRequest, userID uint) 
 		instance.Status = "active"
 	}
 
-	if err := s.repo.CreateCIInstance(instance); err != nil {
+	// 使用Context传递用户ID，让GORM Hooks自动记录历史
+	ctx := context.WithValue(context.Background(), models.UserIDKey, userID)
+	if err := s.repo.CreateCIInstanceWithContext(ctx, instance); err != nil {
 		return nil, err
 	}
-
-	// 记录历史
-	s.recordHistory(instance.ID, userID, "create", "", "", "")
 
 	// 发布CI创建事件
 	go func() {
@@ -159,16 +158,15 @@ func (s *ciService) UpdateCIInstance(id uint, req *UpdateCIInstanceRequest, user
 		return nil, errors.New("CI instance not found")
 	}
 
-	// 记录变更
+	// 保存旧数据用于Kafka事件
 	oldData, _ := json.Marshal(instance)
 
-	if req.Name != "" && req.Name != instance.Name {
-		s.recordHistory(id, userID, "update", "name", instance.Name, req.Name)
+	// 更新字段
+	if req.Name != "" {
 		instance.Name = req.Name
 	}
 
-	if req.Status != "" && req.Status != instance.Status {
-		s.recordHistory(id, userID, "update", "status", instance.Status, req.Status)
+	if req.Status != "" {
 		instance.Status = req.Status
 	}
 
@@ -177,22 +175,6 @@ func (s *ciService) UpdateCIInstance(id uint, req *UpdateCIInstanceRequest, user
 		if err := s.validateAttributes(req.Attributes, instance.CIType.Attributes); err != nil {
 			return nil, err
 		}
-
-		// 比较新旧 attributes 是否真的发生了变化
-		oldAttrs, _ := json.Marshal(instance.Attributes)
-		newAttrs, _ := json.Marshal(req.Attributes)
-
-		// 只有在 attributes 真正发生变化时才记录历史
-		if string(oldAttrs) != string(newAttrs) {
-			// 计算变化的字段
-			changedFields := s.getChangedAttributes(instance.Attributes, req.Attributes)
-
-			if len(changedFields) > 0 {
-				// 记录完整的旧值和新值 JSON，方便查看具体变更内容
-				s.recordHistory(id, userID, "update", "attributes", string(oldAttrs), string(newAttrs))
-			}
-		}
-
 		instance.Attributes = req.Attributes
 	}
 
@@ -202,7 +184,9 @@ func (s *ciService) UpdateCIInstance(id uint, req *UpdateCIInstanceRequest, user
 
 	instance.UpdatedBy = userID
 
-	if err := s.repo.UpdateCIInstance(instance); err != nil {
+	// 使用Context传递用户ID，让GORM Hooks自动记录历史
+	ctx := context.WithValue(context.Background(), models.UserIDKey, userID)
+	if err := s.repo.UpdateCIInstanceWithContext(ctx, instance); err != nil {
 		return nil, err
 	}
 
@@ -235,10 +219,9 @@ func (s *ciService) DeleteCIInstance(id uint, userID uint) error {
 		return errors.New("CI instance not found")
 	}
 
-	// 记录删除历史
-	s.recordHistory(id, userID, "delete", "", instance.Name, "")
-
-	if err := s.repo.DeleteCIInstance(id); err != nil {
+	// 使用Context传递用户ID，让GORM Hooks自动记录历史
+	ctx := context.WithValue(context.Background(), models.UserIDKey, userID)
+	if err := s.repo.DeleteCIInstanceWithContext(ctx, id); err != nil {
 		return err
 	}
 
@@ -311,104 +294,6 @@ func (s *ciService) GetCIHistory(ciID uint, limit int) ([]models.CIHistory, erro
 
 // Helper functions
 
-// getChangedAttributes 比较两个 attributes 并返回变化的字段列表
-func (s *ciService) getChangedAttributes(oldAttrs, newAttrs map[string]interface{}) []string {
-	changedFields := []string{}
-
-	// 忽略的字段（不记录为变更）
-	ignoredFields := map[string]bool{
-		"last_hardware_report": true, // 最后上报时间，每次上报都会更新
-	}
-
-	// 实时变化的子字段（比较时忽略）
-	ignoreSubFields := map[string][]string{
-		"optical_modules_info": {"temperature"}, // 光模块温度是实时数据
-	}
-
-	// 检查新 attrs 中有哪些字段与旧 attrs 不同
-	for key, newValue := range newAttrs {
-		// 跳过忽略的字段
-		if ignoredFields[key] {
-			continue
-		}
-
-		oldValue, exists := oldAttrs[key]
-		if !exists {
-			// 新增的字段
-			changedFields = append(changedFields, key+"(新增)")
-			continue
-		}
-
-		// 比较值是否相同
-		oldJSON, _ := json.Marshal(oldValue)
-		newJSON, _ := json.Marshal(newValue)
-
-		// 如果是直接比较不同，检查是否因为有实时数据字段导致
-		if string(oldJSON) != string(newJSON) {
-			// 如果该字段有需要忽略的子字段（如 optical_modules_info 的 temperature）
-			if subFieldsToIgnore, ok := ignoreSubFields[key]; ok {
-				// 清理实时数据后再比较
-				cleanedOld := s.cleanRealtimeData(oldValue, subFieldsToIgnore)
-				cleanedNew := s.cleanRealtimeData(newValue, subFieldsToIgnore)
-				cleanedOldJSON, _ := json.Marshal(cleanedOld)
-				cleanedNewJSON, _ := json.Marshal(cleanedNew)
-
-				// 只有在清理后仍然不同才认为是真正的变化
-				if string(cleanedOldJSON) != string(cleanedNewJSON) {
-					changedFields = append(changedFields, key)
-				}
-			} else {
-				// 没有需要忽略的子字段，直接记录变化
-				changedFields = append(changedFields, key)
-			}
-		}
-	}
-
-	// 检查是否有字段被删除（同样忽略特定字段）
-	for key := range oldAttrs {
-		if ignoredFields[key] {
-			continue
-		}
-		if _, exists := newAttrs[key]; !exists {
-			changedFields = append(changedFields, key+"(删除)")
-		}
-	}
-
-	return changedFields
-}
-
-// cleanRealtimeData 清理实时数据字段（用于比较）
-func (s *ciService) cleanRealtimeData(data interface{}, fieldsToClean []string) interface{} {
-	// 如果是数组，清理每个元素的指定字段
-	if arr, ok := data.([]interface{}); ok {
-		result := []interface{}{}
-		for _, item := range arr {
-			if itemMap, ok := item.(map[string]interface{}); ok {
-				cleaned := make(map[string]interface{})
-				for k, v := range itemMap {
-					// 跳过需要清理的字段
-					shouldClean := false
-					for _, fieldToClean := range fieldsToClean {
-						if k == fieldToClean {
-							shouldClean = true
-							break
-						}
-					}
-					if !shouldClean {
-						cleaned[k] = v
-					}
-				}
-				result = append(result, cleaned)
-			} else {
-				result = append(result, item)
-			}
-		}
-		return result
-	}
-
-	return data
-}
-
 func (s *ciService) validateAttributes(attrs map[string]interface{}, definitions []models.CIAttribute) error {
 	// 检查必填属性
 	for _, def := range definitions {
@@ -419,40 +304,6 @@ func (s *ciService) validateAttributes(attrs map[string]interface{}, definitions
 		}
 	}
 	return nil
-}
-
-func (s *ciService) recordHistory(ciID, userID uint, action, fieldName, oldValue, newValue string) {
-	// JSON-encode values if they're not already valid JSON
-	oldValueJSON := s.ensureJSON(oldValue)
-	newValueJSON := s.ensureJSON(newValue)
-
-	history := &models.CIHistory{
-		CIID:      ciID,
-		ChangedBy: userID,
-		Action:    action,
-		FieldName: fieldName,
-		OldValue:  oldValueJSON,
-		NewValue:  newValueJSON,
-		ChangedAt: time.Now(),
-	}
-	s.repo.CreateCIHistory(history)
-}
-
-// ensureJSON checks if a string is valid JSON, if not, wraps it as a JSON string
-func (s *ciService) ensureJSON(value string) string {
-	if value == "" {
-		return "null"
-	}
-
-	// Check if it's already valid JSON
-	var js json.RawMessage
-	if err := json.Unmarshal([]byte(value), &js); err == nil {
-		return value
-	}
-
-	// Not valid JSON, encode it as a JSON string
-	encoded, _ := json.Marshal(value)
-	return string(encoded)
 }
 
 // Import/Export

@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"context"
+
 	"github.com/itcmdb/cmdb-service/internal/models"
 	"gorm.io/gorm"
 )
@@ -15,8 +17,11 @@ type CIRepository interface {
 	GetCIInstances(ciTypeID uint, filters map[string]interface{}, page, pageSize int) ([]models.CIInstance, int64, error)
 	GetCIInstanceByID(id uint) (*models.CIInstance, error)
 	CreateCIInstance(instance *models.CIInstance) error
+	CreateCIInstanceWithContext(ctx context.Context, instance *models.CIInstance) error
 	UpdateCIInstance(instance *models.CIInstance) error
+	UpdateCIInstanceWithContext(ctx context.Context, instance *models.CIInstance) error
 	DeleteCIInstance(id uint) error
+	DeleteCIInstanceWithContext(ctx context.Context, id uint) error
 
 	// CI Relations
 	GetCIRelations(ciID uint) ([]models.CIRelation, error)
@@ -128,12 +133,24 @@ func (r *ciRepository) CreateCIInstance(instance *models.CIInstance) error {
 	return r.db.Create(instance).Error
 }
 
+func (r *ciRepository) CreateCIInstanceWithContext(ctx context.Context, instance *models.CIInstance) error {
+	return r.db.WithContext(ctx).Create(instance).Error
+}
+
 func (r *ciRepository) UpdateCIInstance(instance *models.CIInstance) error {
 	return r.db.Save(instance).Error
 }
 
+func (r *ciRepository) UpdateCIInstanceWithContext(ctx context.Context, instance *models.CIInstance) error {
+	return r.db.WithContext(ctx).Save(instance).Error
+}
+
 func (r *ciRepository) DeleteCIInstance(id uint) error {
 	return r.db.Delete(&models.CIInstance{}, id).Error
+}
+
+func (r *ciRepository) DeleteCIInstanceWithContext(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&models.CIInstance{}, id).Error
 }
 
 // CI Relations
