@@ -193,7 +193,7 @@ func (s *monitoringServiceMultiSource) GetContainerStats(ctx context.Context, ci
 				zap.String("container_name", containerName),
 				zap.String("datasource_id", datasourceID))
 		} else {
-			stats = dsStats.ContainerStats
+			stats = dsStats.Stats
 		}
 	}
 
@@ -207,7 +207,7 @@ func (s *monitoringServiceMultiSource) GetContainerStats(ctx context.Context, ci
 				zap.String("container_name", containerName))
 			return nil, fmt.Errorf("failed to fetch container stats from all datasources: %w", err)
 		}
-		stats = allStats.ContainerStats
+		stats = allStats.Stats
 	}
 
 	// 缓存结果（30秒TTL）

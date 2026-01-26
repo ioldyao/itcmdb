@@ -228,7 +228,8 @@ func (s *MultiSourceContainerSyncService) createContainerCI(
 		zap.String("name", container.Name),
 		zap.String("id", container.ID),
 		zap.String("datasource", container.DataSourceName),
-		zap.Bool("has_stats", stats != nil))
+		zap.Bool("has_stats", stats != nil && stats.Stats != nil),
+		zap.Error(err)) // 记录获取统计信息时的错误
 
 	return nil
 }
@@ -314,14 +315,14 @@ func (s *MultiSourceContainerSyncService) updateContainerCI(
 
 	// 更新资源信息
 	stats, err := s.multiClient.GetContainerStatsFromDatasource(ctx, container.Name, container.DataSourceID)
-	if err == nil && stats != nil {
-		existing.Attributes["cpu_usage_percent"] = stats.CPUUsagePercent
-		existing.Attributes["memory_usage_mb"] = stats.MemoryUsageMB
-		existing.Attributes["memory_limit_mb"] = stats.MemoryLimitMB
-		existing.Attributes["network_rx_bytes"] = stats.NetworkRxBytes
-		existing.Attributes["network_tx_bytes"] = stats.NetworkTxBytes
-		existing.Attributes["disk_usage_mb"] = stats.DiskUsageMB
-		existing.Attributes["uptime_seconds"] = stats.UptimeSeconds
+	if err == nil && stats != nil && stats.Stats != nil {
+		existing.Attributes["cpu_usage_percent"] = stats.Stats.CPUUsagePercent
+		existing.Attributes["memory_usage_mb"] = stats.Stats.MemoryUsageMB
+		existing.Attributes["memory_limit_mb"] = stats.Stats.MemoryLimitMB
+		existing.Attributes["network_rx_bytes"] = stats.Stats.NetworkRxBytes
+		existing.Attributes["network_tx_bytes"] = stats.Stats.NetworkTxBytes
+		existing.Attributes["disk_usage_mb"] = stats.Stats.DiskUsageMB
+		existing.Attributes["uptime_seconds"] = stats.Stats.UptimeSeconds
 		existing.Attributes["last_stats_update"] = time.Now().Format(time.RFC3339)
 		needsUpdate = true
 	}
@@ -383,14 +384,14 @@ func (s *MultiSourceContainerSyncService) buildContainerAttributes(
 	}
 
 	// 如果成功获取资源信息，添加到 attributes
-	if stats != nil {
-		attributes["cpu_usage_percent"] = stats.CPUUsagePercent
-		attributes["memory_usage_mb"] = stats.MemoryUsageMB
-		attributes["memory_limit_mb"] = stats.MemoryLimitMB
-		attributes["network_rx_bytes"] = stats.NetworkRxBytes
-		attributes["network_tx_bytes"] = stats.NetworkTxBytes
-		attributes["disk_usage_mb"] = stats.DiskUsageMB
-		attributes["uptime_seconds"] = stats.UptimeSeconds
+	if stats != nil && stats.Stats != nil {
+		attributes["cpu_usage_percent"] = stats.Stats.CPUUsagePercent
+		attributes["memory_usage_mb"] = stats.Stats.MemoryUsageMB
+		attributes["memory_limit_mb"] = stats.Stats.MemoryLimitMB
+		attributes["network_rx_bytes"] = stats.Stats.NetworkRxBytes
+		attributes["network_tx_bytes"] = stats.Stats.NetworkTxBytes
+		attributes["disk_usage_mb"] = stats.Stats.DiskUsageMB
+		attributes["uptime_seconds"] = stats.Stats.UptimeSeconds
 		attributes["last_stats_update"] = time.Now().Format(time.RFC3339)
 	}
 

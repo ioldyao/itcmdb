@@ -115,7 +115,9 @@ func main() {
 
 	// 监控服务（支持多数据源配置）
 	// 优先从数据库读取配置，否则使用配置文件
-	vmDatasources := loadVictoriaMetricsDatasources(viper, configService)
+	vmDatasources := loadVictoriaMetricsDatasources(configService)
+
+	var monitoringHandler *handlers.MonitoringHandler
 
 	if len(vmDatasources) > 0 {
 		// 使用多数据源配置
@@ -124,7 +126,7 @@ func main() {
 		multiClient := prometheuspkg.NewMultiDataSourceClient(vmDatasources)
 
 		monitoringService := service.NewMonitoringServiceWithMultiSource(ciRepo, multiClient)
-		monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
+		monitoringHandler = handlers.NewMonitoringHandler(monitoringService)
 
 		// 启动多数据源容器自动同步服务
 		syncInterval := viper.GetDuration("victoriametrics.sync_interval")
@@ -154,7 +156,7 @@ func main() {
 		}
 
 		monitoringService := service.NewMonitoringService(ciRepo, vmEndpoint, vmUsername, vmPassword)
-		monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
+		monitoringHandler = handlers.NewMonitoringHandler(monitoringService)
 
 		// 启动单数据源容器自动同步服务（如果配置了VictoriaMetrics）
 		if vmEndpoint != "" {
@@ -381,12 +383,12 @@ func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *ha
 }
 
 // loadVictoriaMetricsDatasources 加载VictoriaMetrics多数据源配置
-func loadVictoriaMetricsDatasources(v *viper.Viper, configService *service.ConfigService) []prometheus.VictoriaMetricsDataSource {
+func loadVictoriaMetricsDatasources(configService service.ConfigService) []prometheus.VictoriaMetricsDataSource {
 	// 尝试从配置文件读取多数据源配置
 	var datasources []prometheus.VictoriaMetricsDataSource
 
-	if v.IsSet("victoriametrics.datasources") {
-		if err := v.UnmarshalKey("victoriametrics.datasources", &datasources); err == nil && len(datasources) > 0 {
+	if viper.IsSet("victoriametrics.datasources") {
+		if err := viper.UnmarshalKey("victoriametrics.datasources", &datasources); err == nil && len(datasources) > 0 {
 			logger.Info("Loaded VictoriaMetrics datasources from config file", zap.Int("count", len(datasources)))
 			return datasources
 		}

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/itcmdb/cmdb-service/internal/cadvisor"
 	"github.com/itcmdb/shared/pkg/logger"
 	"go.uber.org/zap"
 )
@@ -150,7 +151,7 @@ func (m *MultiDataSourceClient) GetContainerStatsFromDatasource(
 	}
 
 	return &DataSourceContainerStats{
-		ContainerStats: stats,
+		Stats:          stats,
 		DataSourceID:   datasourceID,
 		DataSourceName: ds.config.Name,
 	}, nil
@@ -173,7 +174,7 @@ func (m *MultiDataSourceClient) GetContainerStatsFromAll(
 		}
 
 		return &DataSourceContainerStats{
-			ContainerStats: stats,
+			Stats:          stats,
 			DataSourceID:   ds.config.ID,
 			DataSourceName: ds.config.Name,
 		}, nil
@@ -252,7 +253,7 @@ type DataSourceContainerInfo struct {
 
 // DataSourceContainerStats 带数据源信息的容器统计
 type DataSourceContainerStats struct {
-	*ContainerStats
-	DataSourceID   string `json:"datasource_id"`   // 数据源ID
-	DataSourceName string `json:"datasource_name"`  // 数据源名称
+	Stats          *cadvisor.ContainerStats `json:"stats"`
+	DataSourceID   string                   `json:"datasource_id"`   // 数据源ID
+	DataSourceName string                   `json:"datasource_name"`  // 数据源名称
 }
