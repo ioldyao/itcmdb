@@ -266,35 +266,16 @@ export default function CMDBServers() {
       },
     },
     {
-      title: 'GPU型号',
+      title: '机房',
       dataIndex: 'attributes',
-      key: 'gpu_model',
-      render: (attr: Record<string, any>) => {
-        // 优先显示 gpu_model（手动输入），否则从 gpu_info 数组中提取
-        if (attr?.gpu_model) return attr.gpu_model
-        if (attr?.gpu_info && Array.isArray(attr.gpu_info) && attr.gpu_info.length > 0) {
-          // 显示第一个 GPU 的产品名称
-          const gpuName = attr.gpu_info[0]?.product_name
-          // 如果有多个 GPU，显示数量
-          if (attr.gpu_info.length > 1) {
-            return `${gpuName} 等 ${attr.gpu_count || attr.gpu_info.length} 个`
-          }
-          return gpuName || '-'
-        }
-        return '-'
-      },
+      key: 'data_center',
+      render: (attr: Record<string, any>) => attr?.data_center || '-',
     },
     {
-      title: 'GPU数量',
+      title: '机架位',
       dataIndex: 'attributes',
-      key: 'gpu_count',
-      render: (attr: Record<string, any>) => attr?.gpu_count || '-',
-    },
-    {
-      title: 'GPU显存',
-      dataIndex: 'attributes',
-      key: 'gpu_memory_gb',
-      render: (attr: Record<string, any>) => attr?.gpu_memory_gb ? `${attr.gpu_memory_gb} GB` : '-',
+      key: 'rack_position',
+      render: (attr: Record<string, any>) => attr?.rack_position || '-',
     },
     {
       title: '状态',
