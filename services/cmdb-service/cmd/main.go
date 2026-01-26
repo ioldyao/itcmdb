@@ -249,70 +249,91 @@ func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *ha
 		// CI管理
 		ci := api.Group("/ci")
 		{
-			ci.GET("/types", ciHandler.GetCITypes)
-			ci.POST("/instances", ciHandler.CreateCIInstance)
-			ci.GET("/instances", ciHandler.GetCIInstances)
-			ci.GET("/instances/:id", ciHandler.GetCIInstance)
-			ci.PUT("/instances/:id", ciHandler.UpdateCIInstance)
-			ci.DELETE("/instances/:id", ciHandler.DeleteCIInstance)
-			ci.GET("/instances/:id/history", ciHandler.GetCIHistory)
-			ci.GET("/relations", ciHandler.GetCIRelations)
-			ci.POST("/relations", ciHandler.CreateCIRelation)
-			ci.GET("/export", ciHandler.ExportCIInstances)
-			ci.POST("/import", ciHandler.ImportCIInstances)
+			// 查看CI类型（需要 ci:view 权限）
+			ci.GET("/types", middleware.GRPCPermissionMiddleware(authClient, "ci", "view"), ciHandler.GetCITypes)
+
+			// 创建CI实例（需要 ci:create 权限）
+			ci.POST("/instances", middleware.GRPCPermissionMiddleware(authClient, "ci", "create"), ciHandler.CreateCIInstance)
+
+			// 查看CI实例列表（需要 ci:view 权限）
+			ci.GET("/instances", middleware.GRPCPermissionMiddleware(authClient, "ci", "view"), ciHandler.GetCIInstances)
+
+			// 查看单个CI实例（需要 ci:view 权限）
+			ci.GET("/instances/:id", middleware.GRPCPermissionMiddleware(authClient, "ci", "view"), ciHandler.GetCIInstance)
+
+			// 更新CI实例（需要 ci:update 权限）
+			ci.PUT("/instances/:id", middleware.GRPCPermissionMiddleware(authClient, "ci", "update"), ciHandler.UpdateCIInstance)
+
+			// 删除CI实例（需要 ci:delete 权限）
+			ci.DELETE("/instances/:id", middleware.GRPCPermissionMiddleware(authClient, "ci", "delete"), ciHandler.DeleteCIInstance)
+
+			// 查看CI历史（需要 ci:view 权限）
+			ci.GET("/instances/:id/history", middleware.GRPCPermissionMiddleware(authClient, "ci", "view"), ciHandler.GetCIHistory)
+
+			// 查看CI关系（需要 ci:view 权限）
+			ci.GET("/relations", middleware.GRPCPermissionMiddleware(authClient, "ci", "view"), ciHandler.GetCIRelations)
+
+			// 创建CI关系（需要 ci:create 权限）
+			ci.POST("/relations", middleware.GRPCPermissionMiddleware(authClient, "ci", "create"), ciHandler.CreateCIRelation)
+
+			// 导出CI实例（需要 ci:view 权限）
+			ci.GET("/export", middleware.GRPCPermissionMiddleware(authClient, "ci", "view"), ciHandler.ExportCIInstances)
+
+			// 导入CI实例（需要 ci:create 权限）
+			ci.POST("/import", middleware.GRPCPermissionMiddleware(authClient, "ci", "create"), ciHandler.ImportCIInstances)
 		}
 
-		// 角色管理
+		// 角色管理（CI角色和负责人角色）
 		roles := api.Group("/roles")
 		{
-			// CI角色
-			roles.GET("/ci", roleHandler.GetCIRoles)
-			roles.POST("/ci", roleHandler.CreateCIRole)
-			roles.PUT("/ci/:id", roleHandler.UpdateCIRole)
-			roles.DELETE("/ci/:id", roleHandler.DeleteCIRole)
+			// CI角色（需要 ci:view 权限查看，ci:create/update/delete 权限修改）
+			roles.GET("/ci", middleware.GRPCPermissionMiddleware(authClient, "ci", "view"), roleHandler.GetCIRoles)
+			roles.POST("/ci", middleware.GRPCPermissionMiddleware(authClient, "ci", "create"), roleHandler.CreateCIRole)
+			roles.PUT("/ci/:id", middleware.GRPCPermissionMiddleware(authClient, "ci", "update"), roleHandler.UpdateCIRole)
+			roles.DELETE("/ci/:id", middleware.GRPCPermissionMiddleware(authClient, "ci", "delete"), roleHandler.DeleteCIRole)
 
-			// 负责人角色
-			roles.GET("/owner", roleHandler.GetOwnerRoles)
-			roles.POST("/owner", roleHandler.CreateOwnerRole)
-			roles.PUT("/owner/:id", roleHandler.UpdateOwnerRole)
-			roles.DELETE("/owner/:id", roleHandler.DeleteOwnerRole)
+			// 负责人角色（需要 ci:view 权限查看，ci:create/update/delete 权限修改）
+			roles.GET("/owner", middleware.GRPCPermissionMiddleware(authClient, "ci", "view"), roleHandler.GetOwnerRoles)
+			roles.POST("/owner", middleware.GRPCPermissionMiddleware(authClient, "ci", "create"), roleHandler.CreateOwnerRole)
+			roles.PUT("/owner/:id", middleware.GRPCPermissionMiddleware(authClient, "ci", "update"), roleHandler.UpdateOwnerRole)
+			roles.DELETE("/owner/:id", middleware.GRPCPermissionMiddleware(authClient, "ci", "delete"), roleHandler.DeleteOwnerRole)
 		}
 
-		// CI实例角色关联
-		api.GET("/ci/instances/:id/roles", roleHandler.GetCIInstanceRoles)
-		api.POST("/ci/instances/:id/roles", roleHandler.AssignCIRole)
-		api.DELETE("/ci/instances/:id/roles", roleHandler.RemoveCIRole)
+		// CI实例角色关联（需要 ci:view 权限查看，ci:update 权限修改）
+		api.GET("/ci/instances/:id/roles", middleware.GRPCPermissionMiddleware(authClient, "ci", "view"), roleHandler.GetCIInstanceRoles)
+		api.POST("/ci/instances/:id/roles", middleware.GRPCPermissionMiddleware(authClient, "ci", "update"), roleHandler.AssignCIRole)
+		api.DELETE("/ci/instances/:id/roles", middleware.GRPCPermissionMiddleware(authClient, "ci", "update"), roleHandler.RemoveCIRole)
 
-		// 标签分类
+		// 标签分类（需要 tag:view 权限查看，tag:create/update/delete 权限修改）
 		tags := api.Group("/tags")
 		{
-			tags.GET("/categories", tagHandler.GetTagCategories)
-			tags.POST("/categories", tagHandler.CreateTagCategory)
-			tags.PUT("/categories/:id", tagHandler.UpdateTagCategory)
-			tags.DELETE("/categories/:id", tagHandler.DeleteTagCategory)
+			tags.GET("/categories", middleware.GRPCPermissionMiddleware(authClient, "tag", "view"), tagHandler.GetTagCategories)
+			tags.POST("/categories", middleware.GRPCPermissionMiddleware(authClient, "tag", "create"), tagHandler.CreateTagCategory)
+			tags.PUT("/categories/:id", middleware.GRPCPermissionMiddleware(authClient, "tag", "update"), tagHandler.UpdateTagCategory)
+			tags.DELETE("/categories/:id", middleware.GRPCPermissionMiddleware(authClient, "tag", "delete"), tagHandler.DeleteTagCategory)
 
-			tags.GET("", tagHandler.GetTags)
-			tags.POST("", tagHandler.CreateTag)
-			tags.GET("/stats", tagHandler.GetTagStats)
-			tags.PUT("/:id", tagHandler.UpdateTag)
-			tags.DELETE("/:id", tagHandler.DeleteTag)
+			tags.GET("", middleware.GRPCPermissionMiddleware(authClient, "tag", "view"), tagHandler.GetTags)
+			tags.POST("", middleware.GRPCPermissionMiddleware(authClient, "tag", "create"), tagHandler.CreateTag)
+			tags.GET("/stats", middleware.GRPCPermissionMiddleware(authClient, "tag", "view"), tagHandler.GetTagStats)
+			tags.PUT("/:id", middleware.GRPCPermissionMiddleware(authClient, "tag", "update"), tagHandler.UpdateTag)
+			tags.DELETE("/:id", middleware.GRPCPermissionMiddleware(authClient, "tag", "delete"), tagHandler.DeleteTag)
 		}
 
-		// CI实例标签操作
-		api.GET("/ci/instances/:id/tags", tagHandler.GetCITags)
-		api.POST("/ci/instances/:id/tags", tagHandler.AssignTag)
-		api.DELETE("/ci/instances/:id/tags/:tagId", tagHandler.RemoveTag)
+		// CI实例标签操作（需要 tag:view 权限查看，tag:update 权限修改）
+		api.GET("/ci/instances/:id/tags", middleware.GRPCPermissionMiddleware(authClient, "tag", "view"), tagHandler.GetCITags)
+		api.POST("/ci/instances/:id/tags", middleware.GRPCPermissionMiddleware(authClient, "tag", "update"), tagHandler.AssignTag)
+		api.DELETE("/ci/instances/:id/tags/:tagId", middleware.GRPCPermissionMiddleware(authClient, "tag", "update"), tagHandler.RemoveTag)
 
-		// 批量操作
-		api.POST("/tags/batch/assign", tagHandler.BatchAssignTags)
-		api.DELETE("/tags/batch/remove", tagHandler.BatchRemoveTags)
+		// 批量操作（需要 tag:update 权限）
+		api.POST("/tags/batch/assign", middleware.GRPCPermissionMiddleware(authClient, "tag", "update"), tagHandler.BatchAssignTags)
+		api.DELETE("/tags/batch/remove", middleware.GRPCPermissionMiddleware(authClient, "tag", "update"), tagHandler.BatchRemoveTags)
 
-		// 监控管理
+		// 监控管理（需要 ci:view 权限）
 		monitoring := api.Group("/monitoring")
 		{
-			monitoring.GET("/containers/:id/stats", monitoringHandler.GetContainerStats)
-			monitoring.GET("/cadvisor/health", monitoringHandler.HealthCheckCAdvisor)
-			monitoring.GET("/victoriametrics/health", monitoringHandler.HealthCheckVictoriaMetrics)
+			monitoring.GET("/containers/:id/stats", middleware.GRPCPermissionMiddleware(authClient, "ci", "view"), monitoringHandler.GetContainerStats)
+			monitoring.GET("/cadvisor/health", middleware.GRPCPermissionMiddleware(authClient, "ci", "view"), monitoringHandler.HealthCheckCAdvisor)
+			monitoring.GET("/victoriametrics/health", middleware.GRPCPermissionMiddleware(authClient, "ci", "view"), monitoringHandler.HealthCheckVictoriaMetrics)
 		}
 
 		// 系统配置管理（仅管理员可访问）
