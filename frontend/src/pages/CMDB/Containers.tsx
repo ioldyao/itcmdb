@@ -6,6 +6,7 @@ import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useCMDBStore, CIInstance } from '@/stores/cmdbStore'
 import { useRoleStore } from '@/stores/roleStore'
 import { useTagStore } from '@/stores/tagStore'
+import { useAuthStore } from '@/stores/authStore'
 
 export default function CMDBContainers() {
   const {
@@ -28,6 +29,12 @@ export default function CMDBContainers() {
 
   const { ciRoles, fetchCIRoles } = useRoleStore()
   const { tags, fetchTags } = useTagStore()
+  const hasPermission = useAuthStore((state) => state.hasPermission)
+
+  // 检查权限
+  const canCreate = hasPermission('ci', 'create')
+  const canUpdate = hasPermission('ci', 'update')
+  const canDelete = hasPermission('ci', 'delete')
 
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
@@ -296,30 +303,35 @@ export default function CMDBContainers() {
       width: 150,
       render: (_: any, record: CIInstance) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined size={14} />}
-            onClick={() => handleEdit(record)}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除"
-            description="删除后无法恢复"
-            onConfirm={() => handleDelete(record.id)}
-            okText="确定"
-            cancelText="取消"
-          >
+          {canUpdate && (
             <Button
               type="link"
               size="small"
-              danger
-              icon={<DeleteOutlined size={14} />}
+              icon={<EditOutlined size={14} />}
+              onClick={() => handleEdit(record)}
             >
-              删除
+              编辑
             </Button>
-          </Popconfirm>
+          )}
+          {canDelete && (
+            <Popconfirm
+              title="确认删除"
+              description="删除后无法恢复"
+              onConfirm={() => handleDelete(record.id)}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<DeleteOutlined size={14} />}
+              >
+                删除
+              </Button>
+            </Popconfirm>
+          )}
+          {!canUpdate && !canDelete && <span style={{ color: '#999' }}>无权限</span>}
         </Space>
       ),
     },
@@ -382,9 +394,11 @@ export default function CMDBContainers() {
         <Button icon={<ReloadOutlined size={16} />} onClick={() => fetchInstances(4, page, pageSize)}>
           刷新
         </Button>
-        <Button type="primary" icon={<PlusOutlined size={16} />} onClick={handleCreate}>
-          添加容器
-        </Button>
+        {canCreate && (
+          <Button type="primary" icon={<PlusOutlined size={16} />} onClick={handleCreate}>
+            添加容器
+          </Button>
+        )}
       </div>
 
       {/* 表格 */}
