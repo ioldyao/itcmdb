@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/itcmdb/auth-service/internal/constants"
 	"github.com/itcmdb/auth-service/internal/service"
 	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/logger"
@@ -145,6 +146,17 @@ func (h *RoleHandler) CreatePermission(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, response.Error("400", "invalid request"))
+		return
+	}
+
+	// 验证资源和操作是否有效
+	if !constants.IsValidResource(req.Resource) {
+		c.JSON(400, response.Error("400", "invalid resource: "+req.Resource+". Please use one of the predefined resources."))
+		return
+	}
+
+	if !constants.IsValidAction(req.Action) {
+		c.JSON(400, response.Error("400", "invalid action: "+req.Action+". Please use one of the predefined actions."))
 		return
 	}
 
@@ -304,6 +316,16 @@ func (h *RoleHandler) GetRoleUsers(c *gin.Context) {
 	}
 
 	c.JSON(200, response.Success(users))
+}
+
+// GetValidResources 获取所有有效的资源类型
+func (h *RoleHandler) GetValidResources(c *gin.Context) {
+	c.JSON(200, response.Success(constants.ValidResources))
+}
+
+// GetValidActions 获取所有有效的操作类型
+func (h *RoleHandler) GetValidActions(c *gin.Context) {
+	c.JSON(200, response.Success(constants.ValidActions))
 }
 
 // clearRoleUsersCache 清除角色下所有用户的权限缓存

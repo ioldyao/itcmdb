@@ -37,9 +37,13 @@ export default function AdminRoles() {
   const {
     roles,
     permissions,
+    validResources,
+    validActions,
     loading,
     fetchRoles,
     fetchPermissions,
+    fetchValidResources,
+    fetchValidActions,
     createRole,
     updateRole,
     deleteRole,
@@ -63,7 +67,9 @@ export default function AdminRoles() {
   useEffect(() => {
     fetchRoles()
     fetchPermissions()
-  }, [fetchRoles, fetchPermissions])
+    fetchValidResources()
+    fetchValidActions()
+  }, [fetchRoles, fetchPermissions, fetchValidResources, fetchValidActions])
 
   // 角色表格列
   const roleColumns: ColumnsType<Role> = [
@@ -314,6 +320,47 @@ export default function AdminRoles() {
             label: '权限管理',
             children: (
               <div className="bg-white dark:bg-bg-secondary p-6 rounded-lg border border-gray-200 dark:border-white/8">
+                {/* 权限说明文档 */}
+                <div style={{
+                  marginBottom: '24px',
+                  padding: '16px',
+                  background: '#f6ffed',
+                  border: '1px solid #b7eb8f',
+                  borderRadius: '8px'
+                }}>
+                  <div style={{ marginBottom: '12px', fontSize: '16px', fontWeight: 'bold', color: '#52c41a' }}>
+                    📚 权限系统说明
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#666', lineHeight: '1.8' }}>
+                    <p style={{ marginBottom: '12px' }}>
+                      <strong>权限格式：</strong><code>资源:操作</code>，例如 <code>user:view</code> 表示查看用户的权限
+                    </p>
+                    <div style={{ marginBottom: '12px' }}>
+                      <strong>可用资源类型：</strong>
+                      <ul style={{ marginTop: '8px', marginLeft: '20px' }}>
+                        {validResources.map(r => (
+                          <li key={r.Name}>
+                            <code>{r.Name}</code> - {r.Description}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div style={{ marginBottom: '12px' }}>
+                      <strong>可用操作类型：</strong>
+                      <ul style={{ marginTop: '8px', marginLeft: '20px' }}>
+                        {validActions.map(a => (
+                          <li key={a.Name}>
+                            <code>{a.Name}</code> - {a.Description}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <p style={{ marginBottom: '0', color: '#fa8c16' }}>
+                      ⚠️ <strong>注意：</strong>只能创建系统预定义的资源和操作组合。创建权限后，需要将权限分配给角色，再将角色分配给用户。
+                    </p>
+                  </div>
+                </div>
+
                 <div className="mb-6 flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <Shield size={20} />
@@ -380,29 +427,64 @@ export default function AdminRoles() {
           permissionForm.resetFields()
         }}
         onOk={handlePermissionSubmit}
-        width={600}
+        width={700}
       >
         <Form form={permissionForm} layout="vertical">
           <Form.Item
-            label="资源"
+            label="资源类型"
             name="resource"
-            rules={[{ required: true, message: '请输入资源' }]}
+            rules={[{ required: true, message: '请选择资源类型' }]}
+            extra="选择要授权的系统资源"
           >
-            <Input placeholder="例如: users, servers" />
-          </Form.Item>
-          <Form.Item
-            label="操作"
-            name="action"
-            rules={[{ required: true, message: '请输入操作' }]}
-          >
-            <Select placeholder="选择操作">
-              <Select.Option value="create">创建</Select.Option>
-              <Select.Option value="read">读取</Select.Option>
-              <Select.Option value="update">更新</Select.Option>
-              <Select.Option value="delete">删除</Select.Option>
-              <Select.Option value="manage">管理</Select.Option>
+            <Select
+              placeholder="选择资源类型"
+              showSearch
+              optionFilterProp="children"
+            >
+              {validResources.map(resource => (
+                <Select.Option key={resource.Name} value={resource.Name}>
+                  <div>
+                    <strong>{resource.Name}</strong> - {resource.Description}
+                  </div>
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
+          <Form.Item
+            label="操作类型"
+            name="action"
+            rules={[{ required: true, message: '请选择操作类型' }]}
+            extra="选择允许执行的操作"
+          >
+            <Select
+              placeholder="选择操作类型"
+              showSearch
+              optionFilterProp="children"
+            >
+              {validActions.map(action => (
+                <Select.Option key={action.Name} value={action.Name}>
+                  <div>
+                    <strong>{action.Name}</strong> - {action.Description}
+                  </div>
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <div style={{
+            padding: '12px',
+            background: '#f0f7ff',
+            borderRadius: '4px',
+            border: '1px solid #91d5ff'
+          }}>
+            <div style={{ color: '#0050b3', fontSize: '12px', marginBottom: '8px' }}>
+              <strong>💡 权限说明</strong>
+            </div>
+            <div style={{ color: '#666', fontSize: '12px' }}>
+              • 权限格式为 <code>资源:操作</code>，例如 <code>user:view</code><br/>
+              • 只能创建系统预定义的资源和操作组合<br/>
+              • 创建后的权限可以分配给角色，角色再分配给用户
+            </div>
+          </div>
         </Form>
       </Modal>
 

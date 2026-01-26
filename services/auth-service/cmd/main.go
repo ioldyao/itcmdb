@@ -252,6 +252,12 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, userService service
 			// 查看权限列表（需要 permission:view 权限）
 			permissions.GET("", middleware.RequirePermission(userService, "permission", "view"), roleHandler.GetPermissions)
 
+			// 获取有效的资源类型（所有认证用户可访问）
+			permissions.GET("/resources", roleHandler.GetValidResources)
+
+			// 获取有效的操作类型（所有认证用户可访问）
+			permissions.GET("/actions", roleHandler.GetValidActions)
+
 			// 创建权限（需要 permission:create 权限）
 			permissions.POST("", middleware.RequirePermission(userService, "permission", "create"), roleHandler.CreatePermission)
 

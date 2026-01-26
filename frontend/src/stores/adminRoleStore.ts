@@ -17,9 +17,23 @@ interface Permission {
   action: string
 }
 
+// 资源定义
+interface ResourceDef {
+  Name: string
+  Description: string
+}
+
+// 操作定义
+interface ActionDef {
+  Name: string
+  Description: string
+}
+
 interface AdminRoleState {
   roles: Role[]
   permissions: Permission[]
+  validResources: ResourceDef[]
+  validActions: ActionDef[]
   loading: boolean
   error: string | null
 
@@ -32,6 +46,8 @@ interface AdminRoleState {
 
   // 权限操作
   fetchPermissions: () => Promise<void>
+  fetchValidResources: () => Promise<void>
+  fetchValidActions: () => Promise<void>
   createPermission: (resource: string, action: string) => Promise<void>
   deletePermission: (id: number) => Promise<void>
 
@@ -52,6 +68,8 @@ export const useAdminRoleStore = create<AdminRoleState>()(
     (set, get) => ({
       roles: [],
       permissions: [],
+      validResources: [],
+      validActions: [],
       loading: false,
       error: null,
 
@@ -200,6 +218,48 @@ export const useAdminRoleStore = create<AdminRoleState>()(
         } catch (error) {
           console.error('Failed to fetch permissions:', error)
           set({ error: (error as Error).message, loading: false })
+          throw error
+        }
+      },
+
+      // 获取有效的资源类型
+      fetchValidResources: async () => {
+        try {
+          const token = getAuthToken()
+          const response = await fetch('/api/v1/permissions/resources', {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+          const result = await response.json()
+          if (result.code === 0) {
+            set({ validResources: result.data || [] })
+          } else {
+            throw new Error(result.message)
+          }
+        } catch (error) {
+          console.error('Failed to fetch valid resources:', error)
+          throw error
+        }
+      },
+
+      // 获取有效的操作类型
+      fetchValidActions: async () => {
+        try {
+          const token = getAuthToken()
+          const response = await fetch('/api/v1/permissions/actions', {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+          const result = await response.json()
+          if (result.code === 0) {
+            set({ validActions: result.data || [] })
+          } else {
+            throw new Error(result.message)
+          }
+        } catch (error) {
+          console.error('Failed to fetch valid actions:', error)
           throw error
         }
       },
