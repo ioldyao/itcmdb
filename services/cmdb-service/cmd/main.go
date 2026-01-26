@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -382,21 +383,33 @@ func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *ha
 	})
 }
 
-// loadVictoriaMetricsDatasources 加载VictoriaMetrics多数据源配置
+// loadVictoriaMetricsDatasources 从数据库加载VictoriaMetrics多数据源配置
 func loadVictoriaMetricsDatasources(configService service.ConfigService) []prometheus.VictoriaMetricsDataSource {
-	// 尝试从配置文件读取多数据源配置
-	var datasources []prometheus.VictoriaMetricsDataSource
+	// 尝试从数据库读取多数据源配置
+	datasourcesJSON, err := configService.GetConfigValue("monitoring", "victoriametrics_datasources")
+	if err != nil || datasourcesJSON == "" {
+		logger.Debug("No VictoriaMetrics datasources configured in database")
+		return []prometheus.VictoriaMetricsDataSource{}
+	}
 
-	if viper.IsSet("victoriametrics.datasources") {
-		if err := viper.UnmarshalKey("victoriametrics.datasources", &datasources); err == nil && len(datasources) > 0 {
-			logger.Info("Loaded VictoriaMetrics datasources from config file", zap.Int("count", len(datasources)))
-			return datasources
+	// 解析JSON配置
+	var datasources []prometheus.VictoriaMetricsDataSource
+	if err := json.Unmarshal([]byte(datasourcesJSON), &datasources); err != nil {
+		logger.Error("Failed to parse VictoriaMetrics datasources config", zap.Error(err))
+		return []prometheus.VictoriaMetricsDataSource{}
+	}
+
+	// 只返回启用的数据源
+	enabledDatasources := make([]prometheus.VictoriaMetricsDataSource, 0, len(datasources))
+	for i := range datasources {
+		if datasources[i].Enabled {
+			enabledDatasources = append(enabledDatasources, datasources[i])
 		}
 	}
 
-	// 尝试从数据库读取多数据源配置
-	// TODO: 实现从数据库读取多数据源配置的逻辑
-	// 目前返回空列表，系统将使用单数据源配置（向后兼容）
+	logger.Info("Loaded VictoriaMetrics datasources from database",
+		zap.Int("total", len(datasources)),
+		zap.Int("enabled", len(enabledDatasources)))
 
-	return []prometheus.VictoriaMetricsDataSource{}
+	return enabledDatasources
 }

@@ -377,63 +377,74 @@ if !hasPermission(c, "ci", "delete") {
 
 ### 配置说明
 
-ITCMDB支持**单数据源**和**多数据源**两种配置方式，推荐使用多数据源配置以实现更灵活的容器管理。
+ITCMDB支持通过**Web界面**配置多个VictoriaMetrics数据源，实现从多个监控源自动同步容器信息。
 
-#### 多数据源配置（推荐）
+#### 通过Web界面配置（推荐）
 
-在 `services/cmdb-service/internal/config/config.yaml` 中配置：
+1. 登录ITCMDB管理界面
+2. 进入 **系统配置** -> **新增配置**
+3. 配置参数：
+   - **分类**: `monitoring`
+   - **配置键**: `victoriametrics_datasources`
+   - **配置值**: JSON格式的数据源数组
 
-```yaml
-victoriametrics:
-  # 多数据源配置
-  datasources:
-    - name: "主数据中心"
-      id: "primary-dc"
-      endpoint: https://victoriametrics-primary.example.com:8429
-      username: admin
-      password: your_password
-      enabled: true
-      # 可选：指定这个数据源负责哪些容器（通过容器名前缀匹配）
-      container_prefix: ["prod-", "staging-"]
-      # 可选：标签，会自动添加到从该数据源同步的容器上
-      labels:
-        location: "主数据中心"
-        environment: "production"
-
-    - name: "备数据中心"
-      id: "secondary-dc"
-      endpoint: https://victoriametrics-backup.example.com:8429
-      username: admin
-      password: backup_password
-      enabled: true
-      labels:
-        location: "备数据中心"
-        environment: "dr"
-
-    - name: "开发环境"
-      id: "dev-env"
-      endpoint: https://victoriametrics-dev.example.com:8429
-      username: dev_user
-      password: dev_password
-      enabled: false  # 可以禁用某个数据源
-      labels:
-        location: "开发环境"
-        environment: "development"
-
-  sync_interval: 5m  # 同步间隔，默认5分钟
+配置示例（JSON格式）：
+```json
+[
+  {
+    "name": "主数据中心",
+    "id": "primary-dc",
+    "endpoint": "https://victoriametrics-primary.example.com:8429",
+    "username": "admin",
+    "password": "your_password",
+    "enabled": true,
+    "container_prefix": ["prod-", "staging-"],
+    "labels": {
+      "location": "主数据中心",
+      "environment": "production"
+    }
+  },
+  {
+    "name": "备数据中心",
+    "id": "secondary-dc",
+    "endpoint": "https://victoriametrics-backup.example.com:8429",
+    "username": "admin",
+    "password": "backup_password",
+    "enabled": true,
+    "labels": {
+      "location": "备数据中心",
+      "environment": "dr"
+    }
+  },
+  {
+    "name": "开发环境",
+    "id": "dev-env",
+    "endpoint": "https://victoriametrics-dev.example.com:8429",
+    "username": "dev_user",
+    "password": "dev_password",
+    "enabled": false,
+    "labels": {
+      "location": "开发环境",
+      "environment": "development"
+    }
+  }
+]
 ```
 
-#### 单数据源配置（向后兼容）
+4. 保存配置后，容器同步服务会自动从数据库读取配置并启动
 
-如果只有一个VictoriaMetrics实例，可以使用简化的单数据源配置：
+#### 配置字段说明
 
-```yaml
-victoriametrics:
-  endpoint: https://your-victoriametrics:8429
-  username: your_username
-  password: your_password
-  sync_interval: 5m
-```
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | 数据源显示名称 |
+| `id` | string | 是 | 数据源唯一标识符 |
+| `endpoint` | string | 是 | VictoriaMetrics API地址 |
+| `username` | string | 否 | 认证用户名 |
+| `password` | string | 否 | 认证密码 |
+| `enabled` | boolean | 否 | 是否启用（默认true） |
+| `container_prefix` | []string | 否 | 容器名前缀过滤，只同步匹配前缀的容器 |
+| `labels` | object | 否 | 自动添加到容器的标签 |
 
 ### 多数据源特性
 
@@ -443,6 +454,7 @@ victoriametrics:
 - **自动标签** - 数据源的 `labels` 会自动添加到同步的容器上
 - **健康检查** - 定期检查所有数据源的健康状态
 - **容错机制** - 单个数据源故障不影响其他数据源的同步
+- **动态配置** - 通过Web界面实时修改，无需重启服务
 
 ### 容器属性
 
