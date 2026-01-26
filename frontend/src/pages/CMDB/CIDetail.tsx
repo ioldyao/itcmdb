@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Tabs, Descriptions, Tag, Button, Spin, message } from 'antd'
 import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons'
 import { useCMDBStore, CIInstance } from '@/stores/cmdbStore'
+import { useAuthStore } from '@/stores/authStore'
 import CIHistoryTimeline from '@/components/CMDB/CIHistoryTimeline'
 import CIRelationGraph from '@/components/CMDB/CIRelationGraph'
 import ServerHardwareInfo from '@/components/CMDB/ServerHardwareInfo'
@@ -12,10 +13,14 @@ export default function CIDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { fetchInstance, fetchInstanceRoles, fetchInstanceTags } = useCMDBStore()
+  const hasPermission = useAuthStore((state) => state.hasPermission)
   const [instance, setInstance] = useState<CIInstance | null>(null)
   const [roles, setRoles] = useState<any[]>([])
   const [tags, setTags] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+
+  // 检查权限
+  const canUpdate = hasPermission('ci', 'update')
 
   useEffect(() => {
     if (id) {
@@ -95,13 +100,15 @@ export default function CIDetail() {
             </p>
           </div>
         </div>
-        <Button
-          type="primary"
-          icon={<EditOutlined />}
-          onClick={() => navigate(`/cmdb/instances/${instance.id}/edit`)}
-        >
-          编辑
-        </Button>
+        {canUpdate && (
+          <Button
+            type="primary"
+            icon={<EditOutlined />}
+            onClick={() => navigate(`/cmdb/instances/${instance.id}/edit`)}
+          >
+            编辑
+          </Button>
+        )}
       </div>
 
       {/* 内容区域 */}
