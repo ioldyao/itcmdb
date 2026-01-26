@@ -104,17 +104,19 @@ export default function AdminRoles() {
           >
             权限
           </Button>
-          <Popconfirm
-            title="确认删除"
-            description="删除后无法恢复"
-            onConfirm={() => handleDeleteRole(record.id)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
+          {record.name !== 'admin' && (
+            <Popconfirm
+              title="确认删除"
+              description="删除后无法恢复"
+              onConfirm={() => handleDeleteRole(record.id)}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -146,17 +148,21 @@ export default function AdminRoles() {
       key: 'action',
       width: 120,
       render: (_: any, record: Permission) => (
-        <Popconfirm
-          title="确认删除"
-          description="删除后无法恢复"
-          onConfirm={() => handleDeletePermission(record.id)}
-          okText="确定"
-          cancelText="取消"
-        >
-          <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-            删除
-          </Button>
-        </Popconfirm>
+        <>
+          {!(record.resource === '*' && record.action === '*') && (
+            <Popconfirm
+              title="确认删除"
+              description="删除后无法恢复"
+              onConfirm={() => handleDeletePermission(record.id)}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          )}
+        </>
       ),
     },
   ]
