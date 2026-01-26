@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/itcmdb/cmdb-service/internal/cadvisor"
 	"github.com/itcmdb/cmdb-service/internal/models"
 	"github.com/itcmdb/cmdb-service/internal/prometheus"
 	"github.com/itcmdb/cmdb-service/internal/repository"
@@ -234,7 +235,23 @@ func (s *ContainerSyncService) createContainerCI(
 	ciTypeID uint,
 ) error {
 	// 获取容器的资源信息
-	stats, err := s.prometheusClient.GetContainerStats(ctx, container.Name)
+	var stats *cadvisor.ContainerStats
+	var err error
+
+	// 如果容器有数据源信息，尝试从指定数据源获取
+	if container.DataSourceID != "" {
+		stats, err = s.prometheusClient.GetContainerStatsFromSource(ctx, container.Name, container.DataSourceID)
+		if err != nil {
+			logger.Debug("Failed to get stats from datasource, will try all",
+				zap.String("container", container.Name),
+				zap.String("datasource", container.DataSourceName),
+				zap.Error(err))
+			// 回退到尝试所有数据源
+			stats, err = s.prometheusClient.GetContainerStats(ctx, container.Name)
+		}
+	} else {
+		stats, err = s.prometheusClient.GetContainerStats(ctx, container.Name)
+	}
 
 	attributes := map[string]interface{}{
 		"container_name":       container.Name,
@@ -245,6 +262,15 @@ func (s *ContainerSyncService) createContainerCI(
 		"container_id_history": []string{container.ID},
 		"sync_source":          "victoriametrics",
 		"auto_discovered":      true,
+	}
+
+	// 添加数据源信息
+	if container.DataSourceID != "" {
+		attributes["datasource_id"] = container.DataSourceID
+		attributes["datasource_name"] = container.DataSourceName
+		if container.DataSourceLabels != nil {
+			attributes["datasource_labels"] = container.DataSourceLabels
+		}
 	}
 
 	// 如果成功获取资源信息，添加到 attributes
@@ -273,6 +299,7 @@ func (s *ContainerSyncService) createContainerCI(
 	logger.Info("Created container CI instance",
 		zap.String("name", container.Name),
 		zap.String("id", container.ID),
+		zap.String("datasource", container.DataSourceName),
 		zap.Bool("has_stats", stats != nil))
 
 	return nil
@@ -285,6 +312,21 @@ func (s *ContainerSyncService) updateContainerCI(
 	container prometheus.ContainerInfo,
 ) (updated bool, rebuilt bool) {
 	needsUpdate := false
+
+	// 检查数据源是否变更
+	oldDS, _ := existing.Attributes["datasource_id"].(string)
+	if oldDS != container.DataSourceID && container.DataSourceID != "" {
+		logger.Info("Container datasource changed",
+			zap.String("container", container.Name),
+			zap.String("old_datasource", oldDS),
+			zap.String("new_datasource", container.DataSourceID))
+		needsUpdate = true
+		existing.Attributes["datasource_id"] = container.DataSourceID
+		existing.Attributes["datasource_name"] = container.DataSourceName
+		if container.DataSourceLabels != nil {
+			existing.Attributes["datasource_labels"] = container.DataSourceLabels
+		}
+	}
 
 	// 检查容器 ID 是否变化（容器重建）
 	oldID, _ := existing.Attributes["container_id"].(string)
@@ -306,6 +348,7 @@ func (s *ContainerSyncService) updateContainerCI(
 
 		logger.Info("Container rebuild detected",
 			zap.String("name", container.Name),
+			zap.String("datasource", container.DataSourceName),
 			zap.String("old_id", oldID),
 			zap.String("new_id", container.ID))
 	}
@@ -317,10 +360,14 @@ func (s *ContainerSyncService) updateContainerCI(
 		existing.Attributes["is_online"] = container.IsRunning
 		if container.IsRunning {
 			existing.Attributes["last_online_at"] = time.Now().Format(time.RFC3339)
-			logger.Info("Container came back online", zap.String("name", container.Name))
+			logger.Info("Container came back online",
+				zap.String("name", container.Name),
+				zap.String("datasource", container.DataSourceName))
 		} else {
 			existing.Attributes["last_offline_at"] = time.Now().Format(time.RFC3339)
-			logger.Info("Container went offline", zap.String("name", container.Name))
+			logger.Info("Container went offline",
+				zap.String("name", container.Name),
+				zap.String("datasource", container.DataSourceName))
 		}
 	}
 
@@ -335,7 +382,20 @@ func (s *ContainerSyncService) updateContainerCI(
 	}
 
 	// 更新资源信息
-	stats, err := s.prometheusClient.GetContainerStats(ctx, container.Name)
+	var stats *cadvisor.ContainerStats
+	var err error
+
+	// 如果容器有数据源信息，尝试从指定数据源获取
+	if container.DataSourceID != "" {
+		stats, err = s.prometheusClient.GetContainerStatsFromSource(ctx, container.Name, container.DataSourceID)
+		if err != nil {
+			// 回退到尝试所有数据源
+			stats, err = s.prometheusClient.GetContainerStats(ctx, container.Name)
+		}
+	} else {
+		stats, err = s.prometheusClient.GetContainerStats(ctx, container.Name)
+	}
+
 	if err == nil && stats != nil {
 		existing.Attributes["cpu_usage_percent"] = stats.CPUUsagePercent
 		existing.Attributes["memory_usage_mb"] = stats.MemoryUsageMB
@@ -352,6 +412,7 @@ func (s *ContainerSyncService) updateContainerCI(
 		if err := s.ciRepo.UpdateCIInstance(existing); err != nil {
 			logger.Error("Failed to update container CI",
 				zap.String("name", container.Name),
+				zap.String("datasource", container.DataSourceName),
 				zap.Error(err))
 			return false, rebuilt
 		}

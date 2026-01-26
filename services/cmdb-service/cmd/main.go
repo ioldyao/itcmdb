@@ -13,7 +13,6 @@ import (
 	grpcserver "github.com/itcmdb/cmdb-service/internal/grpc"
 	"github.com/itcmdb/cmdb-service/internal/models"
 	"github.com/itcmdb/cmdb-service/internal/prometheus"
-	prometheuspkg "github.com/itcmdb/cmdb-service/internal/prometheus"
 	"github.com/itcmdb/cmdb-service/internal/repository"
 	"github.com/itcmdb/cmdb-service/internal/service"
 	"github.com/itcmdb/shared/pkg/audit"
@@ -116,15 +115,22 @@ func main() {
 
 	// 监控服务（支持多数据源配置）
 	// 优先从数据库读取配置，否则使用配置文件
-	vmDatasources := loadVictoriaMetricsDatasources(configService)
+	vmDataSources := loadVictoriaMetricsDataSources(configService)
 
 	var monitoringHandler *handlers.MonitoringHandler
 
-	if len(vmDatasources) > 0 {
+	if len(vmDataSources) > 0 {
 		// 使用多数据源配置
-		logger.Info("Using multiple VictoriaMetrics datasources", zap.Int("count", len(vmDatasources)))
+		logger.Info("Using multiple VictoriaMetrics datasources", zap.Int("count", len(vmDataSources)))
 
-		multiClient := prometheuspkg.NewMultiDataSourceClient(vmDatasources)
+		// 转换为DataSource指针数组
+		dataSourcePtrs := make([]*prometheus.DataSource, len(vmDataSources))
+		for i := range vmDataSources {
+			dataSourcePtrs[i] = &vmDataSources[i]
+		}
+
+		// 创建多数据源客户端
+		multiClient := prometheus.NewMultiSourceClient(dataSourcePtrs)
 
 		monitoringService := service.NewMonitoringServiceWithMultiSource(ciRepo, multiClient)
 		monitoringHandler = handlers.NewMonitoringHandler(monitoringService)
@@ -135,8 +141,8 @@ func main() {
 			syncInterval = 5 * time.Minute // 默认5分钟同步一次
 		}
 
-		multiSourceSyncService := service.NewMultiSourceContainerSyncService(ciRepo, multiClient, syncInterval)
-		multiSourceSyncService.Start()
+		containerSyncService := service.NewContainerSyncService(ciRepo, multiClient, syncInterval)
+		containerSyncService.Start()
 		logger.Info("Multi-source container auto-sync service started", zap.Duration("interval", syncInterval))
 	} else {
 		// 使用单数据源配置（向后兼容）
@@ -383,24 +389,24 @@ func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *ha
 	})
 }
 
-// loadVictoriaMetricsDatasources 从数据库加载VictoriaMetrics多数据源配置
-func loadVictoriaMetricsDatasources(configService service.ConfigService) []prometheus.VictoriaMetricsDataSource {
+// loadVictoriaMetricsDataSources 从数据库加载VictoriaMetrics多数据源配置
+func loadVictoriaMetricsDataSources(configService service.ConfigService) []prometheus.DataSource {
 	// 尝试从数据库读取多数据源配置
 	datasourcesJSON, err := configService.GetConfigValue("monitoring", "victoriametrics_datasources")
 	if err != nil || datasourcesJSON == "" {
 		logger.Debug("No VictoriaMetrics datasources configured in database")
-		return []prometheus.VictoriaMetricsDataSource{}
+		return []prometheus.DataSource{}
 	}
 
 	// 解析JSON配置
-	var datasources []prometheus.VictoriaMetricsDataSource
+	var datasources []prometheus.DataSource
 	if err := json.Unmarshal([]byte(datasourcesJSON), &datasources); err != nil {
 		logger.Error("Failed to parse VictoriaMetrics datasources config", zap.Error(err))
-		return []prometheus.VictoriaMetricsDataSource{}
+		return []prometheus.DataSource{}
 	}
 
 	// 只返回启用的数据源
-	enabledDatasources := make([]prometheus.VictoriaMetricsDataSource, 0, len(datasources))
+	enabledDatasources := make([]prometheus.DataSource, 0, len(datasources))
 	for i := range datasources {
 		if datasources[i].Enabled {
 			enabledDatasources = append(enabledDatasources, datasources[i])
