@@ -9,24 +9,42 @@ import {
   Tags as TagsIcon,
   Activity,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useAuthStore } from '@/stores/authStore'
 
 const { Sider, Content } = Layout
 
-const menuItems = [
-  { key: '/cmdb/servers', label: '服务器', icon: <Server size={16} /> },
-  { key: '/cmdb/networks', label: '网络设备', icon: <Network size={16} /> },
-  { key: '/cmdb/applications', label: '应用系统', icon: <Package size={16} /> },
-  { key: '/cmdb/containers', label: '容器实例', icon: <Box size={16} /> },
-  { key: '/cmdb/roles', label: '角色管理', icon: <Shield size={16} /> },
-  { key: '/cmdb/tags', label: '标签管理', icon: <TagsIcon size={16} /> },
-  { key: '/cmdb/victoriametrics', label: 'VictoriaMetrics', icon: <Activity size={16} /> },
+// 定义菜单项及其所需权限
+const allMenuItems = [
+  { key: '/cmdb/servers', label: '服务器', icon: <Server size={16} />, permission: null },
+  { key: '/cmdb/networks', label: '网络设备', icon: <Network size={16} />, permission: null },
+  { key: '/cmdb/applications', label: '应用系统', icon: <Package size={16} />, permission: null },
+  { key: '/cmdb/containers', label: '容器实例', icon: <Box size={16} />, permission: null },
+  { key: '/cmdb/roles', label: '角色管理', icon: <Shield size={16} />, permission: null },
+  { key: '/cmdb/tags', label: '标签管理', icon: <TagsIcon size={16} />, permission: null },
+  {
+    key: '/cmdb/victoriametrics',
+    label: 'VictoriaMetrics',
+    icon: <Activity size={16} />,
+    permission: { resource: 'config', action: 'view' }
+  },
 ]
 
 export default function CMDBLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [collapsed, setCollapsed] = useState(false)
+  const hasPermission = useAuthStore((state) => state.hasPermission)
+
+  // 根据权限过滤菜单项
+  const menuItems = useMemo(() => {
+    return allMenuItems.filter(item => {
+      // 如果菜单项不需要权限，直接显示
+      if (!item.permission) return true
+      // 检查用户是否有所需权限
+      return hasPermission(item.permission.resource, item.permission.action)
+    })
+  }, [hasPermission])
 
   // 获取当前选中的菜单项
   const selectedKey = menuItems.find(item => location.pathname.startsWith(item.key))?.key || '/cmdb/servers'

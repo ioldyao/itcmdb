@@ -104,6 +104,25 @@ export default function AdminUsers() {
   const handleSaveRoles = async () => {
     if (!managingUser) return
 
+    // 角色互斥检查
+    const selectedRoleNames = allRoles
+      .filter(role => userRoleIds.includes(role.id))
+      .map(role => role.name.toLowerCase())
+
+    // 检查是否同时选择了互斥的角色
+    const hasAdmin = selectedRoleNames.includes('admin')
+    const hasUser = selectedRoleNames.includes('user')
+    const hasOperator = selectedRoleNames.includes('operator')
+
+    if (hasAdmin && (hasUser || hasOperator)) {
+      message.error('管理员角色不能与普通用户或运维人员角色同时分配')
+      return
+    }
+
+    if (hasUser && hasOperator) {
+      message.warning('建议不要同时分配普通用户和运维人员角色')
+    }
+
     setRoleLoading(true)
     try {
       // 获取当前用户角色
@@ -448,8 +467,13 @@ export default function AdminUsers() {
             value: role.id,
           }))}
         />
-        <div style={{ marginTop: 16, color: '#666', fontSize: 12 }}>
-          已选择 {userRoleIds.length} 个角色
+        <div style={{ marginTop: 16, padding: 12, background: '#f0f0f0', borderRadius: 4 }}>
+          <div style={{ color: '#666', fontSize: 12, marginBottom: 8 }}>
+            已选择 {userRoleIds.length} 个角色
+          </div>
+          <div style={{ color: '#ff4d4f', fontSize: 12 }}>
+            ⚠️ 注意：管理员角色不能与其他角色同时分配
+          </div>
         </div>
       </Modal>
     </div>

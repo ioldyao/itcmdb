@@ -3,6 +3,7 @@ import { Table, Card, Form, Select, DatePicker, Input, Button, Space, Tag, Stati
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import dayjs from 'dayjs'
+import { useAuthStore } from '@/stores/authStore'
 
 interface AuditLog {
   id: number
@@ -30,6 +31,7 @@ interface PaginationParams {
 }
 
 export default function AdminAudit() {
+  const { token, _hasHydrated } = useAuthStore()
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [stats, setStats] = useState<AuditStats | null>(null)
   const [loading, setLoading] = useState(false)
@@ -41,6 +43,11 @@ export default function AdminAudit() {
   const [filters, setFilters] = useState<Record<string, any>>({})
   const [form] = Form.useForm()
 
+  // 等待 store hydration 完成
+  if (!_hasHydrated) {
+    return <div style={{ padding: 24, textAlign: 'center' }}>加载中...</div>
+  }
+
   // 获取审计日志列表
   const fetchAuditLogs = async (params?: PaginationParams) => {
     setLoading(true)
@@ -51,7 +58,9 @@ export default function AdminAudit() {
         ...filters,
       })
 
-      const response = await fetch(`/api/v1/audit?${searchParams}`)
+      const response = await fetch(`/api/v1/audit?${searchParams}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       const data = await response.json()
 
       if (data.code === 0) {
@@ -78,7 +87,9 @@ export default function AdminAudit() {
   // 获取审计统计信息
   const fetchAuditStats = async () => {
     try {
-      const response = await fetch('/api/v1/audit/stats')
+      const response = await fetch('/api/v1/audit/stats', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       const data = await response.json()
 
       if (data.code === 0) {

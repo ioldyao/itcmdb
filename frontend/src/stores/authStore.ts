@@ -13,9 +13,12 @@ interface AuthState {
   token: string | null
   permissions: string[]
   isAuthenticated: boolean
+  _hasHydrated: boolean
+  setHasHydrated: (state: boolean) => void
   setAuth: (user: User, token: string, permissions: string[]) => void
   logout: () => void
   hasPermission: (resource: string, action: string) => boolean
+  refreshPermissions: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -25,6 +28,10 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       permissions: [],
       isAuthenticated: false,
+      _hasHydrated: false,
+      setHasHydrated: (state) => {
+        set({ _hasHydrated: state })
+      },
       setAuth: (user, token, permissions) =>
         set({ user, token, permissions, isAuthenticated: true }),
       logout: () =>
@@ -34,9 +41,31 @@ export const useAuthStore = create<AuthState>()(
         const requiredPermission = `${resource}:${action}`
         return permissions.includes(requiredPermission) || permissions.includes('*:*')
       },
+      refreshPermissions: async () => {
+        const { token, user } = get()
+        if (!token || !user) return
+
+        try {
+          const response = await fetch('/api/v1/users/me/permissions', {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          const data = await response.json()
+
+          if (data.code === 0) {
+            set({ permissions: data.data || [] })
+          }
+        } catch (error) {
+          console.error('Failed to refresh permissions:', error)
+        }
+      },
     }),
     {
       name: 'auth-storage',
+      onRehydrateStorage: () => {
+        return (state) => {
+          state?.setHasHydrated(true)
+        }
+      },
     }
   )
 )

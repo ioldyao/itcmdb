@@ -15,6 +15,7 @@ import (
 	"github.com/itcmdb/audit-service/internal/consumer"
 	"github.com/itcmdb/audit-service/internal/handlers"
 	"github.com/itcmdb/audit-service/internal/repository"
+	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
 	"go.uber.org/zap"
@@ -117,6 +118,8 @@ func loadConfig() error {
 	viper.BindEnv("kafka.brokers", "AUDIT_KAFKA_BROKERS")
 	viper.BindEnv("kafka.topic", "AUDIT_KAFKA_TOPIC")
 	viper.BindEnv("kafka.group_id", "AUDIT_KAFKA_GROUP_ID")
+	viper.BindEnv("jwt.secret", "AUDIT_JWT_SECRET")
+	viper.BindEnv("jwt.expiration", "AUDIT_JWT_EXPIRATION")
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("AUDIT")
@@ -136,6 +139,8 @@ func loadConfig() error {
 	viper.SetDefault("consumer.batch_size", 100)
 	viper.SetDefault("consumer.batch_timeout", "1s")
 	viper.SetDefault("consumer.workers", 4)
+	viper.SetDefault("jwt.secret", "your-secret-key-change-in-production")
+	viper.SetDefault("jwt.expiration", "24h")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
@@ -160,9 +165,16 @@ func getKafkaConfig() *sarama.Config {
 }
 
 func setupRoutes(r *gin.Engine, auditHandler *handlers.AuditHandler) {
+	// 初始化 JWT 管理器
+	jwtManager := auth.NewJWTManager(
+		viper.GetString("jwt.secret"),
+		viper.GetDuration("jwt.expiration"),
+	)
+
 	api := r.Group("/api/v1")
 	{
 		audit := api.Group("/audit")
+		audit.Use(jwtManager.AuthMiddleware()) // 添加认证中间件
 		{
 			audit.GET("", auditHandler.GetAuditLogs)
 			audit.GET("/stats", auditHandler.GetAuditStats)

@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import MainLayout from '@/components/Layout/MainLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import PermissionGuard from '@/components/PermissionGuard'
 
 // Direct imports instead of lazy loading
 import Login from '@/pages/Login'
@@ -9,6 +10,7 @@ import Profile from '@/pages/Profile'
 
 // CMDB Pages
 import CMDBLayout from '@/pages/CMDB'
+import CMDBDefaultPage from '@/pages/CMDB/DefaultPage'
 import CMDBServers from '@/pages/CMDB/Servers'
 import CMDBNetworks from '@/pages/CMDB/Networks'
 import CMDBApplications from '@/pages/CMDB/Applications'
@@ -33,6 +35,7 @@ import AdminLayout from '@/pages/Admin'
 import AdminUsers from '@/pages/Admin/Users'
 import AdminRoles from '@/pages/Admin/Roles'
 import AdminAudit from '@/pages/Admin/Audit'
+import AdminDefaultPage from '@/pages/Admin/DefaultPage'
 
 const router = createBrowserRouter([
   {
@@ -54,7 +57,7 @@ const router = createBrowserRouter([
         path: 'cmdb',
         element: <CMDBLayout />,
         children: [
-          { index: true, element: <Navigate to="/cmdb/servers" replace /> },
+          { index: true, element: <CMDBDefaultPage /> },
           { path: 'servers', element: <CMDBServers /> },
           { path: 'networks', element: <CMDBNetworks /> },
           { path: 'applications', element: <CMDBApplications /> },
@@ -85,9 +88,23 @@ const router = createBrowserRouter([
         path: 'admin',
         element: <AdminLayout />,
         children: [
-          { index: true, element: <Navigate to="/admin/users" replace /> },
-          { path: 'users', element: <AdminUsers /> },
-          { path: 'roles', element: <AdminRoles /> },
+          { index: true, element: <AdminDefaultPage /> },
+          {
+            path: 'users',
+            element: (
+              <PermissionGuard resource="user" action="view">
+                <AdminUsers />
+              </PermissionGuard>
+            )
+          },
+          {
+            path: 'roles',
+            element: (
+              <PermissionGuard resource="role" action="view">
+                <AdminRoles />
+              </PermissionGuard>
+            )
+          },
           { path: 'audit', element: <AdminAudit /> },
         ],
       },

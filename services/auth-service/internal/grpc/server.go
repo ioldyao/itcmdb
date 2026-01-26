@@ -34,7 +34,7 @@ func (s *AuthServer) ValidateToken(ctx context.Context, req *pb.ValidateTokenReq
 
 	return &pb.ValidateTokenResponse{
 		Valid:    true,
-		UserId:   uint32(claims.UserID),
+		UserId:   uint64(claims.UserID),
 		Username: claims.Username,
 	}, nil
 }
@@ -47,7 +47,7 @@ func (s *AuthServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.G
 	}
 
 	return &pb.GetUserResponse{
-		Id:       uint32(user.ID),
+		Id:       uint64(user.ID),
 		Username: user.Username,
 		Email:    user.Email,
 		FullName: user.FullName,

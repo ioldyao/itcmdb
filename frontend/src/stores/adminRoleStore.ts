@@ -318,6 +318,15 @@ export const useAdminRoleStore = create<AdminRoleState>()(
           if (result.code !== 0) {
             throw new Error(result.message)
           }
+
+          // 如果修改的是当前用户，刷新权限
+          const authState = JSON.parse(localStorage.getItem('auth-storage') || '{}')
+          const currentUserId = authState.state?.user?.id
+          if (currentUserId === userId) {
+            // 动态导入 authStore 以避免循环依赖
+            const { useAuthStore } = await import('./authStore')
+            await useAuthStore.getState().refreshPermissions()
+          }
         } catch (error) {
           console.error('Failed to assign role:', error)
           throw error
@@ -339,6 +348,15 @@ export const useAdminRoleStore = create<AdminRoleState>()(
           const result = await response.json()
           if (result.code !== 0) {
             throw new Error(result.message)
+          }
+
+          // 如果修改的是当前用户，刷新权限
+          const authState = JSON.parse(localStorage.getItem('auth-storage') || '{}')
+          const currentUserId = authState.state?.user?.id
+          if (currentUserId === userId) {
+            // 动态导入 authStore 以避免循环依赖
+            const { useAuthStore } = await import('./authStore')
+            await useAuthStore.getState().refreshPermissions()
           }
         } catch (error) {
           console.error('Failed to remove role:', error)

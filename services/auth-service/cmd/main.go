@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/spf13/viper"
 	"github.com/itcmdb/auth-service/internal/handlers"
 	grpcserver "github.com/itcmdb/auth-service/internal/grpc"
+	"github.com/itcmdb/auth-service/internal/middleware"
+	"github.com/itcmdb/auth-service/internal/models"
 	"github.com/itcmdb/auth-service/internal/repository"
 	"github.com/itcmdb/auth-service/internal/service"
 	"github.com/itcmdb/shared/pkg/auth"
@@ -197,55 +200,88 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, userService service
 			auth.POST("/refresh", refreshHandler(jwtManager))
 		}
 
-		// 用户相关（需要认证）
+		// 用户相关
 		users := api.Group("/users")
 		users.Use(jwtManager.AuthMiddleware())
 		{
-			users.GET("", getAllUsersHandler(userService))
+			// 查看自己的信息（所有认证用户）
 			users.GET("/me", getMeHandler(userService))
 			users.PUT("/me", updateMeHandler(userService))
 			users.GET("/me/permissions", getMyPermissionsHandler(userService))
-			users.GET("/:id/permissions", getPermissionsHandler(userService))
-			users.PUT("/:id", updateUserHandler(userService))
-			users.DELETE("/:id", deleteUserHandler(userService))
+
+			// 查看用户列表（需要 user:view 权限）
+			users.GET("", middleware.RequirePermission(userService, "user", "view"), getAllUsersHandler(userService))
+
+			// 查看其他用户权限（需要 user:view 权限）
+			users.GET("/:id/permissions", middleware.RequirePermission(userService, "user", "view"), getPermissionsHandler(userService))
+
+			// 更新用户（需要 user:update 权限）
+			users.PUT("/:id", middleware.RequirePermission(userService, "user", "update"), updateUserHandler(userService))
+
+			// 删除用户（需要 user:delete 权限）
+			users.DELETE("/:id", middleware.RequirePermission(userService, "user", "delete"), deleteUserHandler(userService))
 		}
 
-		// 角色管理（需要认证）
+		// 角色管理
 		roles := api.Group("/roles")
 		roles.Use(jwtManager.AuthMiddleware())
 		{
-			roles.GET("", roleHandler.GetRoles)
-			roles.POST("", roleHandler.CreateRole)
-			roles.PUT("/:id", roleHandler.UpdateRole)
-			roles.DELETE("/:id", roleHandler.DeleteRole)
-			roles.GET("/:id/permissions", roleHandler.GetRolePermissions)
-			roles.GET("/:id/users", roleHandler.GetRoleUsers)
+			// 查看角色列表（需要 role:view 权限）
+			roles.GET("", middleware.RequirePermission(userService, "role", "view"), roleHandler.GetRoles)
+
+			// 创建角色（需要 role:create 权限）
+			roles.POST("", middleware.RequirePermission(userService, "role", "create"), roleHandler.CreateRole)
+
+			// 更新角色（需要 role:update 权限）
+			roles.PUT("/:id", middleware.RequirePermission(userService, "role", "update"), roleHandler.UpdateRole)
+
+			// 删除角色（需要 role:delete 权限）
+			roles.DELETE("/:id", middleware.RequirePermission(userService, "role", "delete"), roleHandler.DeleteRole)
+
+			// 查看角色权限（需要 role:view 权限）
+			roles.GET("/:id/permissions", middleware.RequirePermission(userService, "role", "view"), roleHandler.GetRolePermissions)
+
+			// 查看角色用户（需要 role:view 权限）
+			roles.GET("/:id/users", middleware.RequirePermission(userService, "role", "view"), roleHandler.GetRoleUsers)
 		}
 
-		// 权限管理（需要认证）
+		// 权限管理
 		permissions := api.Group("/permissions")
 		permissions.Use(jwtManager.AuthMiddleware())
 		{
-			permissions.GET("", roleHandler.GetPermissions)
-			permissions.POST("", roleHandler.CreatePermission)
-			permissions.DELETE("/:id", roleHandler.DeletePermission)
+			// 查看权限列表（需要 permission:view 权限）
+			permissions.GET("", middleware.RequirePermission(userService, "permission", "view"), roleHandler.GetPermissions)
+
+			// 创建权限（需要 permission:create 权限）
+			permissions.POST("", middleware.RequirePermission(userService, "permission", "create"), roleHandler.CreatePermission)
+
+			// 删除权限（需要 permission:delete 权限）
+			permissions.DELETE("/:id", middleware.RequirePermission(userService, "permission", "delete"), roleHandler.DeletePermission)
 		}
 
-		// 角色权限关联（需要认证）
+		// 角色权限关联
 		rolePermissions := api.Group("/role-permissions")
 		rolePermissions.Use(jwtManager.AuthMiddleware())
 		{
-			rolePermissions.POST("", roleHandler.AssignPermissionToRole)
-			rolePermissions.DELETE("", roleHandler.RemovePermissionFromRole)
+			// 分配权限给角色（需要 role:manage 权限）
+			rolePermissions.POST("", middleware.RequirePermission(userService, "role", "manage"), roleHandler.AssignPermissionToRole)
+
+			// 移除角色权限（需要 role:manage 权限）
+			rolePermissions.DELETE("", middleware.RequirePermission(userService, "role", "manage"), roleHandler.RemovePermissionFromRole)
 		}
 
-		// 用户角色关联（需要认证）
+		// 用户角色关联
 		userRoles := api.Group("/user-roles")
 		userRoles.Use(jwtManager.AuthMiddleware())
 		{
-			userRoles.POST("", roleHandler.AssignRoleToUser)
-			userRoles.DELETE("", roleHandler.RemoveRoleFromUser)
-			userRoles.GET("/user/:id", roleHandler.GetUserRoles)
+			// 分配角色给用户（需要 user:manage 权限）
+			userRoles.POST("", middleware.RequirePermission(userService, "user", "manage"), roleHandler.AssignRoleToUser)
+
+			// 移除用户角色（需要 user:manage 权限）
+			userRoles.DELETE("", middleware.RequirePermission(userService, "user", "manage"), roleHandler.RemoveRoleFromUser)
+
+			// 查看用户角色（需要 user:view 权限）
+			userRoles.GET("/user/:id", middleware.RequirePermission(userService, "user", "view"), roleHandler.GetUserRoles)
 		}
 	}
 

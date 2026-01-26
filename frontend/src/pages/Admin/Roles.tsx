@@ -114,11 +114,27 @@ export default function AdminRoles() {
     },
   ]
 
+  // 权限操作中文映射
+  const actionMap: Record<string, string> = {
+    create: '创建',
+    read: '读取',
+    update: '更新',
+    delete: '删除',
+    view: '查看',
+    manage: '管理',
+    '*': '全部',
+  }
+
   // 权限表格列
   const permissionColumns: ColumnsType<Permission> = [
     { title: 'ID', dataIndex: 'id', width: 80, key: 'id' },
     { title: '资源', dataIndex: 'resource', key: 'resource' },
-    { title: '操作', dataIndex: 'action', key: 'action' },
+    {
+      title: '操作',
+      dataIndex: 'action',
+      key: 'action',
+      render: (action: string) => actionMap[action] || action
+    },
     {
       title: '操作',
       key: 'action',
@@ -406,7 +422,8 @@ export default function AdminRoles() {
           titles={['可用权限', '已分配权限']}
           targetKeys={selectedPermissionIds}
           onChange={(targetKeys) => setSelectedPermissionIds(targetKeys as number[])}
-          render={(item) => `${item.resource}:${item.action}`}
+          render={(item) => `${item.resource}:${actionMap[item.action] || item.action}`}
+          rowKey={(item) => item.id}
           listStyle={{
             width: 300,
             height: 400,

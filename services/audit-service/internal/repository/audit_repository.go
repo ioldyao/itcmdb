@@ -8,7 +8,7 @@ import (
 type AuditRepository interface {
 	CreateBatch(logs []models.AuditLog) error
 	GetLogs(offset, limit int, userID *uint, action, resource, startTime, endTime *string) ([]models.AuditLog, int64, error)
-	GetStats(startTime, endTime *string) (int64, map[string]int64, map[string]int64, error)
+	GetStats(startTime, endTime *string, userID *uint) (int64, map[string]int64, map[string]int64, error)
 }
 
 type auditRepository struct {
@@ -62,12 +62,17 @@ func (r *auditRepository) GetLogs(offset, limit int, userID *uint, action, resou
 	return logs, total, nil
 }
 
-func (r *auditRepository) GetStats(startTime, endTime *string) (int64, map[string]int64, map[string]int64, error) {
+func (r *auditRepository) GetStats(startTime, endTime *string, userID *uint) (int64, map[string]int64, map[string]int64, error) {
 	var total int64
 	byAction := make(map[string]int64)
 	byResource := make(map[string]int64)
 
 	query := r.db.Model(&models.AuditLog{})
+
+	// 用户筛选
+	if userID != nil {
+		query = query.Where("user_id = ?", *userID)
+	}
 
 	// 时间范围筛选
 	if startTime != nil {
