@@ -408,6 +408,8 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     details JSONB,
     ip_address VARCHAR(45),
     user_agent TEXT,
+    status VARCHAR(20) DEFAULT 'success', -- success, failed
+    error_msg TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
