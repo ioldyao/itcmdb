@@ -185,8 +185,8 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 启动gRPC服务器
-	go startGRPCServer(ciService)
+	// 启动gRPC服务器（需要authClient用于认证）
+	go startGRPCServer(ciService, authClient)
 
 	// 启动REST API服务器
 	r := gin.Default()
@@ -197,7 +197,7 @@ func main() {
 	r.Run(addr)
 }
 
-func startGRPCServer(ciService service.CIService) {
+func startGRPCServer(ciService service.CIService, authClient *grpcclient.AuthClient) {
 	grpcPort := viper.GetString("grpc.port")
 	if grpcPort == "" {
 		grpcPort = "50002"
@@ -208,7 +208,30 @@ func startGRPCServer(ciService service.CIService) {
 		logger.Fatal("Failed to listen for gRPC", zap.Error(err))
 	}
 
-	grpcServer := grpc.NewServer()
+	// 获取Agent专用的认证Token（从配置或环境变量）
+	agentToken := viper.GetString("grpc.agent_token")
+	if agentToken == "" {
+		// 从环境变量获取
+		agentToken = viper.GetString("agent_token")
+		if agentToken == "" {
+			// 使用默认值（仅用于开发环境）
+			logger.Warn("No agent token configured, using default token. Please set GRPC_AGENT_TOKEN or agent_token in production!")
+			agentToken = "hardware-agent-token-default"
+		}
+	}
+
+	// 创建gRPC服务器，添加拦截器
+	// 链式拦截器：日志 -> Agent认证
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			middleware.LoggingInterceptor(),
+			middleware.UnaryAgentAuthInterceptor(agentToken),
+		),
+		grpc.ChainStreamInterceptor(
+			middleware.StreamAuthInterceptor(authClient),
+		),
+	)
+
 	cmdbServer := grpcserver.NewCMDBServer(ciService)
 	pb.RegisterCMDBServiceServer(grpcServer, cmdbServer)
 	pb.RegisterHardwareServiceServer(grpcServer, cmdbServer) // 注册HardwareService（使用同一个server实例）
@@ -216,7 +239,9 @@ func startGRPCServer(ciService service.CIService) {
 	// 注册反射服务，用于grpcurl等工具
 	reflection.Register(grpcServer)
 
-	logger.Info("CMDB gRPC service starting", zap.String("port", grpcPort))
+	logger.Info("CMDB gRPC service starting with authentication",
+		zap.String("port", grpcPort),
+		zap.String("auth", "agent-token"))
 	if err := grpcServer.Serve(lis); err != nil {
 		logger.Fatal("Failed to serve gRPC", zap.Error(err))
 	}
@@ -242,6 +267,8 @@ func loadConfig() error {
 	viper.BindEnv("redis.password", "CMDB_REDIS_PASSWORD")
 	viper.BindEnv("redis.db", "CMDB_REDIS_DB")
 	viper.BindEnv("grpc.port", "CMDB_GRPC_PORT")
+	viper.BindEnv("grpc.agent_token", "CMDB_GRPC_AGENT_TOKEN")
+	viper.BindEnv("agent_token", "CMDB_AGENT_TOKEN")
 	viper.BindEnv("auth.grpc.address", "CMDB_AUTH_GRPC_ADDRESS")
 	viper.BindEnv("victoriametrics.endpoint", "CMDB_VICTORIAMETRICS_ENDPOINT")
 	viper.BindEnv("victoriametrics.username", "CMDB_VICTORIAMETRICS_USERNAME")
