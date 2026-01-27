@@ -180,7 +180,7 @@ docker compose logs -f
 | **通知服务** | http://localhost:5005 | notification-service |
 | **报表服务** | http://localhost:5006 | report-service |
 | **审计服务** | http://localhost:5007 | audit-service |
-| **Kafka UI** | http://localhost:8080 | Kafka管理界面 |
+| **Kafka UI** | http://localhost:8081 | Kafka管理界面 |
 
 ### 默认账号
 

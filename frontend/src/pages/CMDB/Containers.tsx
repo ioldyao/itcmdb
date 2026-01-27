@@ -495,7 +495,7 @@ export default function CMDBContainers() {
             <Input placeholder="Docker容器ID，例如: abc123def456" />
           </Form.Item>
           <Form.Item label="cAdvisor端点" name="cadvisor_endpoint">
-            <Input placeholder="例如: http://192.168.1.100:8080" />
+            <Input placeholder="例如: http://192.168.1.100:8081" />
           </Form.Item>
 
           {/* 宿主机关联 */}

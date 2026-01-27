@@ -434,7 +434,7 @@ export default function CMDBApplications() {
             </Select>
           </Form.Item>
           <Form.Item label="端口" name="port" rules={[{ required: true, message: '请输入端口号' }]}>
-            <Input type="number" placeholder="例如: 8080" min={1} max={65535} />
+            <Input type="number" placeholder="例如: 8081" min={1} max={65535} />
           </Form.Item>
           <Form.Item label="环境" name="environment" rules={[{ required: true }]}>
             <Select>

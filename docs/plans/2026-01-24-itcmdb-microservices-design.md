@@ -477,7 +477,7 @@ services:
   redis:           # Redis缓存 :6379
   zookeeper:       # Kafka依赖 :2181
   kafka:           # Kafka消息队列 :9092
-  kafka-ui:        # Kafka管理界面 :8080
+  kafka-ui:        # Kafka管理界面 :8081
 
   # 后端服务
   auth-service:        # 认证服务 :5001
