@@ -225,6 +225,9 @@ services:
       ALERT_DATABASE_SSLMODE: disable
       ALERT_JWT_SECRET: your-secret-key-change-in-production
       ALERT_JWT_EXPIRATION: 24h
+      ALERT_VICTORIAMETRICS_ENDPOINT: https://10.120.43.230:8109
+      ALERT_VICTORIAMETRICS_USERNAME: admin
+      ALERT_VICTORIAMETRICS_PASSWORD: prometheus@123
     networks:
       - backend-network
       - data-network
