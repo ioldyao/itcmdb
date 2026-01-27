@@ -10,8 +10,6 @@ import (
 )
 
 // Context keys for passing data through hooks
-type contextKey string
-
 const (
 	UserIDKey   contextKey = "user_id"
 	HistoryKey  contextKey = "history_records"
@@ -143,7 +141,7 @@ func (CIHistory) TableName() string {
 // BeforeUpdate hook - 检测变更并准备历史记录
 func (ci *CIInstance) BeforeUpdate(tx *gorm.DB) error {
 	// 检查是否跳过历史记录
-	if _, skip := tx.InstanceGet(SkipHistory); skip {
+	if _, skip := tx.InstanceGet("skip_history"); skip {
 		return nil
 	}
 
@@ -160,7 +158,7 @@ func (ci *CIInstance) BeforeUpdate(tx *gorm.DB) error {
 
 	// 获取旧数据（从数据库中查询的原始记录）
 	var oldCI CIInstance
-	if err := tx.First(&oldCI, tx.Statement.Schema.PrioritizedPrimaryFields[0].DBNames[0], ci.ID).Error; err != nil {
+	if err := tx.First(&oldCI, ci.ID).Error; err != nil {
 		return nil
 	}
 
@@ -240,7 +238,7 @@ func (ci *CIInstance) BeforeUpdate(tx *gorm.DB) error {
 
 	// 将历史记录存储到context中，在AfterUpdate中使用
 	if len(histories) > 0 {
-		tx.InstanceSet(HistoryKey, histories)
+		tx.InstanceSet("history_records", histories)
 	}
 
 	return nil
@@ -249,12 +247,12 @@ func (ci *CIInstance) BeforeUpdate(tx *gorm.DB) error {
 // AfterUpdate hook - 保存历史记录
 func (ci *CIInstance) AfterUpdate(tx *gorm.DB) error {
 	// 检查是否跳过历史记录
-	if _, skip := tx.InstanceGet(SkipHistory); skip {
+	if _, skip := tx.InstanceGet("skip_history"); skip {
 		return nil
 	}
 
 	// 从context中获取历史记录
-	historyInterface, ok := tx.InstanceGet(HistoryKey)
+	historyInterface, ok := tx.InstanceGet("history_records")
 	if !ok {
 		return nil
 	}
@@ -277,7 +275,7 @@ func (ci *CIInstance) AfterUpdate(tx *gorm.DB) error {
 // BeforeCreate hook - 记录创建历史
 func (ci *CIInstance) BeforeCreate(tx *gorm.DB) error {
 	// 检查是否跳过历史记录
-	if _, skip := tx.InstanceGet(SkipHistory); skip {
+	if _, skip := tx.InstanceGet(SkipHistory.String()); skip {
 		return nil
 	}
 
@@ -306,7 +304,7 @@ func (ci *CIInstance) BeforeCreate(tx *gorm.DB) error {
 	}
 
 	// 将历史记录存储到context中
-	tx.InstanceSet(HistoryKey, histories)
+	tx.InstanceSet("history_records", histories)
 
 	return nil
 }
@@ -314,12 +312,12 @@ func (ci *CIInstance) BeforeCreate(tx *gorm.DB) error {
 // AfterCreate hook - 保存创建历史（需要更新CIID）
 func (ci *CIInstance) AfterCreate(tx *gorm.DB) error {
 	// 检查是否跳过历史记录
-	if _, skip := tx.InstanceGet(SkipHistory); skip {
+	if _, skip := tx.InstanceGet("skip_history"); skip {
 		return nil
 	}
 
 	// 从context中获取历史记录
-	historyInterface, ok := tx.InstanceGet(HistoryKey)
+	historyInterface, ok := tx.InstanceGet("history_records")
 	if !ok {
 		return nil
 	}
@@ -346,7 +344,7 @@ func (ci *CIInstance) AfterCreate(tx *gorm.DB) error {
 // BeforeDelete hook - 记录删除历史
 func (ci *CIInstance) BeforeDelete(tx *gorm.DB) error {
 	// 检查是否跳过历史记录
-	if _, skip := tx.InstanceGet(SkipHistory); skip {
+	if _, skip := tx.InstanceGet(SkipHistory.String()); skip {
 		return nil
 	}
 
@@ -375,7 +373,7 @@ func (ci *CIInstance) BeforeDelete(tx *gorm.DB) error {
 	}
 
 	// 将历史记录存储到context中
-	tx.InstanceSet(HistoryKey, histories)
+	tx.InstanceSet("history_records", histories)
 
 	return nil
 }
@@ -383,12 +381,12 @@ func (ci *CIInstance) BeforeDelete(tx *gorm.DB) error {
 // AfterDelete hook - 保存删除历史
 func (ci *CIInstance) AfterDelete(tx *gorm.DB) error {
 	// 检查是否跳过历史记录
-	if _, skip := tx.InstanceGet(SkipHistory); skip {
+	if _, skip := tx.InstanceGet("skip_history"); skip {
 		return nil
 	}
 
 	// 从context中获取历史记录
-	historyInterface, ok := tx.InstanceGet(HistoryKey)
+	historyInterface, ok := tx.InstanceGet("history_records")
 	if !ok {
 		return nil
 	}

@@ -386,8 +386,7 @@ func (s *ciService) ImportCIInstances(ciTypeID uint, data []byte, userID uint) (
 			continue
 		}
 
-		// 记录历史
-		s.recordHistory(instance.ID, userID, "create", "", "", "")
+		// 批量导入跳过历史记录
 		result.Success++
 	}
 
