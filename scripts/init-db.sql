@@ -486,6 +486,11 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 
+-- 系统配置表索引
+CREATE INDEX IF NOT EXISTS idx_system_configs_category ON system_configs(category);
+CREATE INDEX IF NOT EXISTS idx_system_configs_key ON system_configs(key);
+CREATE INDEX IF NOT EXISTS idx_system_configs_deleted_at ON system_configs(deleted_at);
+
 -- ============================================
 -- 函数和触发器
 -- ============================================
