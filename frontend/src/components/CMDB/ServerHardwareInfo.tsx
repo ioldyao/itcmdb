@@ -1,4 +1,4 @@
-import { Card, Table, Row, Col, Statistic, Descriptions, Tag } from 'antd'
+import { Card, Table, Row, Col, Statistic, Descriptions, Tag, Collapse } from 'antd'
 import {
   HddOutlined,
   ThunderboltOutlined,
@@ -6,6 +6,7 @@ import {
   EyeOutlined,
   DashboardOutlined,
   ApiOutlined,
+  DownOutlined,
 } from '@ant-design/icons'
 
 interface HardwareInfo {
@@ -160,6 +161,191 @@ export default function ServerHardwareInfo({ attributes, roles = [], tags = [] }
     { title: '序列号', dataIndex: 'serial_number', key: 'serial_number', width: 180 },
   ]
 
+  // 生成折叠面板的items
+  const collapseItems = []
+
+  // 基本信息（始终展开）
+  collapseItems.push({
+    key: 'basic',
+    label: '基本信息',
+    children: (
+      <Descriptions column={3} bordered size="small">
+        {basicInfo.map((info, index) => (
+          <Descriptions.Item key={index} label={info.label}>
+            {info.value}
+          </Descriptions.Item>
+        ))}
+        <Descriptions.Item label="角色" span={3}>
+          {roles && roles.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {roles.map((role: any) => (
+                <Tag key={role.id} color="blue">
+                  {role.display_name || role.name}
+                </Tag>
+              ))}
+            </div>
+          ) : (
+            '-'
+          )}
+        </Descriptions.Item>
+        <Descriptions.Item label="标签" span={3}>
+          {tags && tags.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag: any) => (
+                <Tag key={tag.id} color={tag.color || 'default'}>
+                  {tag.display_name || tag.name}
+                </Tag>
+              ))}
+            </div>
+          ) : (
+            '-'
+          )}
+        </Descriptions.Item>
+      </Descriptions>
+    ),
+  })
+
+  // CPU信息（默认折叠）
+  if (cpu_model) {
+    collapseItems.push({
+      key: 'cpu',
+      label: <><ApiOutlined /> CPU信息</>,
+      children: (
+        <Descriptions column={2} bordered size="small">
+          {cpuInfo.map((info, index) => (
+            <Descriptions.Item key={index} label={info.label}>
+              {info.value}
+            </Descriptions.Item>
+          ))}
+        </Descriptions>
+      ),
+    })
+  }
+
+  // 系统信息（默认折叠）
+  if (os_name || kernel_version) {
+    collapseItems.push({
+      key: 'system',
+      label: <><DashboardOutlined /> 系统信息</>,
+      children: (
+        <Descriptions column={2} bordered size="small">
+          {systemInfo.map((info, index) => (
+            <Descriptions.Item key={index} label={info.label}>
+              {info.value}
+            </Descriptions.Item>
+          ))}
+        </Descriptions>
+      ),
+    })
+  }
+
+  // 内存信息（默认折叠）
+  if (Array.isArray(memory_info) && memory_info.length > 0) {
+    collapseItems.push({
+      key: 'memory',
+      label: <><ApiOutlined /> 内存信息 ({memory_info.length}条)</>,
+      children: (
+        <Table
+          columns={memoryColumns}
+          dataSource={memory_info}
+          rowKey={(record) => record.locator + record.serial}
+          size="small"
+          pagination={false}
+          scroll={{ x: 1000 }}
+        />
+      ),
+    })
+  }
+
+  // GPU信息（默认折叠）
+  if (Array.isArray(gpu_info) && gpu_info.length > 0) {
+    collapseItems.push({
+      key: 'gpu',
+      label: <><EyeOutlined /> GPU信息 ({gpu_info.length}个)</>,
+      children: (
+        <Table
+          columns={gpuColumns}
+          dataSource={gpu_info}
+          rowKey={(record) => record.gpu_id}
+          size="small"
+          pagination={false}
+        />
+      ),
+    })
+  }
+
+  // 网卡信息（默认折叠）
+  if (Array.isArray(network_info) && network_info.length > 0) {
+    collapseItems.push({
+      key: 'network',
+      label: <><WifiOutlined /> 网卡信息 ({network_info.length}个)</>,
+      children: (
+        <Table
+          columns={networkColumns}
+          dataSource={network_info}
+          rowKey={(record) => record.mac}
+          size="small"
+          pagination={false}
+          scroll={{ x: 1400 }}
+        />
+      ),
+    })
+  }
+
+  // 存储信息（默认折叠）
+  if (Array.isArray(storage_info) && storage_info.length > 0) {
+    collapseItems.push({
+      key: 'storage',
+      label: <><HddOutlined /> 存储信息 ({storage_info.length}个)</>,
+      children: (
+        <Table
+          columns={storageColumns}
+          dataSource={storage_info}
+          rowKey={(record) => record.name + record.serial}
+          size="small"
+          pagination={false}
+          scroll={{ x: 1000 }}
+        />
+      ),
+    })
+  }
+
+  // 电源信息（默认折叠）
+  if (Array.isArray(power_supply_info) && power_supply_info.length > 0) {
+    collapseItems.push({
+      key: 'power',
+      label: <><ThunderboltOutlined /> 电源信息 ({power_supply_info.length}个)</>,
+      children: (
+        <Table
+          columns={powerSupplyColumns}
+          dataSource={power_supply_info}
+          rowKey={(record) => record.location}
+          size="small"
+          pagination={false}
+          scroll={{ x: 1000 }}
+        />
+      ),
+    })
+  }
+
+  // 光模块信息（默认折叠）
+  if (Array.isArray(optical_modules_info) && optical_modules_info.length > 0) {
+    collapseItems.push({
+      key: 'optical',
+      label: <><DashboardOutlined /> 光模块信息 ({optical_modules_info.length}个)</>,
+      children: (
+        <Table
+          columns={opticalColumns}
+          dataSource={optical_modules_info}
+          rowKey={(record) => record.pci_addr + record.port}
+          size="small"
+          pagination={false}
+          scroll={{ x: 1600 }}
+        />
+      ),
+    })
+  }
+
   return (
     <div className="space-y-4">
       {/* 硬件概览统计 */}
@@ -258,151 +444,15 @@ export default function ServerHardwareInfo({ attributes, roles = [], tags = [] }
         </Row>
       </Card>
 
-      {/* 基本信息 */}
-      <Card title="基本信息">
-        <Descriptions column={3} bordered size="small">
-          {basicInfo.map((info, index) => (
-            <Descriptions.Item key={index} label={info.label}>
-              {info.value}
-            </Descriptions.Item>
-          ))}
-          <Descriptions.Item label="角色" span={3}>
-            {roles && roles.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {roles.map((role: any) => (
-                  <Tag key={role.id} color="blue">
-                    {role.display_name || role.name}
-                  </Tag>
-                ))}
-              </div>
-            ) : (
-              '-'
-            )}
-          </Descriptions.Item>
-          <Descriptions.Item label="标签" span={3}>
-            {tags && tags.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {tags.map((tag: any) => (
-                  <Tag key={tag.id} color={tag.color || 'default'}>
-                    {tag.display_name || tag.name}
-                  </Tag>
-                ))}
-              </div>
-            ) : (
-              '-'
-            )}
-          </Descriptions.Item>
-        </Descriptions>
+      {/* 硬件详细信息折叠面板 */}
+      <Card title={<><DashboardOutlined /> 硬件详细信息</>}>
+        <Collapse
+          defaultActiveKey={['basic']}  // 默认只展开基本信息
+          items={collapseItems}
+          bordered
+          size="small"
+        />
       </Card>
-
-      {/* CPU信息 */}
-      {cpu_model && (
-        <Card title={<><ApiOutlined /> CPU信息</>}>
-          <Descriptions column={2} bordered size="small">
-            {cpuInfo.map((info, index) => (
-              <Descriptions.Item key={index} label={info.label}>
-                {info.value}
-              </Descriptions.Item>
-            ))}
-          </Descriptions>
-        </Card>
-      )}
-
-      {/* 系统信息 */}
-      {(os_name || kernel_version) && (
-        <Card title={<><DashboardOutlined /> 系统信息</>}>
-          <Descriptions column={2} bordered size="small">
-            {systemInfo.map((info, index) => (
-              <Descriptions.Item key={index} label={info.label}>
-                {info.value}
-              </Descriptions.Item>
-            ))}
-          </Descriptions>
-        </Card>
-      )}
-
-      {/* 内存信息 */}
-      {Array.isArray(memory_info) && memory_info.length > 0 && (
-        <Card title={<><ApiOutlined /> 内存信息 ({memory_info.length}条)</>}>
-          <Table
-            columns={memoryColumns}
-            dataSource={memory_info}
-            rowKey={(record) => record.locator + record.serial}
-            size="small"
-            pagination={false}
-            scroll={{ x: 1000 }}
-          />
-        </Card>
-      )}
-
-      {/* GPU信息 */}
-      {Array.isArray(gpu_info) && gpu_info.length > 0 && (
-        <Card title={<><EyeOutlined /> GPU信息 ({gpu_info.length}个)</>}>
-          <Table
-            columns={gpuColumns}
-            dataSource={gpu_info}
-            rowKey={(record) => record.gpu_id}
-            size="small"
-            pagination={false}
-          />
-        </Card>
-      )}
-
-      {/* 网卡信息 */}
-      {Array.isArray(network_info) && network_info.length > 0 && (
-        <Card title={<><WifiOutlined /> 网卡信息 ({network_info.length}个)</>}>
-          <Table
-            columns={networkColumns}
-            dataSource={network_info}
-            rowKey={(record) => record.mac}
-            size="small"
-            pagination={false}
-            scroll={{ x: 1400 }}
-          />
-        </Card>
-      )}
-
-      {/* 存储信息 */}
-      {Array.isArray(storage_info) && storage_info.length > 0 && (
-        <Card title={<><HddOutlined /> 存储信息 ({storage_info.length}个)</>}>
-          <Table
-            columns={storageColumns}
-            dataSource={storage_info}
-            rowKey={(record) => record.name + record.serial}
-            size="small"
-            pagination={false}
-            scroll={{ x: 1000 }}
-          />
-        </Card>
-      )}
-
-      {/* 电源信息 */}
-      {Array.isArray(power_supply_info) && power_supply_info.length > 0 && (
-        <Card title={<><ThunderboltOutlined /> 电源信息 ({power_supply_info.length}个)</>}>
-          <Table
-            columns={powerSupplyColumns}
-            dataSource={power_supply_info}
-            rowKey={(record) => record.location}
-            size="small"
-            pagination={false}
-            scroll={{ x: 1000 }}
-          />
-        </Card>
-      )}
-
-      {/* 光模块信息 */}
-      {Array.isArray(optical_modules_info) && optical_modules_info.length > 0 && (
-        <Card title={<><DashboardOutlined /> 光模块信息 ({optical_modules_info.length}个)</>}>
-          <Table
-            columns={opticalColumns}
-            dataSource={optical_modules_info}
-            rowKey={(record) => record.pci_addr + record.port}
-            size="small"
-            pagination={false}
-            scroll={{ x: 1600 }}
-          />
-        </Card>
-      )}
     </div>
   )
 }
