@@ -43,7 +43,6 @@ export default function AlertList() {
     acknowledgeAlert,
     closeAlert,
     setFilters,
-    clearFilters,
   } = useAlertStore()
 
   const { user } = useAuthStore()

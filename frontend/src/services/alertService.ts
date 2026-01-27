@@ -1,12 +1,14 @@
-import { axiosInstance } from './axios'
-import type { ApiResponse } from './types'
-
-// 确保axios和types模块存在
-// 如果使用相对路径，请根据实际项目结构调整
+import api from './api'
 
 // ============================================
 // 类型定义
 // ============================================
+
+export interface ApiResponse<T = any> {
+  code: number
+  message: string
+  data: T
+}
 
 export interface AlertInstance {
   id: number
@@ -74,14 +76,6 @@ export interface AlertHistory {
   details?: Record<string, any>
 }
 
-export interface AlertStatistics {
-  total: number
-  firing: number
-  acknowledged: number
-  resolved: number
-  closed: number
-}
-
 export interface AlertListRequest {
   page?: number
   page_size?: number
@@ -107,22 +101,22 @@ export interface AlertListResponse {
 export const alertService = {
   // 获取告警列表
   getAlerts: async (params: AlertListRequest = {}): Promise<ApiResponse<AlertListResponse>> => {
-    return axiosInstance.get('/alerts', { params })
+    return api.get('/alerts', { params })
   },
 
   // 获取告警详情
   getAlertById: async (id: number): Promise<ApiResponse<AlertInstance>> => {
-    return axiosInstance.get(`/alerts/${id}`)
+    return api.get(`/alerts/${id}`)
   },
 
   // 确认告警
   acknowledgeAlert: async (id: number, data: { handler: number; notes?: string }): Promise<ApiResponse<void>> => {
-    return axiosInstance.post(`/alerts/${id}/ack`, data)
+    return api.post(`/alerts/${id}/ack`, data)
   },
 
   // 关闭告警
   closeAlert: async (id: number, data: { handler: number; notes?: string }): Promise<ApiResponse<void>> => {
-    return axiosInstance.post(`/alerts/${id}/close`, data)
+    return api.post(`/alerts/${id}/close`, data)
   },
 
   // 批量确认告警
@@ -131,7 +125,7 @@ export const alertService = {
     handler: number
     notes?: string
   }): Promise<ApiResponse<{ affected_rows: number }>> => {
-    return axiosInstance.post('/alerts/batch/ack', data)
+    return api.post('/alerts/batch/ack', data)
   },
 
   // 批量关闭告警
@@ -140,20 +134,26 @@ export const alertService = {
     handler: number
     notes?: string
   }): Promise<ApiResponse<{ affected_rows: number }>> => {
-    return axiosInstance.post('/alerts/batch/close', data)
+    return api.post('/alerts/batch/close', data)
   },
 
   // 获取告警历史
   getAlertHistory: async (id: number): Promise<ApiResponse<AlertHistory[]>> => {
-    return axiosInstance.get(`/alerts/${id}/history`)
+    return api.get(`/alerts/${id}/history`)
   },
 
   // 获取告警统计
   getAlertStatistics: async (): Promise<ApiResponse<{
-    stats: AlertStatistics
+    stats: {
+      total: number
+      firing: number
+      acknowledged: number
+      resolved: number
+      closed: number
+    }
     severity_stats: Array<{ severity: string; count: number }>
   }>> => {
-    return axiosInstance.get('/alerts/statistics')
+    return api.get('/alerts/statistics')
   },
 
   // 获取告警分析数据
@@ -162,7 +162,7 @@ export const alertService = {
     end_time: string
     group_by?: string[]
   }): Promise<ApiResponse<any>> => {
-    return axiosInstance.get('/alerts/analytics', { params })
+    return api.get('/alerts/analytics', { params })
   },
 
   // ============================================
@@ -176,37 +176,37 @@ export const alertService = {
     severity?: string
     enabled?: string
   }): Promise<ApiResponse<{ total: number; rules: AlertRule[] }>> => {
-    return axiosInstance.get('/rules', { params })
+    return api.get('/rules', { params })
   },
 
   // 获取规则详情
   getRuleById: async (id: number): Promise<ApiResponse<AlertRule>> => {
-    return axiosInstance.get(`/rules/${id}`)
+    return api.get(`/rules/${id}`)
   },
 
   // 创建规则
   createRule: async (data: Partial<AlertRule>): Promise<ApiResponse<AlertRule>> => {
-    return axiosInstance.post('/rules', data)
+    return api.post('/rules', data)
   },
 
   // 更新规则
   updateRule: async (id: number, data: Partial<AlertRule>): Promise<ApiResponse<AlertRule>> => {
-    return axiosInstance.put(`/rules/${id}`, data)
+    return api.put(`/rules/${id}`, data)
   },
 
   // 删除规则
   deleteRule: async (id: number): Promise<ApiResponse<void>> => {
-    return axiosInstance.delete(`/rules/${id}`)
+    return api.delete(`/rules/${id}`)
   },
 
   // 启用规则
   enableRule: async (id: number): Promise<ApiResponse<void>> => {
-    return axiosInstance.post(`/rules/${id}/enable`)
+    return api.post(`/rules/${id}/enable`)
   },
 
   // 禁用规则
   disableRule: async (id: number): Promise<ApiResponse<void>> => {
-    return axiosInstance.post(`/rules/${id}/disable`)
+    return api.post(`/rules/${id}/disable`)
   },
 
   // 测试规则
@@ -215,6 +215,6 @@ export const alertService = {
     threshold_operator: string
     threshold_value: number
   }): Promise<ApiResponse<any>> => {
-    return axiosInstance.post('/rules/test', data)
+    return api.post('/rules/test', data)
   },
 }
