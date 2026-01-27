@@ -157,6 +157,14 @@ services:
       CMDB_VICTORIAMETRICS_ENDPOINT: https://10.120.43.230:8109
       CMDB_VICTORIAMETRICS_USERNAME: admin
       CMDB_VICTORIAMETRICS_PASSWORD: prometheus@123
+      # mTLS配置
+      CMDB_GRPC_MTLS_ENABLED: "true"
+      CMDB_GRPC_MTLS_SERVER_CERT: /certs/server_cert.pem
+      CMDB_GRPC_MTLS_SERVER_KEY: /certs/server_key.pem
+      CMDB_GRPC_MTLS_CA_CERT: /certs/ca_cert.pem
+    volumes:
+      # 挂载mTLS证书目录（只读）
+      - ./certificates:/certs:ro
     networks:
       - backend-network
       - data-network
