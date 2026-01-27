@@ -9,6 +9,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// contextKey context key类型
+type contextKey string
+
 // Context keys for passing data through hooks
 const (
 	UserIDKey   contextKey = "user_id"
