@@ -202,7 +202,7 @@ docker compose logs -f
 
 如需手动重新初始化数据库：
 ```bash
-docker exec -i itcmdb-postgres psql -U itcmdb -d itcmdb < scripts/init-db.sql
+docker exec -i itcmdb-postgres psql -U postgres -d itcmdb < scripts/init-db.sql
 ```
 
 ## 停止服务

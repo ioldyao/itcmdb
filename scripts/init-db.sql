@@ -4,7 +4,7 @@
 -- 更新日期: 2026-01-26
 --
 -- 此脚本整合了所有数据库迁移，可直接在新设备上部署
--- 执行方式: docker exec -i itcmdb-postgres psql -U itcmdb -d itcmdb < scripts/init-db.sql
+-- 执行方式: docker exec -i itcmdb-postgres psql -U postgres -d itcmdb < scripts/init-db.sql
 
 -- ============================================
 -- 用户与权限模块
