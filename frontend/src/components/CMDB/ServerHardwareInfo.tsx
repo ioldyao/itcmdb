@@ -6,7 +6,6 @@ import {
   EyeOutlined,
   DashboardOutlined,
   ApiOutlined,
-  DownOutlined,
 } from '@ant-design/icons'
 
 interface HardwareInfo {
