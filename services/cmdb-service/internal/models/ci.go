@@ -19,6 +19,9 @@ const (
 	SkipHistory contextKey = "skip_history"
 )
 
+// Ensure context package is used
+var _ = context.Background()
+
 // JSONB 自定义类型用于存储动态属性
 type JSONB map[string]interface{}
 
@@ -278,7 +281,7 @@ func (ci *CIInstance) AfterUpdate(tx *gorm.DB) error {
 // BeforeCreate hook - 记录创建历史
 func (ci *CIInstance) BeforeCreate(tx *gorm.DB) error {
 	// 检查是否跳过历史记录
-	if _, skip := tx.InstanceGet(SkipHistory.String()); skip {
+	if _, skip := tx.InstanceGet("skip_history"); skip {
 		return nil
 	}
 
@@ -347,7 +350,7 @@ func (ci *CIInstance) AfterCreate(tx *gorm.DB) error {
 // BeforeDelete hook - 记录删除历史
 func (ci *CIInstance) BeforeDelete(tx *gorm.DB) error {
 	// 检查是否跳过历史记录
-	if _, skip := tx.InstanceGet(SkipHistory.String()); skip {
+	if _, skip := tx.InstanceGet("skip_history"); skip {
 		return nil
 	}
 
