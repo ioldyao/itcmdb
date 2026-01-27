@@ -14,6 +14,7 @@ import (
 	"github.com/itcmdb/shared/pkg/logger"
 	"github.com/itcmdb/shared/pkg/response"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -37,7 +38,7 @@ func main() {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
 
-	db := database.GetDB()
+	db := database.Get()
 
 	// 自动迁移
 	if err := autoMigrate(db); err != nil {
@@ -114,7 +115,7 @@ func loadConfig() error {
 	return nil
 }
 
-func autoMigrate(db *database.DB) error {
+func autoMigrate(db *gorm.DB) error {
 	// 自动迁移表结构
 	// 注意：生产环境建议使用SQL迁移脚本而不是自动迁移
 	sqlDB, err := db.DB()
@@ -134,7 +135,7 @@ func autoMigrate(db *database.DB) error {
 	return nil
 }
 
-func setupRoutes(r *gin.Engine, db *database.DB, alertEngine *services.AlertEngine, vmClient *services.VictoriaMetricsClient, jwtManager *auth.JWTManager) {
+func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, vmClient *services.VictoriaMetricsClient, jwtManager *auth.JWTManager) {
 	// 健康检查
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
@@ -185,7 +186,7 @@ func setupRoutes(r *gin.Engine, db *database.DB, alertEngine *services.AlertEngi
 }
 
 // ingestAlertHandler 外部告警接入处理
-func ingestAlertHandler(db *database.DB, alertEngine *services.AlertEngine) gin.HandlerFunc {
+func ingestAlertHandler(db *gorm.DB, alertEngine *services.AlertEngine) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var payload map[string]interface{}
 		if err := c.ShouldBindJSON(&payload); err != nil {
@@ -210,7 +211,7 @@ func ingestAlertHandler(db *database.DB, alertEngine *services.AlertEngine) gin.
 }
 
 // 后台任务：定期评估告警规则
-func startAlertEvaluator(db *database.DB, alertEngine *services.AlertEngine) {
+func startAlertEvaluator(db *gorm.DB, alertEngine *services.AlertEngine) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
