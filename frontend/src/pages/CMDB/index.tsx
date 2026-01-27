@@ -29,15 +29,8 @@ export default function CMDBLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const hasPermission = useAuthStore((state) => state.hasPermission)
 
-  // 根据权限过滤菜单项
-  const menuItems = useMemo(() => {
-    return allMenuItems.filter(item => {
-      // 如果菜单项不需要权限，直接显示
-      if (!item.permission) return true
-      // 检查用户是否有所需权限
-      return hasPermission(item.permission.resource, item.permission.action)
-    })
-  }, [hasPermission])
+  // CMDB菜单不需要权限过滤
+  const menuItems = allMenuItems
 
   // 获取当前选中的菜单项
   const selectedKey = menuItems.find(item => location.pathname.startsWith(item.key))?.key || '/cmdb/servers'
