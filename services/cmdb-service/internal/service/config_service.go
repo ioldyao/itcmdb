@@ -28,6 +28,14 @@ type configService struct {
 	encryptionKey []byte // 32 bytes for AES-256
 }
 
+// ptrUint 返回uint的指针，如果值为0则返回nil
+func ptrUint(v uint) *uint {
+	if v == 0 {
+		return nil
+	}
+	return &v
+}
+
 type CreateConfigRequest struct {
 	Category    string `json:"category" binding:"required"`
 	Key         string `json:"key" binding:"required"`
@@ -156,7 +164,7 @@ func (s *configService) CreateConfig(req *CreateConfigRequest, userID uint) (*mo
 		Description: req.Description,
 		IsEncrypted: req.IsEncrypted,
 		IsActive:    true,
-		UpdatedBy:   userID,
+		UpdatedBy:   ptrUint(userID),
 	}
 
 	if err := s.repo.CreateConfig(config); err != nil {
@@ -195,7 +203,7 @@ func (s *configService) UpdateConfig(id uint, req *UpdateConfigRequest, userID u
 	if req.IsActive != nil {
 		config.IsActive = *req.IsActive
 	}
-	config.UpdatedBy = userID
+	config.UpdatedBy = ptrUint(userID)
 
 	if err := s.repo.UpdateConfig(config); err != nil {
 		return nil, err
@@ -233,7 +241,7 @@ func (s *configService) BatchUpdateConfigs(configs []BatchConfigRequest, userID 
 			Description: req.Description,
 			IsEncrypted: req.IsEncrypted,
 			IsActive:    true,
-			UpdatedBy:   userID,
+			UpdatedBy:   ptrUint(userID),
 		}
 
 		if err := s.repo.UpsertConfig(config); err != nil {
