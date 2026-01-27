@@ -7,7 +7,6 @@ import {
   Box,
   Shield,
   Tags as TagsIcon,
-  Activity,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useAuthStore } from '@/stores/authStore'
@@ -22,12 +21,6 @@ const allMenuItems = [
   { key: '/cmdb/containers', label: '容器实例', icon: <Box size={16} />, permission: null },
   { key: '/cmdb/roles', label: '角色管理', icon: <Shield size={16} />, permission: null },
   { key: '/cmdb/tags', label: '标签管理', icon: <TagsIcon size={16} />, permission: null },
-  {
-    key: '/cmdb/victoriametrics',
-    label: 'VictoriaMetrics',
-    icon: <Activity size={16} />,
-    permission: { resource: 'config', action: 'view' }
-  },
 ]
 
 export default function CMDBLayout() {

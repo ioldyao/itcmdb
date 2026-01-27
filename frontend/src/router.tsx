@@ -18,7 +18,6 @@ import CMDBContainers from '@/pages/CMDB/Containers'
 import CIRoles from '@/pages/CMDB/Roles'
 import Tags from '@/pages/CMDB/Tags'
 import CIDetail from '@/pages/CMDB/CIDetail'
-import VictoriaMetrics from '@/pages/Monitoring/VictoriaMetrics'
 
 // Ticket Pages
 import TicketList from '@/pages/Ticket/List'
@@ -36,6 +35,7 @@ import AdminUsers from '@/pages/Admin/Users'
 import AdminRoles from '@/pages/Admin/Roles'
 import AdminAudit from '@/pages/Admin/Audit'
 import AdminDefaultPage from '@/pages/Admin/DefaultPage'
+import VictoriaMetrics from '@/pages/Monitoring/VictoriaMetrics'
 
 const router = createBrowserRouter([
   {
@@ -64,7 +64,6 @@ const router = createBrowserRouter([
           { path: 'containers', element: <CMDBContainers /> },
           { path: 'roles', element: <CIRoles /> },
           { path: 'tags', element: <Tags /> },
-          { path: 'victoriametrics', element: <VictoriaMetrics /> },
           { path: 'instances/:id', element: <CIDetail /> },
         ],
       },
@@ -105,6 +104,7 @@ const router = createBrowserRouter([
               </PermissionGuard>
             )
           },
+          { path: 'victoriametrics', element: <VictoriaMetrics /> },
           { path: 'audit', element: <AdminAudit /> },
         ],
       },

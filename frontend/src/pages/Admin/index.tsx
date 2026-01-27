@@ -4,6 +4,7 @@ import {
   Users,
   Shield,
   FileText,
+  Database,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useAuthStore } from '@/stores/authStore'
@@ -23,6 +24,12 @@ const allMenuItems = [
     label: '角色管理',
     icon: <Shield size={16} />,
     permission: { resource: 'role', action: 'view' }
+  },
+  {
+    key: '/admin/victoriametrics',
+    label: 'VictoriaMetrics配置',
+    icon: <Database size={16} />,
+    permission: null
   },
   {
     key: '/admin/audit',
