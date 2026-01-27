@@ -8,8 +8,7 @@ import {
   Shield,
   Tags as TagsIcon,
 } from 'lucide-react'
-import { useState, useMemo } from 'react'
-import { useAuthStore } from '@/stores/authStore'
+import { useState } from 'react'
 
 const { Sider, Content } = Layout
 
@@ -27,7 +26,6 @@ export default function CMDBLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [collapsed, setCollapsed] = useState(false)
-  const hasPermission = useAuthStore((state) => state.hasPermission)
 
   // CMDB菜单不需要权限过滤
   const menuItems = allMenuItems
