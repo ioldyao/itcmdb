@@ -37,6 +37,7 @@ export default function AlertList() {
     total,
     page,
     pageSize,
+    filters,
     statistics,
     fetchAlerts,
     fetchStatistics,
