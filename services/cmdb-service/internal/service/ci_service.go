@@ -260,7 +260,7 @@ func (s *ciService) CreateCIRelation(req *CreateCIRelationRequest, userID uint) 
 		ChildID:      req.ChildID,
 		RelationType: req.RelationType,
 		Description:  req.Description,
-		CreatedBy:    ptrUint(userID),
+		CreatedBy:    userID,
 	}
 
 	if err := s.repo.CreateCIRelation(relation); err != nil {
