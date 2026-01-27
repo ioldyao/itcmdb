@@ -554,7 +554,7 @@ CREATE TRIGGER generate_ticket_number_trigger
 -- 插入默认管理员用户 (密码: admin123)
 -- 这是bcrypt哈希后的密码
 INSERT INTO users (username, email, password_hash, full_name) VALUES
-('admin', 'admin@itcmdb.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '系统管理员')
+('admin', 'admin@itcmdb.com', '$2b$10$ZvxirUvXL48w01pBuGX3vetlzJ3imte3x/FO83ub23lLCiJJFNlIy', '系统管理员')
 ON CONFLICT (username) DO NOTHING;
 
 -- 插入默认角色
