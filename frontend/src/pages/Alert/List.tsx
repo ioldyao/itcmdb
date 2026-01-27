@@ -58,7 +58,14 @@ export default function AlertList() {
 
   useEffect(() => {
     fetchAlerts()
-  }, [page, pageSize])
+  }, [page, pageSize]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    // 当filters变化时，重置到第一页并重新获取
+    if (filters && Object.keys(filters).length > 0) {
+      fetchAlerts()
+    }
+  }, [filters]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 搜索处理
   const handleSearch = () => {
@@ -67,6 +74,14 @@ export default function AlertList() {
       status: statusFilter.length > 0 ? statusFilter : undefined,
       severity: severityFilter.length > 0 ? severityFilter : undefined,
     })
+  }
+
+  // 重置筛选
+  const handleReset = () => {
+    setKeyword('')
+    setStatusFilter([])
+    setSeverityFilter([])
+    clearFilters()
   }
 
   // 时间范围变化
@@ -276,43 +291,176 @@ export default function AlertList() {
 
   return (
     <div style={{ padding: '24px' }}>
+      {/* 页面标题 */}
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, color: '#1890ff' }}>告警中心</h2>
+        <p style={{ color: '#666', margin: 0 }}>
+          实时监控和管理系统告警，支持告警查看、确认、关闭等操作
+        </p>
+      </div>
+
       {/* 统计卡片 */}
       {statistics && (
-        <Row gutter={16} style={{ marginBottom: 24 }}>
+        <>
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={4}>
+              <Card>
+                <Statistic
+                  title="总告警数"
+                  value={statistics.stats?.total || 0}
+                  valueStyle={{ color: '#1890ff' }}
+                />
+              </Card>
+            </Col>
+            <Col span={5}>
+              <Card>
+                <Statistic
+                  title="未恢复"
+                  value={statistics.stats?.firing || 0}
+                  valueStyle={{ color: '#ff4d4f' }}
+                  suffix="条"
+                />
+              </Card>
+            </Col>
+            <Col span={5}>
+              <Card>
+                <Statistic
+                  title="已确认"
+                  value={statistics.stats?.acknowledged || 0}
+                  valueStyle={{ color: '#faad14' }}
+                  suffix="条"
+                />
+              </Card>
+            </Col>
+            <Col span={5}>
+              <Card>
+                <Statistic
+                  title="已恢复"
+                  value={statistics.stats?.resolved || 0}
+                  valueStyle={{ color: '#52c41a' }}
+                  suffix="条"
+                />
+              </Card>
+            </Col>
+            <Col span={5}>
+              <Card>
+                <Statistic
+                  title="已关闭"
+                  value={statistics.stats?.closed || 0}
+                  valueStyle={{ color: '#8c8c8c' }}
+                  suffix="条"
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          {/* 严重程度统计 */}
+          {statistics.severity_stats && statistics.severity_stats.length > 0 && (
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+              {statistics.severity_stats.map((stat: any) => {
+                const config: Record<string, { label: string; color: string; bg: string }> = {
+                  critical: { label: '紧急', color: '#fff', bg: '#ff4d4f' },
+                  high: { label: '高', color: '#fff', bg: '#fa8c16' },
+                  medium: { label: '中', color: '#fff', bg: '#faad14' },
+                  low: { label: '低', color: '#fff', bg: '#1890ff' },
+                }
+                const cfg = config[stat.severity] || { label: stat.severity, color: '#fff', bg: '#8c8c8c' }
+                return (
+                  <Col span={6} key={stat.severity}>
+                    <Card
+                      size="small"
+                      style={{
+                        background: cfg.bg,
+                        border: 'none',
+                      }}
+                    >
+                      <div style={{ color: cfg.color }}>
+                        <div style={{ fontSize: 14, opacity: 0.9 }}>{cfg.label}告警</div>
+                        <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4 }}>
+                          {stat.count} <span style={{ fontSize: 14, marginLeft: 4 }}>条</span>
+                        </div>
+                      </div>
+                    </Card>
+                  </Col>
+                )
+              })}
+            </Row>
+          )}
+        </>
+      )}
+
+      {/* 筛选栏 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Row gutter={16}>
           <Col span={6}>
-            <Card>
-              <Statistic title="总告警数" value={statistics.stats?.total || 0} />
-            </Card>
+            <Input
+              placeholder="搜索告警标题"
+              prefix={<SearchOutlined />}
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onPressEnter={handleSearch}
+              allowClear
+            />
+          </Col>
+          <Col span={4}>
+            <Select
+              mode="multiple"
+              placeholder="状态筛选"
+              style={{ width: '100%' }}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              allowClear
+            >
+              <Select.Option value="firing">未恢复</Select.Option>
+              <Select.Option value="acknowledged">已确认</Select.Option>
+              <Select.Option value="resolved">已恢复</Select.Option>
+              <Select.Option value="closed">已关闭</Select.Option>
+            </Select>
+          </Col>
+          <Col span={4}>
+            <Select
+              mode="multiple"
+              placeholder="严重程度"
+              style={{ width: '100%' }}
+              value={severityFilter}
+              onChange={setSeverityFilter}
+              allowClear
+            >
+              <Select.Option value="critical">紧急</Select.Option>
+              <Select.Option value="high">高</Select.Option>
+              <Select.Option value="medium">中</Select.Option>
+              <Select.Option value="low">低</Select.Option>
+            </Select>
           </Col>
           <Col span={6}>
-            <Card>
-              <Statistic
-                title="未恢复"
-                value={statistics.stats?.firing || 0}
-                valueStyle={{ color: '#ff4d4f' }}
-              />
-            </Card>
+            <RangePicker
+              style={{ width: '100%' }}
+              onChange={handleDateRangeChange}
+              showTime
+              placeholder={['开始时间', '结束时间']}
+            />
           </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="已确认"
-                value={statistics.stats?.acknowledged || 0}
-                valueStyle={{ color: '#faad14' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="已恢复"
-                value={statistics.stats?.resolved || 0}
-                valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
+          <Col span={4}>
+            <Space>
+              <Button
+                type="primary"
+                icon={<SearchOutlined />}
+                onClick={handleSearch}
+              >
+                搜索
+              </Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchAlerts()}>
+                刷新
+              </Button>
+              {(keyword || statusFilter.length > 0 || severityFilter.length > 0) && (
+                <Button icon={<ClearOutlined />} onClick={handleReset}>
+                  重置
+                </Button>
+              )}
+            </Space>
           </Col>
         </Row>
-      )}
+      </Card>
 
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
