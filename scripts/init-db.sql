@@ -105,8 +105,8 @@ CREATE TABLE IF NOT EXISTS ci_instances (
     status VARCHAR(20) DEFAULT 'active',
     attributes JSONB,
     tags JSONB,
-    created_by INTEGER REFERENCES users(id),
-    updated_by INTEGER REFERENCES users(id),
+    created_by INTEGER,
+    updated_by INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP

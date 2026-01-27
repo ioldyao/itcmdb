@@ -79,8 +79,8 @@ type CIInstance struct {
 	Status     string         `gorm:"size:20;default:'active'" json:"status"` // active, inactive, maintenance, decommissioned
 	Attributes JSONB          `gorm:"type:jsonb" json:"attributes"`           // 动态属性值
 	Tags       JSONB          `gorm:"type:jsonb" json:"tags"`                 // 标签
-	CreatedBy  uint           `gorm:"index" json:"created_by"`
-	UpdatedBy  uint           `gorm:"index" json:"updated_by"`
+	CreatedBy  *uint          `gorm:"index" json:"created_by,omitempty"`      // 允许NULL（系统自动创建）
+	UpdatedBy  *uint          `gorm:"index" json:"updated_by,omitempty"`      // 允许NULL（系统自动创建）
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`

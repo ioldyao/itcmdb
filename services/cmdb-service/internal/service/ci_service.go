@@ -118,8 +118,8 @@ func (s *ciService) CreateCIInstance(req *CreateCIInstanceRequest, userID uint) 
 		Status:     req.Status,
 		Attributes: req.Attributes,
 		Tags:       req.Tags,
-		CreatedBy:  userID,
-		UpdatedBy:  userID,
+		CreatedBy:  ptrUint(userID),
+		UpdatedBy:  ptrUint(userID),
 	}
 
 	if instance.Status == "" {
@@ -182,7 +182,7 @@ func (s *ciService) UpdateCIInstance(id uint, req *UpdateCIInstanceRequest, user
 		instance.Tags = req.Tags
 	}
 
-	instance.UpdatedBy = userID
+	instance.UpdatedBy = ptrUint(userID)
 
 	// 使用Context传递用户ID，让GORM Hooks自动记录历史
 	ctx := context.WithValue(context.Background(), models.UserIDKey, userID)
@@ -260,7 +260,7 @@ func (s *ciService) CreateCIRelation(req *CreateCIRelationRequest, userID uint) 
 		ChildID:      req.ChildID,
 		RelationType: req.RelationType,
 		Description:  req.Description,
-		CreatedBy:    userID,
+		CreatedBy:    ptrUint(userID),
 	}
 
 	if err := s.repo.CreateCIRelation(relation); err != nil {
@@ -376,8 +376,8 @@ func (s *ciService) ImportCIInstances(ciTypeID uint, data []byte, userID uint) (
 			Status:     status,
 			Attributes: attributes,
 			Tags:       tags,
-			CreatedBy:  userID,
-			UpdatedBy:  userID,
+			CreatedBy:  ptrUint(userID),
+			UpdatedBy:  ptrUint(userID),
 		}
 
 		if err := s.repo.CreateCIInstance(instance); err != nil {
