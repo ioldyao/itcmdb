@@ -160,49 +160,8 @@ export default function ServerHardwareInfo({ attributes, roles = [], tags = [] }
     { title: '序列号', dataIndex: 'serial_number', key: 'serial_number', width: 180 },
   ]
 
-  // 生成折叠面板的items
+  // 生成折叠面板的items（仅包含硬件详细信息）
   const collapseItems = []
-
-  // 基本信息（始终展开）
-  collapseItems.push({
-    key: 'basic',
-    label: '基本信息',
-    children: (
-      <Descriptions column={3} bordered size="small">
-        {basicInfo.map((info, index) => (
-          <Descriptions.Item key={index} label={info.label}>
-            {info.value}
-          </Descriptions.Item>
-        ))}
-        <Descriptions.Item label="角色" span={3}>
-          {roles && roles.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {roles.map((role: any) => (
-                <Tag key={role.id} color="blue">
-                  {role.display_name || role.name}
-                </Tag>
-              ))}
-            </div>
-          ) : (
-            '-'
-          )}
-        </Descriptions.Item>
-        <Descriptions.Item label="标签" span={3}>
-          {tags && tags.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag: any) => (
-                <Tag key={tag.id} color={tag.color || 'default'}>
-                  {tag.display_name || tag.name}
-                </Tag>
-              ))}
-            </div>
-          ) : (
-            '-'
-          )}
-        </Descriptions.Item>
-      </Descriptions>
-    ),
-  })
 
   // CPU信息（默认折叠）
   if (cpu_model) {
@@ -443,15 +402,54 @@ export default function ServerHardwareInfo({ attributes, roles = [], tags = [] }
         </Row>
       </Card>
 
-      {/* 硬件详细信息折叠面板 */}
-      <Card title={<><DashboardOutlined /> 硬件详细信息</>}>
-        <Collapse
-          defaultActiveKey={['basic']}  // 默认只展开基本信息
-          items={collapseItems}
-          bordered
-          size="small"
-        />
+      {/* 基本信息 - 始终可见 */}
+      <Card title={<><DashboardOutlined /> 基本信息</>}>
+        <Descriptions column={3} bordered size="small">
+          {basicInfo.map((info, index) => (
+            <Descriptions.Item key={index} label={info.label}>
+              {info.value}
+            </Descriptions.Item>
+          ))}
+          <Descriptions.Item label="角色" span={3}>
+            {roles && roles.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {roles.map((role: any) => (
+                  <Tag key={role.id} color="blue">
+                    {role.display_name || role.name}
+                  </Tag>
+                ))}
+              </div>
+            ) : (
+              '-'
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="标签" span={3}>
+            {tags && tags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag: any) => (
+                  <Tag key={tag.id} color={tag.color || 'default'}>
+                    {tag.display_name || tag.name}
+                  </Tag>
+                ))}
+              </div>
+            ) : (
+              '-'
+            )}
+          </Descriptions.Item>
+        </Descriptions>
       </Card>
+
+      {/* 硬件详细信息折叠面板 - 默认全部折叠 */}
+      {collapseItems.length > 0 && (
+        <Card title={<><DashboardOutlined /> 硬件详细信息</>}>
+          <Collapse
+            defaultActiveKey={[]}  // 默认全部折叠
+            items={collapseItems}
+            bordered
+            size="small"
+          />
+        </Card>
+      )}
     </div>
   )
 }
