@@ -10,7 +10,7 @@ kafka:
 
 database:
   host: postgres
-  port: 5432
+  port: 5433
   user: postgres
   password: postgres
   dbname: itcmdb

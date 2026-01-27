@@ -128,7 +128,7 @@ func loadConfig() error {
 	viper.SetDefault("server.port", "5007")
 	viper.SetDefault("server.log_level", "info")
 	viper.SetDefault("database.host", "postgres")
-	viper.SetDefault("database.port", 5432)
+	viper.SetDefault("database.port", 5433)
 	viper.SetDefault("database.user", "postgres")
 	viper.SetDefault("database.password", "postgres")
 	viper.SetDefault("database.dbname", "itcmdb")

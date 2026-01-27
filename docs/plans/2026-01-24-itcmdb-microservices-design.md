@@ -473,7 +473,7 @@ interface AlertState {
 ```yaml
 services:
   # 基础设施
-  postgres:        # PostgreSQL数据库 :5432
+  postgres:        # PostgreSQL数据库 :5433
   redis:           # Redis缓存 :6379
   zookeeper:       # Kafka依赖 :2181
   kafka:           # Kafka消息队列 :9092
@@ -508,7 +508,7 @@ backend-network (服务间通信)
   └─ report-service (5006)
 
 data-network (数据层)
-  ├─ postgres (5432)
+  ├─ postgres (5433)
   ├─ redis (6379)
   └─ kafka (9092)
 ```

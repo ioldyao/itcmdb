@@ -167,7 +167,7 @@ func loadConfig() error {
 	viper.SetDefault("jwt.secret", "your-secret-key-change-in-production")
 	viper.SetDefault("jwt.expiration", "24h")
 	viper.SetDefault("database.host", "localhost")
-	viper.SetDefault("database.port", 5432)
+	viper.SetDefault("database.port", 5433)
 	viper.SetDefault("database.user", "postgres")
 	viper.SetDefault("database.password", "postgres")
 	viper.SetDefault("database.dbname", "itcmdb")
