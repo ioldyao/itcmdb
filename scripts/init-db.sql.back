@@ -54,15 +54,6 @@ CREATE TABLE IF NOT EXISTS user_roles (
     PRIMARY KEY (user_id, role_id)
 );
 
-
--- 用户直接权限关联表
-CREATE TABLE IF NOT EXISTS user_permissions (
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    permission_id INTEGER REFERENCES permissions(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, permission_id)
-);
-
 -- ============================================
 -- CMDB模块
 -- ============================================
@@ -427,11 +418,6 @@ CREATE TABLE IF NOT EXISTS report_configs (
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
-
-
--- 用户权限表索引
-CREATE INDEX IF NOT EXISTS idx_user_permissions_user_id ON user_permissions(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_permissions_permission_id ON user_permissions(permission_id);
 
 -- CI实例表索引
 CREATE INDEX IF NOT EXISTS idx_ci_instances_type ON ci_instances(ci_type_id);
