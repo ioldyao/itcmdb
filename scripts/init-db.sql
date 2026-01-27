@@ -173,8 +173,7 @@ CREATE TABLE IF NOT EXISTS ci_instance_roles (
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     assigned_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT check_role_type CHECK (role_type IN ('ci_role', 'owner_role')),
-    UNIQUE(ci_id, role_type, role_id, COALESCE(user_id, 0))
+    CONSTRAINT check_role_type CHECK (role_type IN ('ci_role', 'owner_role'))
 );
 
 -- 标签分类表
@@ -461,6 +460,8 @@ CREATE INDEX IF NOT EXISTS idx_ci_relations_deleted_at ON ci_relations(deleted_a
 -- CI角色关联表索引
 CREATE INDEX IF NOT EXISTS idx_ci_instance_roles_ci_id ON ci_instance_roles(ci_id);
 CREATE INDEX IF NOT EXISTS idx_ci_instance_roles_type_id ON ci_instance_roles(role_type, role_id);
+-- 唯一索引：允许user_id为NULL，确保(ci_id, role_type, role_id, user_id)组合唯一
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ci_instance_roles_unique ON ci_instance_roles (ci_id, role_type, role_id, COALESCE(user_id, 0));
 
 -- 标签表索引
 CREATE INDEX IF NOT EXISTS idx_ci_tags_ci_id ON ci_tags(ci_id);
