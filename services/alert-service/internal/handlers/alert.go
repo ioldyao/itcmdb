@@ -160,9 +160,9 @@ func (h *AlertHandler) AcknowledgeAlert(c *gin.Context) {
 	// 更新状态
 	now := time.Now()
 	updates := map[string]interface{}{
-		"status":         "acknowledged",
-		"handler":        req.Handler,
-		"handling_notes": req.HandlingNotes,
+		"status":          "acknowledged",
+		"handler":         req.Handler,
+		"handling_notes":  req.Notes,
 		"acknowledged_at": &now,
 	}
 

@@ -187,7 +187,7 @@ func (h *RuleHandler) UpdateRule(c *gin.Context) {
 		updates["notification_channels"] = req.NotificationChannels
 	}
 	if req.SilencedUntil != nil {
-		if req.SilencedUntil == "" {
+		if *req.SilencedUntil == "" {
 			updates["silenced_until"] = nil
 		} else {
 			silencedUntil, err := time.Parse(time.RFC3339, *req.SilencedUntil)
