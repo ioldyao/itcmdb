@@ -1,11 +1,9 @@
 import { Card, Row, Col } from 'antd'
-import { Server, Network, Package, Box, Shield, Tags as TagsIcon, Activity } from 'lucide-react'
+import { Server, Network, Package, Box, Shield, Tags as TagsIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '@/stores/authStore'
 
 export default function CMDBDefaultPage() {
   const navigate = useNavigate()
-  const hasPermission = useAuthStore((state) => state.hasPermission)
 
   const cmdbSections = [
     {
@@ -14,7 +12,6 @@ export default function CMDBDefaultPage() {
       description: '管理物理服务器和虚拟机',
       icon: <Server size={32} />,
       path: '/cmdb/servers',
-      permission: null
     },
     {
       key: 'networks',
@@ -22,7 +19,6 @@ export default function CMDBDefaultPage() {
       description: '管理交换机、路由器等网络设备',
       icon: <Network size={32} />,
       path: '/cmdb/networks',
-      permission: null
     },
     {
       key: 'applications',
@@ -30,7 +26,6 @@ export default function CMDBDefaultPage() {
       description: '管理应用程序和服务',
       icon: <Package size={32} />,
       path: '/cmdb/applications',
-      permission: null
     },
     {
       key: 'containers',
@@ -38,7 +33,6 @@ export default function CMDBDefaultPage() {
       description: '管理 Docker 容器和 Kubernetes Pod',
       icon: <Box size={32} />,
       path: '/cmdb/containers',
-      permission: null
     },
     {
       key: 'roles',
@@ -46,7 +40,6 @@ export default function CMDBDefaultPage() {
       description: '管理 CI 角色和分类',
       icon: <Shield size={32} />,
       path: '/cmdb/roles',
-      permission: null
     },
     {
       key: 'tags',
@@ -54,23 +47,8 @@ export default function CMDBDefaultPage() {
       description: '管理资源标签和分组',
       icon: <TagsIcon size={32} />,
       path: '/cmdb/tags',
-      permission: null
-    },
-    {
-      key: 'victoriametrics',
-      title: 'VictoriaMetrics',
-      description: '监控指标配置和管理',
-      icon: <Activity size={32} />,
-      path: '/cmdb/victoriametrics',
-      permission: { resource: 'config', action: 'view' }
     },
   ]
-
-  // 过滤出用户有权限访问的部分
-  const availableSections = cmdbSections.filter(section => {
-    if (!section.permission) return true
-    return hasPermission(section.permission.resource, section.permission.action)
-  })
 
   return (
     <div>
@@ -79,7 +57,7 @@ export default function CMDBDefaultPage() {
         选择要管理的资源类型
       </p>
       <Row gutter={[16, 16]}>
-        {availableSections.map(section => (
+        {cmdbSections.map(section => (
           <Col key={section.key} xs={24} sm={12} md={8} lg={6}>
             <Card
               hoverable
