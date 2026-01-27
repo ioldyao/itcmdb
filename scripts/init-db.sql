@@ -228,12 +228,20 @@ CREATE TABLE IF NOT EXISTS tag_history (
 );
 
 -- 系统配置表
-CREATE TABLE IF NOT EXISTS system_config (
+CREATE TABLE IF NOT EXISTS system_configs (
     id SERIAL PRIMARY KEY,
-    config_key VARCHAR(100) UNIQUE NOT NULL,
-    config_value TEXT,
+    category VARCHAR(50),
+    key VARCHAR(100) NOT NULL,
+    value TEXT,
     description TEXT,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    is_encrypted BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    created_by INTEGER REFERENCES users(id),
+    updated_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP,
+    UNIQUE(category, key)
 );
 
 -- ============================================
@@ -731,7 +739,7 @@ COMMENT ON TABLE tag_categories IS '标签分类表，用于组织标签';
 COMMENT ON TABLE tags IS '标签定义表';
 COMMENT ON TABLE ci_tags IS 'CI实例标签关联表';
 COMMENT ON TABLE tag_history IS '标签使用历史表';
-COMMENT ON TABLE system_config IS '系统配置表';
+COMMENT ON TABLE system_configs IS '系统配置表';
 
 -- ============================================
 -- 完成
