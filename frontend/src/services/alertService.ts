@@ -1,6 +1,9 @@
 import { axiosInstance } from './axios'
 import type { ApiResponse } from './types'
 
+// 确保axios和types模块存在
+// 如果使用相对路径，请根据实际项目结构调整
+
 // ============================================
 // 类型定义
 // ============================================

@@ -8,7 +8,6 @@ import {
   Select,
   DatePicker,
   message,
-  Modal,
   Row,
   Col,
   Statistic,
@@ -21,7 +20,6 @@ import {
   SearchOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  FilterOutlined,
   ClearOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -39,7 +37,6 @@ export default function AlertList() {
     total,
     page,
     pageSize,
-    filters,
     statistics,
     fetchAlerts,
     fetchStatistics,
@@ -71,14 +68,6 @@ export default function AlertList() {
       status: statusFilter.length > 0 ? statusFilter : undefined,
       severity: severityFilter.length > 0 ? severityFilter : undefined,
     })
-  }
-
-  // 重置筛选
-  const handleReset = () => {
-    setKeyword('')
-    setStatusFilter([])
-    setSeverityFilter([])
-    clearFilters()
   }
 
   // 时间范围变化

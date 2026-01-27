@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { alertService, type AlertInstance, type AlertRule, type AlertStatistics } from '@/services/alertService'
+import { alertService, type AlertInstance, type AlertRule } from '@/services/alertService'
 
 interface AlertState {
   // 状态
