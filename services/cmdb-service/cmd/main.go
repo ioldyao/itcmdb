@@ -1,10 +1,13 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +28,8 @@ import (
 	pb "github.com/itcmdb/shared/proto/cmdb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -208,40 +213,80 @@ func startGRPCServer(ciService service.CIService, authClient *grpcclient.AuthCli
 		logger.Fatal("Failed to listen for gRPC", zap.Error(err))
 	}
 
-	// 获取Agent专用的认证Token（从配置或环境变量）
-	agentToken := viper.GetString("grpc.agent_token")
-	if agentToken == "" {
-		// 从环境变量获取
-		agentToken = viper.GetString("agent_token")
-		if agentToken == "" {
-			// 使用默认值（仅用于开发环境）
-			logger.Warn("No agent token configured, using default token. Please set GRPC_AGENT_TOKEN or agent_token in production!")
-			agentToken = "hardware-agent-token-default"
+	// 检查是否启用mTLS
+	enableMTLS := viper.GetBool("grpc.mtls.enabled")
+	serverCert := viper.GetString("grpc.mtls.server_cert")
+	serverKey := viper.GetString("grpc.mtls.server_key")
+	caCert := viper.GetString("grpc.mtls.ca_cert")
+
+	var creds credentials.TransportCredentials
+
+	if enableMTLS {
+		// 加载服务端证书
+		cert, err := tls.LoadX509KeyPair(serverCert, serverKey)
+		if err != nil {
+			logger.Fatal("Failed to load server certificates",
+				zap.Error(err),
+				zap.String("cert", serverCert),
+				zap.String("key", serverKey))
 		}
+
+		// 加载CA证书用于验证客户端证书
+		caCertPool := x509.NewCertPool()
+		caCertBytes, err := os.ReadFile(caCert)
+		if err != nil {
+			logger.Fatal("Failed to read CA certificate",
+				zap.Error(err),
+				zap.String("ca_cert", caCert))
+		}
+		if !caCertPool.AppendCertsFromPEM(caCertBytes) {
+			logger.Fatal("Failed to append CA certificate to pool")
+		}
+
+		// 创建TLS配置（mTLS）
+		tlsConfig := &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			ClientAuth:   tls.RequireAndVerifyClientCert, // 强制要求客户端证书
+			ClientCAs:    caCertPool,
+			MinVersion:   tls.VersionTLS12,
+		}
+
+		creds = credentials.NewTLS(tlsConfig)
+
+		logger.Info("mTLS enabled",
+			zap.String("server_cert", serverCert),
+			zap.String("ca_cert", caCert))
+	} else {
+		logger.Warn("mTLS disabled, using insecure credentials (not recommended for production)")
+		// 开发环境可以使用不安全连接
+		creds = insecure.NewCredentials()
 	}
 
 	// 创建gRPC服务器，添加拦截器
-	// 链式拦截器：日志 -> Agent认证
 	grpcServer := grpc.NewServer(
+		grpc.Creds(creds),
 		grpc.ChainUnaryInterceptor(
 			middleware.LoggingInterceptor(),
-			middleware.UnaryAgentAuthInterceptor(agentToken),
-		),
-		grpc.ChainStreamInterceptor(
-			middleware.StreamAuthInterceptor(authClient),
 		),
 	)
 
 	cmdbServer := grpcserver.NewCMDBServer(ciService)
 	pb.RegisterCMDBServiceServer(grpcServer, cmdbServer)
-	pb.RegisterHardwareServiceServer(grpcServer, cmdbServer) // 注册HardwareService（使用同一个server实例）
+	pb.RegisterHardwareServiceServer(grpcServer, cmdbServer)
 
 	// 注册反射服务，用于grpcurl等工具
 	reflection.Register(grpcServer)
 
-	logger.Info("CMDB gRPC service starting with authentication",
-		zap.String("port", grpcPort),
-		zap.String("auth", "agent-token"))
+	if enableMTLS {
+		logger.Info("CMDB gRPC service starting with mTLS",
+			zap.String("port", grpcPort),
+			zap.String("auth", "mtls"))
+	} else {
+		logger.Info("CMDB gRPC service starting without mTLS",
+			zap.String("port", grpcPort),
+			zap.String("auth", "none"))
+	}
+
 	if err := grpcServer.Serve(lis); err != nil {
 		logger.Fatal("Failed to serve gRPC", zap.Error(err))
 	}
@@ -267,8 +312,10 @@ func loadConfig() error {
 	viper.BindEnv("redis.password", "CMDB_REDIS_PASSWORD")
 	viper.BindEnv("redis.db", "CMDB_REDIS_DB")
 	viper.BindEnv("grpc.port", "CMDB_GRPC_PORT")
-	viper.BindEnv("grpc.agent_token", "CMDB_GRPC_AGENT_TOKEN")
-	viper.BindEnv("agent_token", "CMDB_AGENT_TOKEN")
+	viper.BindEnv("grpc.mtls.enabled", "CMDB_GRPC_MTLS_ENABLED")
+	viper.BindEnv("grpc.mtls.server_cert", "CMDB_GRPC_MTLS_SERVER_CERT")
+	viper.BindEnv("grpc.mtls.server_key", "CMDB_GRPC_MTLS_SERVER_KEY")
+	viper.BindEnv("grpc.mtls.ca_cert", "CMDB_GRPC_MTLS_CA_CERT")
 	viper.BindEnv("auth.grpc.address", "CMDB_AUTH_GRPC_ADDRESS")
 	viper.BindEnv("victoriametrics.endpoint", "CMDB_VICTORIAMETRICS_ENDPOINT")
 	viper.BindEnv("victoriametrics.username", "CMDB_VICTORIAMETRICS_USERNAME")
@@ -294,6 +341,10 @@ func loadConfig() error {
 	viper.SetDefault("redis.port", 6379)
 	viper.SetDefault("redis.password", "itcmdb_redis_pass_2026")
 	viper.SetDefault("redis.db", 0)
+	viper.SetDefault("grpc.mtls.enabled", false)
+	viper.SetDefault("grpc.mtls.server_cert", "./certificates/server_cert.pem")
+	viper.SetDefault("grpc.mtls.server_key", "./certificates/server_key.pem")
+	viper.SetDefault("grpc.mtls.ca_cert", "./certificates/ca_cert.pem")
 	viper.SetDefault("auth.grpc.address", "auth-service:50001")
 	viper.SetDefault("victoriametrics.endpoint", "")
 	viper.SetDefault("victoriametrics.username", "")
