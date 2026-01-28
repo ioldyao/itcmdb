@@ -43,9 +43,9 @@ export default function AlertReceivers() {
     setLoading(true)
     try {
       const response = await alertReceiverService.getReceivers({ page, page_size: pageSize })
-      if (response.data) {
-        setReceivers(response.data.receivers)
-        setTotal(response.data.total)
+      if (response) {
+        setReceivers(response.receivers)
+        setTotal(response.total)
       }
     } catch (error) {
       message.error('获取接收人列表失败')
@@ -79,10 +79,10 @@ export default function AlertReceivers() {
   const handleTest = async (id: number) => {
     try {
       const response = await alertReceiverService.testReceiver(id)
-      if (response.data?.success) {
+      if (response?.success) {
         message.success('测试消息发送成功')
       } else {
-        message.error(response.data?.message || '测试消息发送失败')
+        message.error(response?.message || '测试消息发送失败')
       }
     } catch (error: any) {
       message.error(error.response?.data?.error || error.message || '测试消息发送失败')

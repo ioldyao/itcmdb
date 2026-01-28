@@ -45,9 +45,9 @@ export default function AlertReceiverGroups() {
     setLoading(true)
     try {
       const response = await alertReceiverService.getReceiverGroups({ page, page_size: pageSize })
-      if (response.data) {
-        setGroups(response.data.groups)
-        setTotal(response.data.total)
+      if (response) {
+        setGroups(response.groups)
+        setTotal(response.total)
       }
     } catch (error) {
       message.error('获取接收组列表失败')
@@ -59,8 +59,8 @@ export default function AlertReceiverGroups() {
   const fetchAllReceivers = async () => {
     try {
       const response = await alertReceiverService.getReceivers({ page: 1, page_size: 1000 })
-      if (response.data) {
-        setAllReceivers(response.data.receivers)
+      if (response) {
+        setAllReceivers(response.receivers)
       }
     } catch (error) {
       console.error('获取接收人列表失败', error)
