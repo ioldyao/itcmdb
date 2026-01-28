@@ -20,7 +20,6 @@ import {
   Layout,
 } from 'antd'
 import {
-  ReloadOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   FilterOutlined,
@@ -39,9 +38,7 @@ import AlertSidebar from './Sidebar'
 import {
   LeftOutlined,
   RightOutlined,
-  ClockCircleOutlined,
   ReloadOutlined,
-  FullscreenOutlined,
 } from '@ant-design/icons'
 
 const { RangePicker } = DatePicker

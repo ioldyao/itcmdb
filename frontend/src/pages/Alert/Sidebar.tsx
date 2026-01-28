@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Card, Badge, Collapse, Checkbox, Space, Divider } from 'antd'
+import { Badge, Collapse, Checkbox, Space } from 'antd'
 import {
   UserOutlined,
   StarOutlined,
   BellOutlined,
-  BellSlashOutlined,
+  StopOutlined,
   CheckCircleOutlined,
   AlertOutlined,
   RightOutlined,
@@ -46,6 +46,7 @@ function SidebarItem({ icon, label, count, active = false, onClick }: SidebarIte
         }
       }}
     >
+    >
       <Space size={8}>
         {icon}
         <span style={{ fontSize: 14 }}>{label}</span>
@@ -80,6 +81,7 @@ function FilterCheckbox({ label, count, value, checked, onChange, color }: Filte
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'transparent'
       }}
+    >
     >
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flex: 1 }}>
         <Checkbox value={value} checked={checked} onChange={onChange} />
@@ -201,7 +203,7 @@ export default function AlertSidebar({ onFilterChange, collapsed = false }: Aler
               onClick={() => handleSidebarItemClick('status', 'firing')}
             />
             <SidebarItem
-              icon={<BellSlashOutlined style={{ fontSize: 14 }} />}
+              icon={<StopOutlined style={{ fontSize: 14 }} />}
               label="未恢复(已屏蔽)"
               count={0}
               active={activeItem === 'suppressed'}
@@ -274,7 +276,7 @@ export default function AlertSidebar({ onFilterChange, collapsed = false }: Aler
                 count={stat.count}
                 value={stat.severity}
                 checked={checked}
-                onChange={(e) => {
+                onChange={() => {
                   const newValues = checked
                     ? (filters.severity as string[]).filter((s) => s !== stat.severity)
                     : [...(filters.severity as string[] || []), stat.severity]
