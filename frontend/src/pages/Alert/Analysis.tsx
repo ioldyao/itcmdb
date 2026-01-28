@@ -8,7 +8,7 @@ interface AlertAnalysisProps {
   statistics?: any
 }
 
-export default function AlertAnalysis({ statistics }: AlertAnalysisProps) {
+export default function AlertAnalysis({ }: AlertAnalysisProps) {
   const [timeRange, setTimeRange] = useState('1d')
 
   // 模拟数据 - 实际应从API获取

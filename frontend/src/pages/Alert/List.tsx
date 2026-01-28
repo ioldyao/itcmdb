@@ -171,7 +171,7 @@ export default function AlertList() {
       dataIndex: 'id',
       width: 120,
       fixed: 'left',
-      render: (id: number, record: AlertInstance) => (
+      render: (_: number, record: AlertInstance) => (
         <Space size={4}>
           <div style={{ width: 4, height: 16, background: record.severity === 'critical' ? '#ff4d4f' : record.severity === 'high' ? '#fa8c16' : '#52c41a', borderRadius: 2 }} />
           <span style={{ color: '#1890ff', cursor: 'pointer' }}>{record.alert_id?.substring(0, 12)}...</span>
