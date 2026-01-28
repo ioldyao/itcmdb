@@ -123,7 +123,21 @@ const router = createBrowserRouter([
               },
               {
                 path: 'config',
-                element: <AlertIntegrationConfig />
+                element: <AlertIntegrationConfig />,
+                children: [
+                  {
+                    index: true,
+                    element: <Navigate to="/admin/alert-integration/config/receivers" replace />
+                  },
+                  {
+                    path: 'receivers',
+                    element: <AdminAlertReceivers />
+                  },
+                  {
+                    path: 'groups',
+                    element: <AdminAlertReceiverGroups />
+                  }
+                ]
               },
               {
                 path: 'webhook',
