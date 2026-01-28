@@ -5,6 +5,8 @@ import {
   Shield,
   FileText,
   Database,
+  Bell,
+  Users as UsersIcon,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useAuthStore } from '@/stores/authStore'
@@ -29,6 +31,18 @@ const allMenuItems = [
     key: '/admin/victoriametrics',
     label: 'VictoriaMetrics配置',
     icon: <Database size={16} />,
+    permission: null
+  },
+  {
+    key: '/admin/alert-receivers',
+    label: '告警接收人',
+    icon: <Bell size={16} />,
+    permission: null
+  },
+  {
+    key: '/admin/alert-receiver-groups',
+    label: '告警接收组',
+    icon: <UsersIcon size={16} />,
     permission: null
   },
   {
