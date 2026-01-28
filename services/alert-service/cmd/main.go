@@ -183,7 +183,7 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 			protected.POST("/rules/test", ruleHandler.TestRule)
 
 			// 接收人管理
-			receiverHandler := handlers.NewReceiverHandler()
+			receiverHandler := handlers.NewReceiverHandler(db)
 			protected.GET("/receivers", receiverHandler.ListReceivers)
 			protected.GET("/receivers/:id", receiverHandler.GetReceiver)
 			protected.POST("/receivers", receiverHandler.CreateReceiver)
@@ -192,7 +192,7 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 			protected.POST("/receivers/:id/test", receiverHandler.TestReceiver)
 
 			// 接收组管理
-			groupHandler := handlers.NewReceiverGroupHandler()
+			groupHandler := handlers.NewReceiverGroupHandler(db)
 			protected.GET("/receiver-groups", groupHandler.ListReceiverGroups)
 			protected.GET("/receiver-groups/:id", groupHandler.GetReceiverGroup)
 			protected.POST("/receiver-groups", groupHandler.CreateReceiverGroup)

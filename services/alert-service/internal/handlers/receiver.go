@@ -3,12 +3,10 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/itcmdb/alert-service/internal/database"
 	"github.com/itcmdb/alert-service/internal/models"
 	"github.com/itcmdb/alert-service/internal/services"
 )
@@ -19,9 +17,9 @@ type ReceiverHandler struct {
 }
 
 // NewReceiverHandler 创建接收人处理器
-func NewReceiverHandler() *ReceiverHandler {
+func NewReceiverHandler(db *gorm.DB) *ReceiverHandler {
 	return &ReceiverHandler{
-		db: database.Get(),
+		db: db,
 	}
 }
 
@@ -234,9 +232,9 @@ type ReceiverGroupHandler struct {
 }
 
 // NewReceiverGroupHandler 创建接收组处理器
-func NewReceiverGroupHandler() *ReceiverGroupHandler {
+func NewReceiverGroupHandler(db *gorm.DB) *ReceiverGroupHandler {
 	return &ReceiverGroupHandler{
-		db: database.Get(),
+		db: db,
 	}
 }
 
