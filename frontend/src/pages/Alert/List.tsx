@@ -17,6 +17,7 @@ import {
   Divider,
   Tabs,
   Alert,
+  Layout,
 } from 'antd'
 import {
   ReloadOutlined,
@@ -34,6 +35,14 @@ import type { AlertInstance } from '@/services/alertService'
 import { useAuthStore } from '@/stores/authStore'
 import dayjs from 'dayjs'
 import AlertAnalysis from './Analysis'
+import AlertSidebar from './Sidebar'
+import {
+  LeftOutlined,
+  RightOutlined,
+  ClockCircleOutlined,
+  ReloadOutlined,
+  FullscreenOutlined,
+} from '@ant-design/icons'
 
 const { RangePicker } = DatePicker
 
@@ -62,6 +71,7 @@ export default function AlertList() {
   const [showFilters, setShowFilters] = useState(false)
   const [activeTab, setActiveTab] = useState('list')
   const [spaceFilter, setSpaceFilter] = useState('all')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   // 计算没有处理人的告警数量
   const alertsWithoutHandler = alerts.filter(
@@ -330,8 +340,50 @@ export default function AlertList() {
   ]
 
   return (
-    <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
-      <Card bordered={false}>
+    <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+      {/* 左侧边栏 */}
+      <div
+        style={{
+          width: sidebarCollapsed ? 0 : 260,
+          transition: 'width 0.3s',
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      >
+        <AlertSidebar
+          onFilterChange={(newFilters) => {
+            // 处理筛选变化
+            console.log('Filter changed:', newFilters)
+          }}
+          collapsed={sidebarCollapsed}
+        />
+        {/* 折叠按钮 */}
+        <Button
+          type="text"
+          icon={sidebarCollapsed ? <RightOutlined /> : <LeftOutlined />}
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          style={{
+            position: 'absolute',
+            right: -12,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: 24,
+            height: 48,
+            background: '#fff',
+            border: '1px solid #f0f0f0',
+            borderRadius: '0 8px 8px 0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10,
+          }}
+        />
+      </div>
+
+      {/* 主内容区域 */}
+      <Layout style={{ flex: 1, overflow: 'hidden' }}>
+        <div style={{ padding: 24, flex: 1, overflowY: 'auto' }}>
+          <Card bordered={false}>
         {/* 页面标题 */}
         <div style={{ marginBottom: 24 }}>
           <h2 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, margin: 0 }}>告警中心</h2>
@@ -650,6 +702,8 @@ export default function AlertList() {
         />
 
       </Card>
-    </div>
+        </div>
+      </Layout>
+    </Layout>
   )
 }
