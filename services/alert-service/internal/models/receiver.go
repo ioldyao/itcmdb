@@ -14,7 +14,7 @@ type AlertReceiverGroup struct {
 	Enabled     bool      `json:"enabled" gorm:"default:true"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-	Receivers   []AlertReceiver `json:"receivers,omitempty" gorm:"many2many:alert_receiver_group_members"`
+	Receivers   []AlertReceiver `json:"receivers,omitempty" gorm:"many2many:alert_receiver_group_members;joinForeignKey:group_id;joinReferences:receiver_id"`
 }
 
 // AlertReceiver 告警接收人
