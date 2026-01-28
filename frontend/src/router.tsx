@@ -37,6 +37,7 @@ import AdminAudit from '@/pages/Admin/Audit'
 import AdminDefaultPage from '@/pages/Admin/DefaultPage'
 import AdminAlertReceivers from '@/pages/Admin/AlertReceivers'
 import AdminAlertReceiverGroups from '@/pages/Admin/AlertReceiverGroups'
+import AlertIntegrationLayout from '@/pages/Admin/AlertIntegration'
 import AlertIntegrationConfig from '@/pages/Admin/AlertIntegration/Config'
 import AlertIntegrationWebhook from '@/pages/Admin/AlertIntegration/Webhook'
 import VictoriaMetrics from '@/pages/Monitoring/VictoriaMetrics'
@@ -114,6 +115,7 @@ const router = createBrowserRouter([
           { path: 'alert-receiver-groups', element: <AdminAlertReceiverGroups /> },
           {
             path: 'alert-integration',
+            element: <AlertIntegrationLayout />,
             children: [
               {
                 index: true,
