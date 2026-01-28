@@ -96,7 +96,7 @@ export default function AdminLayout() {
             children: item.children.map(child => ({
               key: child.key,
               label: child.label,
-              icon: child.icon || <Link size={16} />,
+              icon: child.icon || <Link2 size={16} />,
               permission: child.permission
             }))
           })
@@ -161,8 +161,7 @@ export default function AdminLayout() {
         items.push({
           title: isLast
             ? <span>{config.title}</span>
-            : <Link to={accumulatedPath}>{config.title}</Link>,
-          icon: config.icon
+            : <Link to={accumulatedPath}>{config.title}</Link>
         })
       }
     })
