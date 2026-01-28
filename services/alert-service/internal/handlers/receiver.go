@@ -444,11 +444,3 @@ func (h *ReceiverGroupHandler) DeleteReceiverGroup(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Group deleted successfully"})
 }
-
-// AlertReceiverGroupMember 接收组成员关联表（用于gorm）
-type AlertReceiverGroupMember struct {
-	ID         int `gorm:"primaryKey"`
-	GroupID    int
-	ReceiverID int
-	CreatedAt  string
-}

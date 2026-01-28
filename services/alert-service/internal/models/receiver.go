@@ -202,3 +202,11 @@ type ReceiverListResponse struct {
 	Total      int             `json:"total"`
 	Receivers []AlertReceiver `json:"receivers"`
 }
+
+// AlertReceiverGroupMember 接收组成员关联表
+type AlertReceiverGroupMember struct {
+	ID         int       `json:"id" gorm:"primaryKey"`
+	GroupID    int       `json:"group_id"`
+	ReceiverID int       `json:"receiver_id"`
+	CreatedAt  time.Time `json:"created_at"`
+}
