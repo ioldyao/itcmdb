@@ -20,7 +20,7 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  TestOutlined,
+  SendOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { alertReceiverService, AlertReceiver } from '@/services/alertReceiverService'
@@ -82,10 +82,10 @@ export default function AlertReceivers() {
       if (response.data?.success) {
         message.success('测试消息发送成功')
       } else {
-        message.error(response.data?.error || '测试消息发送失败')
+        message.error(response.data?.message || '测试消息发送失败')
       }
     } catch (error: any) {
-      message.error(error.response?.data?.error || '测试消息发送失败')
+      message.error(error.response?.data?.error || error.message || '测试消息发送失败')
     }
   }
 
@@ -177,7 +177,7 @@ export default function AlertReceivers() {
           <Button
             type="link"
             size="small"
-            icon={<TestOutlined />}
+            icon={<SendOutlined />}
             onClick={() => handleTest(record.id)}
           >
             测试

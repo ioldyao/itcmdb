@@ -15,6 +15,7 @@ import {
   Row,
   Col,
   Transfer,
+  type TransferProps,
 } from 'antd'
 import {
   PlusOutlined,
@@ -22,7 +23,6 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import type { TransferDirection } from 'antd/es/transfer'
 import { alertReceiverService, AlertReceiverGroup, AlertReceiver } from '@/services/alertReceiverService'
 
 export default function AlertReceiverGroups() {
@@ -118,7 +118,7 @@ export default function AlertReceiverGroups() {
     }
   }
 
-  const handleTransferChange = (newTargetKeys: string[]) => {
+  const handleTransferChange: TransferProps['onChange'] = (newTargetKeys) => {
     setSelectedReceiverIds(newTargetKeys.map(id => Number(id)))
   }
 
