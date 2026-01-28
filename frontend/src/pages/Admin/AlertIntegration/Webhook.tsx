@@ -22,12 +22,11 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  WebhookOutlined,
-  ApiOutlined,
+  LinkOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 
-const { Title, Text, Paragraph } = Typography
+const { Title, Paragraph } = Typography
 
 interface WebhookConfig {
   id: number
@@ -102,11 +101,7 @@ export default function AlertIntegrationWebhook() {
     try {
       const values = await form.validateFields()
       // TODO: 实际API调用
-      if (editingWebhook) {
-        message.success('更新成功')
-      } else {
-        message.success('创建成功')
-      }
+      message.success(editingWebhook ? '更新成功' : '创建成功')
       setIsModalVisible(false)
       fetchWebhooks()
     } catch (error) {

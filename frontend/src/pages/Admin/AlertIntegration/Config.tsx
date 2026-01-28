@@ -1,4 +1,4 @@
-import { Outlet, Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 
 export default function AlertIntegrationConfig() {
   return (
@@ -11,5 +11,5 @@ export default function AlertIntegrationConfig() {
 }
 
 // 这里我们动态导入来避免循环依赖
-import AlertReceivers from '../AlertReceivers'
-import AlertReceiverGroups from '../AlertReceiverGroups'
+import AlertReceivers from '../../AlertReceivers'
+import AlertReceiverGroups from '../../AlertReceiverGroups'

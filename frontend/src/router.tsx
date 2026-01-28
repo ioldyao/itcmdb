@@ -39,7 +39,6 @@ import AdminAlertReceivers from '@/pages/Admin/AlertReceivers'
 import AdminAlertReceiverGroups from '@/pages/Admin/AlertReceiverGroups'
 import AlertIntegrationConfig from '@/pages/Admin/AlertIntegration/Config'
 import AlertIntegrationWebhook from '@/pages/Admin/AlertIntegration/Webhook'
-import AlertIntegrationConfigIndex from '@/pages/Admin/AlertIntegration/ConfigIndex'
 import VictoriaMetrics from '@/pages/Monitoring/VictoriaMetrics'
 
 const router = createBrowserRouter([

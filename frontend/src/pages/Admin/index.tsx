@@ -1,4 +1,4 @@
-import { Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom'
 import { Layout, Menu, Breadcrumb } from 'antd'
 import {
   Users,
@@ -6,8 +6,7 @@ import {
   FileText,
   Database,
   Bell,
-  Users as UsersIcon,
-  Webhook,
+  LinkOutlined,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useAuthStore } from '@/stores/authStore'
@@ -83,7 +82,7 @@ export default function AdminLayout() {
 
   // 根据权限过滤菜单项
   const menuItems = useMemo(() => {
-    const filteredItems = []
+    const filteredItems: any[] = []
 
     allMenuItems.forEach(item => {
       // 如果菜单项不需要权限，直接显示
@@ -95,7 +94,7 @@ export default function AdminLayout() {
             children: item.children.map(child => ({
               key: child.key,
               label: child.label,
-              icon: child.icon,
+              icon: child.icon || <LinkOutlined size={16} />,
               permission: child.permission
             }))
           })
@@ -115,10 +114,10 @@ export default function AdminLayout() {
 
   // 展平菜单项用于查找选中项
   const flatMenuItems = useMemo(() => {
-    const flat = []
+    const flat: any[] = []
     allMenuItems.forEach(item => {
       if (item.children) {
-        item.children.forEach(child => flat.push(child))
+        item.children.forEach((child: any) => flat.push(child))
       } else {
         flat.push(item)
       }
