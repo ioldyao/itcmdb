@@ -17,7 +17,6 @@ import {
   Divider,
   Tabs,
   Alert,
-  Layout,
 } from 'antd'
 import {
   CheckCircleOutlined,
@@ -337,7 +336,7 @@ export default function AlertList() {
   ]
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+    <div style={{ display: 'flex', height: '100vh', background: '#f0f2f5' }}>
       {/* 左侧边栏 */}
       <div
         style={{
@@ -345,6 +344,8 @@ export default function AlertList() {
           transition: 'width 0.3s',
           overflow: 'hidden',
           position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         <AlertSidebar
@@ -355,15 +356,37 @@ export default function AlertList() {
           collapsed={sidebarCollapsed}
         />
         {/* 折叠按钮 */}
+        {!sidebarCollapsed && (
+          <Button
+            type="text"
+            icon={<LeftOutlined />}
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            style={{
+              position: 'absolute',
+              right: -12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: 24,
+              height: 48,
+              background: '#fff',
+              border: '1px solid #f0f0f0',
+              borderRadius: '0 8px 8px 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10,
+            }}
+          />
+        )}
+      </div>
+
+      {/* 折叠后的展开按钮 */}
+      {sidebarCollapsed && (
         <Button
           type="text"
-          icon={sidebarCollapsed ? <RightOutlined /> : <LeftOutlined />}
+          icon={<RightOutlined />}
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           style={{
-            position: 'absolute',
-            right: -12,
-            top: '50%',
-            transform: 'translateY(-50%)',
             width: 24,
             height: 48,
             background: '#fff',
@@ -375,18 +398,18 @@ export default function AlertList() {
             zIndex: 10,
           }}
         />
-      </div>
+      )}
 
       {/* 主内容区域 */}
-      <Layout style={{ flex: 1, overflow: 'hidden' }}>
-        <div style={{ padding: 24, flex: 1, overflowY: 'auto' }}>
-          <Card bordered={false}>
-        {/* 页面标题 */}
-        <div style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, margin: 0 }}>告警中心</h2>
-          <p style={{ color: '#666', margin: 0, fontSize: 14 }}>
-            实时监控和管理系统告警，支持告警查看、确认、关闭等操作
-          </p>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+        <Card bordered={false}>
+          {/* 页面标题 */}
+          <div style={{ marginBottom: 24 }}>
+            <h2 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, margin: 0 }}>告警中心</h2>
+            <p style={{ color: '#666', margin: 0, fontSize: 14 }}>
+              实时监控和管理系统告警，支持告警查看、确认、关闭等操作
+            </p>
+          </div>
         </div>
 
         {/* 告警通知提示条 */}
@@ -699,8 +722,7 @@ export default function AlertList() {
         />
 
       </Card>
-        </div>
-      </Layout>
-    </Layout>
+      </div>
+    </div>
   )
 }
