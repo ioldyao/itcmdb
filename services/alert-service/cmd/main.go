@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/itcmdb/alert-service/internal/handlers"
 	"github.com/itcmdb/alert-service/internal/services"
+	"github.com/itcmdb/alert-service/internal/workflow"
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
@@ -66,8 +67,13 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	// 初始化 Workflow Handler
+	workflowEngineURL := viper.GetString("workflow.engine_url")
+	baseURL := viper.GetString("workflow.base_url")
+	workflowHandler := workflow.NewHandler(db, workflowEngineURL, baseURL)
+
 	r := gin.Default()
-	setupRoutes(r, db, alertEngine, vmClient, jwtManager)
+	setupRoutes(r, db, alertEngine, vmClient, jwtManager, workflowHandler)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
 	logger.Info("Alert service starting", zap.String("addr", addr))
@@ -111,6 +117,11 @@ func loadConfig() error {
 	viper.SetDefault("victoriametrics.endpoint", "http://localhost:8428")
 	viper.SetDefault("victoriametrics.username", "")
 	viper.SetDefault("victoriametrics.password", "")
+
+	// Workflow Engine 配置
+	viper.SetDefault("workflow.engine_url", "http://localhost:8000")
+	viper.SetDefault("workflow.base_url", "http://localhost:5004")
+
 	viper.ReadInConfig()
 	return nil
 }
@@ -135,7 +146,7 @@ func autoMigrate(db *gorm.DB) error {
 	return nil
 }
 
-func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, vmClient *services.VictoriaMetricsClient, jwtManager *auth.JWTManager) {
+func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, vmClient *services.VictoriaMetricsClient, jwtManager *auth.JWTManager, workflowHandler *workflow.Handler) {
 	// 健康检查
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
@@ -154,6 +165,9 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 	{
 		// 公开端点：外部告警接入
 		api.POST("/alerts/ingest", ingestAlertHandler(db, alertEngine))
+
+		// Webhook 接收端点（公开，由 token 认证）
+		api.POST("/webhooks/:token", workflowHandler.ReceiveWebhookAlert)
 
 		// 受保护的端点：需要JWT认证
 		protected := api.Group("")
@@ -198,6 +212,27 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 			protected.POST("/receiver-groups", groupHandler.CreateReceiverGroup)
 			protected.PUT("/receiver-groups/:id", groupHandler.UpdateReceiverGroup)
 			protected.DELETE("/receiver-groups/:id", groupHandler.DeleteReceiverGroup)
+
+			// Workflow 管理
+			protected.GET("/workflows", workflowHandler.ListWorkflows)
+			protected.GET("/workflows/:id", workflowHandler.GetWorkflow)
+			protected.POST("/workflows", workflowHandler.CreateWorkflow)
+			protected.PUT("/workflows/:id", workflowHandler.UpdateWorkflow)
+			protected.DELETE("/workflows/:id", workflowHandler.DeleteWorkflow)
+			protected.POST("/workflows/execute", workflowHandler.ExecuteWorkflow)
+
+			// Webhook 管理
+			protected.GET("/webhooks", workflowHandler.ListWebhooks)
+			protected.GET("/webhooks/:id", workflowHandler.GetWebhook)
+			protected.POST("/webhooks", workflowHandler.CreateWebhook)
+			protected.PUT("/webhooks/:id", workflowHandler.UpdateWebhook)
+			protected.DELETE("/webhooks/:id", workflowHandler.DeleteWebhook)
+
+			// Workflow 执行管理
+			protected.GET("/executions", workflowHandler.ListExecutions)
+			protected.GET("/executions/:id/status", workflowHandler.GetExecutionStatus)
+			protected.POST("/executions/:id/pause", workflowHandler.PauseWorkflow)
+			protected.POST("/executions/:id/resume", workflowHandler.ResumeWorkflow)
 		}
 	}
 }

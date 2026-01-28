@@ -1,0 +1,137 @@
+.workflow-node {
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 2px solid #d9d9d9;
+  background: white;
+  min-width: 140px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s;
+}
+
+.workflow-node:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  border-color: #1890ff;
+}
+
+.workflow-node-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.workflow-node-icon {
+  font-size: 24px;
+  color: #1890ff;
+}
+
+.workflow-node-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #262626;
+}
+
+.workflow-node-component {
+  font-size: 11px;
+  color: #8c8c8c;
+  background: #f5f5f5;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.workflow-node-type {
+  font-size: 11px;
+  color: #8c8c8c;
+  margin-top: 4px;
+}
+
+.workflow-node-handle {
+  width: 8px;
+  height: 8px;
+  background: #1890ff;
+  border: 2px solid white;
+}
+
+/* 开始节点 */
+.workflow-node-start {
+  border-color: #52c41a;
+  background: linear-gradient(135deg, #f6ffed 0%, #ffffff 100%);
+}
+
+.workflow-node-start .workflow-node-icon {
+  color: #52c41a;
+}
+
+/* 活动节点 */
+.workflow-node-activity {
+  border-color: #1890ff;
+}
+
+.workflow-node-activity .workflow-node-icon {
+  color: #1890ff;
+}
+
+/* 排他网关 */
+.workflow-node-gateway-exclusive {
+  border-color: #faad14;
+  background: linear-gradient(135deg, #fffbe6 0%, #ffffff 100%);
+  transform: rotate(45deg);
+  width: 80px;
+  height: 80px;
+  padding: 8px;
+}
+
+.workflow-node-gateway-exclusive .workflow-node-content {
+  transform: rotate(-45deg);
+}
+
+.workflow-node-gateway-exclusive .workflow-node-icon {
+  color: #faad14;
+}
+
+/* 并行网关 */
+.workflow-node-gateway-parallel {
+  border-color: #13c2c2;
+  background: linear-gradient(135deg, #e6fffb 0%, #ffffff 100%);
+  transform: rotate(45deg);
+  width: 80px;
+  height: 80px;
+  padding: 8px;
+}
+
+.workflow-node-gateway-parallel .workflow-node-content {
+  transform: rotate(-45deg);
+}
+
+.workflow-node-gateway-parallel .workflow-node-icon {
+  color: #13c2c2;
+}
+
+/* 聚合网关 */
+.workflow-node-gateway-converge {
+  border-color: #722ed1;
+  background: linear-gradient(135deg, #f9f0ff 0%, #ffffff 100%);
+  transform: rotate(45deg);
+  width: 80px;
+  height: 80px;
+  padding: 8px;
+}
+
+.workflow-node-gateway-converge .workflow-node-content {
+  transform: rotate(-45deg);
+}
+
+.workflow-node-gateway-converge .workflow-node-icon {
+  color: #722ed1;
+}
+
+/* 结束节点 */
+.workflow-node-end {
+  border-color: #ff4d4f;
+  background: linear-gradient(135deg, #fff1f0 0%, #ffffff 100%);
+}
+
+.workflow-node-end .workflow-node-icon {
+  color: #ff4d4f;
+}

@@ -9,7 +9,8 @@ WORKDIR /app
 # 设置 npm 镜像源为淘宝镜像
 COPY package*.json ./
 RUN npm config set registry https://registry.npmmirror.com && npm install -d
-# RUN npm install 
+# 安装工作流可视化依赖
+RUN npm install @xyflow/react
 
 COPY . .
 RUN npm run build

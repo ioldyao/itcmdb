@@ -1,0 +1,166 @@
+.workflow-editor {
+  width: 100%;
+  height: 600px;
+  position: relative;
+  background-color: #fafafa;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  display: flex;
+}
+
+.workflow-editor .react-flow {
+  background-color: #fafafa;
+  flex: 1;
+}
+
+/* 节点工具栏 */
+.workflow-node-palette {
+  width: 200px;
+  background-color: white;
+  border-right: 1px solid #d9d9d9;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.06);
+  z-index: 5;
+}
+
+.palette-title {
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 1px solid #f0f0f0;
+  color: #262626;
+}
+
+.palette-content {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.palette-node {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background-color: #fafafa;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.palette-node:hover {
+  border-color: var(--node-color, #1890ff);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateX(4px);
+}
+
+.palette-node-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--node-color, #1890ff);
+  flex-shrink: 0;
+}
+
+.palette-node-label {
+  font-size: 14px;
+  color: #262626;
+}
+
+.palette-actions {
+  padding: 12px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.palette-btn {
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  background-color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.palette-btn:hover {
+  color: #1890ff;
+  border-color: #1890ff;
+}
+
+.palette-btn-primary {
+  background-color: #1890ff;
+  color: white;
+  border-color: #1890ff;
+}
+
+.palette-btn-primary:hover {
+  background-color: #40a9ff;
+  color: white;
+}
+
+/* 提示信息 */
+.workflow-editor-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #8c8c8c;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.workflow-editor-hint h3 {
+  font-size: 18px;
+  color: #262626;
+  margin-bottom: 12px;
+}
+
+.workflow-editor-hint p {
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.workflow-editor-toolbar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.workflow-editor-btn {
+  padding: 6px 16px;
+  border: 1px solid #d9d9d9;
+  background-color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.workflow-editor-btn:hover {
+  color: #1890ff;
+  border-color: #1890ff;
+}
+
+.workflow-editor-btn-primary {
+  background-color: #1890ff;
+  color: white;
+  border-color: #1890ff;
+}
+
+.workflow-editor-btn-primary:hover {
+  background-color: #40a9ff;
+  color: white;
+}
