@@ -410,9 +410,8 @@ export default function AlertList() {
               实时监控和管理系统告警，支持告警查看、确认、关闭等操作
             </p>
           </div>
-        </div>
 
-        {/* 告警通知提示条 */}
+          {/* 告警通知提示条 */}
         {alertsWithoutHandler > 0 && (
           <Alert
             message={
