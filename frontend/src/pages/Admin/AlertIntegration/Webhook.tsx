@@ -23,6 +23,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   LinkOutlined,
+  WebhookOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -87,7 +88,7 @@ export default function AlertIntegrationWebhook() {
     setIsModalVisible(true)
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (_id: number) => {
     try {
       // TODO: 实际API调用
       message.success('删除成功')
@@ -99,7 +100,7 @@ export default function AlertIntegrationWebhook() {
 
   const handleSubmit = async () => {
     try {
-      const values = await form.validateFields()
+      await form.validateFields()
       // TODO: 实际API调用
       message.success(editingWebhook ? '更新成功' : '创建成功')
       setIsModalVisible(false)

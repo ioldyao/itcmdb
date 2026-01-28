@@ -10,6 +10,6 @@ export default function AlertIntegrationConfig() {
   )
 }
 
-// 这里我们动态导入来避免循环依赖
-import AlertReceivers from '../../AlertReceivers'
-import AlertReceiverGroups from '../../AlertReceiverGroups'
+// 从父目录导入
+import AlertReceivers from '../AlertReceivers'
+import AlertReceiverGroups from '../AlertReceiverGroups'
