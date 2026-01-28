@@ -100,47 +100,47 @@ export interface ApiResponse<T> {
 export const alertReceiverService = {
   // 接收人相关
   getReceivers: async (params: ReceiverListRequest = {}): Promise<ApiResponse<ReceiverListResponse>> => {
-    return api.get('/alert-service/receivers', { params })
+    return api.get('/receivers', { params })
   },
 
   getReceiver: async (id: number): Promise<ApiResponse<AlertReceiver>> => {
-    return api.get(`/alert-service/receivers/${id}`)
+    return api.get(`/receivers/${id}`)
   },
 
   createReceiver: async (data: CreateReceiverRequest): Promise<ApiResponse<AlertReceiver>> => {
-    return api.post('/alert-service/receivers', data)
+    return api.post('/receivers', data)
   },
 
   updateReceiver: async (id: number, data: UpdateReceiverRequest): Promise<ApiResponse<AlertReceiver>> => {
-    return api.put(`/alert-service/receivers/${id}`, data)
+    return api.put(`/receivers/${id}`, data)
   },
 
   deleteReceiver: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return api.delete(`/alert-service/receivers/${id}`)
+    return api.delete(`/receivers/${id}`)
   },
 
   testReceiver: async (id: number): Promise<ApiResponse<{ success: boolean; message: string }>> => {
-    return api.post(`/alert-service/receivers/${id}/test`)
+    return api.post(`/receivers/${id}/test`)
   },
 
   // 接收组相关
   getReceiverGroups: async (params: ReceiverGroupListRequest = {}): Promise<ApiResponse<ReceiverGroupListResponse>> => {
-    return api.get('/alert-service/receiver-groups', { params })
+    return api.get('/receiver-groups', { params })
   },
 
   getReceiverGroup: async (id: number): Promise<ApiResponse<AlertReceiverGroup>> => {
-    return api.get(`/alert-service/receiver-groups/${id}`)
+    return api.get(`/receiver-groups/${id}`)
   },
 
   createReceiverGroup: async (data: CreateReceiverGroupRequest): Promise<ApiResponse<AlertReceiverGroup>> => {
-    return api.post('/alert-service/receiver-groups', data)
+    return api.post('/receiver-groups', data)
   },
 
   updateReceiverGroup: async (id: number, data: UpdateReceiverGroupRequest): Promise<ApiResponse<AlertReceiverGroup>> => {
-    return api.put(`/alert-service/receiver-groups/${id}`, data)
+    return api.put(`/receiver-groups/${id}`, data)
   },
 
   deleteReceiverGroup: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return api.delete(`/alert-service/receiver-groups/${id}`)
+    return api.delete(`/receiver-groups/${id}`)
   },
 }
