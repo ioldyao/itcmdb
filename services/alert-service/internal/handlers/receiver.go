@@ -8,8 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"itcmdb/alert-service/internal/database"
-	"itcmdb/services/alert-service/internal/models"
+	"github.com/itcmdb/alert-service/internal/database"
+	"github.com/itcmdb/alert-service/internal/models"
+	"github.com/itcmdb/alert-service/internal/services"
 )
 
 // ReceiverHandler 接收人处理器
@@ -195,8 +196,8 @@ func (h *ReceiverHandler) TestReceiver(c *gin.Context) {
 		return
 	}
 
-	// 导入通知服务
-	notificationService := NewNotificationService()
+	// 创建通知服务
+	notificationService := services.NewNotificationService()
 
 	// 发送测试消息
 	testTitle := "告警测试通知"
