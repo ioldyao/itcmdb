@@ -22,8 +22,7 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  LinkOutlined,
-  WebhookOutlined,
+  ApiOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -198,7 +197,7 @@ export default function AlertIntegrationWebhook() {
     <div>
       <Card>
         <Title level={4}>
-          <WebhookOutlined style={{ marginRight: 8 }} />
+          <ApiOutlined style={{ marginRight: 8 }} />
           Alertmanager WebHook 集成
         </Title>
         <Paragraph>

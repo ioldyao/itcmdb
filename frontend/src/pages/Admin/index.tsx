@@ -6,7 +6,7 @@ import {
   FileText,
   Database,
   Bell,
-  Chain,
+  Link,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useAuthStore } from '@/stores/authStore'
@@ -48,7 +48,7 @@ const allMenuItems = [
       {
         key: '/admin/alert-integration/webhook',
         label: 'Webhook',
-        icon: <Chain size={16} />,
+        icon: <Link size={16} />,
         permission: null
       }
     ]
@@ -71,7 +71,7 @@ const breadcrumbMap: Record<string, { title: string; icon?: React.ReactNode; pat
   '/admin/alert-integration/config': { title: '配置', path: '/admin/alert-integration' },
   '/admin/alert-integration/config/receivers': { title: '告警接收人', path: '/admin/alert-integration/config' },
   '/admin/alert-integration/config/groups': { title: '告警接收组', path: '/admin/alert-integration/config' },
-  '/admin/alert-integration/webhook': { title: 'Webhook', path: '/admin/alert-integration', icon: <Chain size={14} /> },
+  '/admin/alert-integration/webhook': { title: 'Webhook', path: '/admin/alert-integration', icon: <Link size={14} /> },
   '/admin/alert-integration/webhook/alertmanager': { title: 'Alertmanager', path: '/admin/alert-integration/webhook' },
   '/admin/audit': { title: '审计日志', icon: <FileText size={14} /> },
 }
@@ -96,7 +96,7 @@ export default function AdminLayout() {
             children: item.children.map(child => ({
               key: child.key,
               label: child.label,
-              icon: child.icon || <LinkOutlined size={16} />,
+              icon: child.icon || <Link size={16} />,
               permission: child.permission
             }))
           })
