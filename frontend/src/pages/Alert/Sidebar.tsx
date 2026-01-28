@@ -46,7 +46,6 @@ function SidebarItem({ icon, label, count, active = false, onClick }: SidebarIte
         }
       }}
     >
-    >
       <Space size={8}>
         {icon}
         <span style={{ fontSize: 14 }}>{label}</span>
@@ -81,7 +80,6 @@ function FilterCheckbox({ label, count, value, checked, onChange, color }: Filte
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'transparent'
       }}
-    >
     >
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flex: 1 }}>
         <Checkbox value={value} checked={checked} onChange={onChange} />
