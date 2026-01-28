@@ -328,3 +328,60 @@ type NotificationTask struct {
 	Status       string
 	Metadata     map[string]interface{}
 }
+
+// SendEmail 发送邮件通知
+func (s *NotificationService) SendEmail(to, subject, body, severity, status string, metadata map[string]interface{}) error {
+	// TODO: 实现邮件发送逻辑
+	// 可以使用 SMTP 或调用邮件API
+	// 这里提供一个简单实现示例
+
+	// 示例：构建HTML邮件
+	_ = s.buildEmailHTML(subject, body, severity, status, metadata)
+
+	// TODO: 实际发送邮件
+	// 1. 连接SMTP服务器
+	// 2. 构建邮件
+	// 3. 发送
+	// 4. 处理错误
+
+	return fmt.Errorf("email sending not implemented yet")
+}
+
+// buildEmailHTML 构建邮件HTML内容
+func (s *NotificationService) buildEmailHTML(subject, body, severity, status string, metadata map[string]interface{}) string {
+	html := `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #f4f4f4; padding: 20px; text-align: center; }
+        .content { padding: 20px; }
+        .severity { display: inline-block; padding: 5px 10px; border-radius: 3px; color: white; }
+        .severity-critical { background-color: #d32f2f; }
+        .severity-high { background-color: #f57c00; }
+        .severity-warning { background-color: #fbc02d; }
+        .severity-info { background-color: #1976d2; }
+        .footer { background-color: #f4f4f4; padding: 10px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>` + subject + `</h2>
+        </div>
+        <div class="content">
+            <p><strong>告警级别:</strong> <span class="severity severity-` + severity + `">` + severity + `</span></p>
+            <p><strong>告警状态:</strong> ` + status + `</p>
+            <hr>
+            <p>` + body + `</p>
+        </div>
+        <div class="footer">
+            <p>这是一封来自ITCMDB系统的自动告警邮件，请勿直接回复。</p>
+        </div>
+    </div>
+</body>
+</html>`
+	return html
+}

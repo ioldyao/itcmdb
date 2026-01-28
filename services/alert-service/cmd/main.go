@@ -55,6 +55,9 @@ func main() {
 	// 初始化告警引擎
 	alertEngine := services.NewAlertEngine(vmClient)
 
+	// 初始化Webhook服务
+	webhookService := services.NewWebhookService(db)
+
 	// 初始化JWT管理器
 	jwtManager := auth.NewJWTManager(
 		viper.GetString("jwt.secret"),
@@ -67,7 +70,7 @@ func main() {
 	}
 
 	r := gin.Default()
-	setupRoutes(r, db, alertEngine, vmClient, jwtManager)
+	setupRoutes(r, db, alertEngine, vmClient, webhookService, jwtManager)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
 	logger.Info("Alert service starting", zap.String("addr", addr))
@@ -135,7 +138,7 @@ func autoMigrate(db *gorm.DB) error {
 	return nil
 }
 
-func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, vmClient *services.VictoriaMetricsClient, jwtManager *auth.JWTManager) {
+func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, vmClient *services.VictoriaMetricsClient, webhookService *services.WebhookService, jwtManager *auth.JWTManager) {
 	// 健康检查
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
@@ -154,6 +157,9 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 	{
 		// 公开端点：外部告警接入
 		api.POST("/alerts/ingest", ingestAlertHandler(db, alertEngine))
+
+		// 公开端点：接收Webhook（使用token）
+		api.POST("/webhooks/inbound/:token", handlers.HandleInboundWebhook(db, webhookService))
 
 		// 受保护的端点：需要JWT认证
 		protected := api.Group("")
@@ -198,6 +204,22 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 			protected.POST("/receiver-groups", groupHandler.CreateReceiverGroup)
 			protected.PUT("/receiver-groups/:id", groupHandler.UpdateReceiverGroup)
 			protected.DELETE("/receiver-groups/:id", groupHandler.DeleteReceiverGroup)
+
+			// Webhook集成管理
+			inboundHandler := handlers.NewInboundWebhookHandler(db, webhookService)
+			protected.GET("/webhooks/inbound", inboundHandler.ListInboundWebhooks)
+			protected.GET("/webhooks/inbound/:id", inboundHandler.GetInboundWebhook)
+			protected.POST("/webhooks/inbound", inboundHandler.CreateInboundWebhook)
+			protected.PUT("/webhooks/inbound/:id", inboundHandler.UpdateInboundWebhook)
+			protected.DELETE("/webhooks/inbound/:id", inboundHandler.DeleteInboundWebhook)
+
+			outboundHandler := handlers.NewOutboundWebhookHandler(db, webhookService)
+			protected.GET("/webhooks/outbound", outboundHandler.ListOutboundWebhooks)
+			protected.GET("/webhooks/outbound/:id", outboundHandler.GetOutboundWebhook)
+			protected.POST("/webhooks/outbound", outboundHandler.CreateOutboundWebhook)
+			protected.PUT("/webhooks/outbound/:id", outboundHandler.UpdateOutboundWebhook)
+			protected.DELETE("/webhooks/outbound/:id", outboundHandler.DeleteOutboundWebhook)
+			protected.POST("/webhooks/outbound/:id/test", outboundHandler.TestOutboundWebhook)
 		}
 	}
 }
