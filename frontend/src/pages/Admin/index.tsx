@@ -6,7 +6,7 @@ import {
   FileText,
   Database,
   Bell,
-  Link,
+  Link2,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useAuthStore } from '@/stores/authStore'
@@ -48,7 +48,7 @@ const allMenuItems = [
       {
         key: '/admin/alert-integration/webhook',
         label: 'Webhook',
-        icon: <Link size={16} />,
+        icon: <Link2 size={16} />,
         permission: null
       }
     ]
@@ -71,7 +71,7 @@ const breadcrumbMap: Record<string, { title: string; icon?: React.ReactNode; pat
   '/admin/alert-integration/config': { title: '配置', path: '/admin/alert-integration' },
   '/admin/alert-integration/config/receivers': { title: '告警接收人', path: '/admin/alert-integration/config' },
   '/admin/alert-integration/config/groups': { title: '告警接收组', path: '/admin/alert-integration/config' },
-  '/admin/alert-integration/webhook': { title: 'Webhook', path: '/admin/alert-integration', icon: <Link size={14} /> },
+  '/admin/alert-integration/webhook': { title: 'Webhook', path: '/admin/alert-integration', icon: <Link2 size={14} /> },
   '/admin/alert-integration/webhook/alertmanager': { title: 'Alertmanager', path: '/admin/alert-integration/webhook' },
   '/admin/audit': { title: '审计日志', icon: <FileText size={14} /> },
 }
@@ -159,7 +159,9 @@ export default function AdminLayout() {
       if (config) {
         const isLast = index === segments.length - 1
         items.push({
-          title: isLast ? config.title : <Link to={accumulatedPath}>{config.title}</Link>,
+          title: isLast
+            ? <span>{config.title}</span>
+            : <Link to={accumulatedPath}>{config.title}</Link>,
           icon: config.icon
         })
       }
