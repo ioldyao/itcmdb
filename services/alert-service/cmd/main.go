@@ -181,6 +181,23 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 			protected.POST("/rules/:id/enable", ruleHandler.EnableRule)
 			protected.POST("/rules/:id/disable", ruleHandler.DisableRule)
 			protected.POST("/rules/test", ruleHandler.TestRule)
+
+			// 接收人管理
+			receiverHandler := handlers.NewReceiverHandler()
+			protected.GET("/receivers", receiverHandler.ListReceivers)
+			protected.GET("/receivers/:id", receiverHandler.GetReceiver)
+			protected.POST("/receivers", receiverHandler.CreateReceiver)
+			protected.PUT("/receivers/:id", receiverHandler.UpdateReceiver)
+			protected.DELETE("/receivers/:id", receiverHandler.DeleteReceiver)
+			protected.POST("/receivers/:id/test", receiverHandler.TestReceiver)
+
+			// 接收组管理
+			groupHandler := handlers.NewReceiverGroupHandler()
+			protected.GET("/receiver-groups", groupHandler.ListReceiverGroups)
+			protected.GET("/receiver-groups/:id", groupHandler.GetReceiverGroup)
+			protected.POST("/receiver-groups", groupHandler.CreateReceiverGroup)
+			protected.PUT("/receiver-groups/:id", groupHandler.UpdateReceiverGroup)
+			protected.DELETE("/receiver-groups/:id", groupHandler.DeleteReceiverGroup)
 		}
 	}
 }
