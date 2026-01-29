@@ -26,6 +26,7 @@ import TicketDetail from '@/pages/Ticket/Detail'
 
 // Alert Pages
 import AlertList from '@/pages/Alert/List'
+import AlertDetail from '@/pages/Alert/Detail'
 import AlertRules from '@/pages/Alert/Rules'
 import AlertHistory from '@/pages/Alert/History'
 
@@ -84,6 +85,7 @@ const router = createBrowserRouter([
         path: 'alerts',
         children: [
           { index: true, element: <AlertList /> },
+          { path: ':id', element: <AlertDetail /> },
           { path: 'rules', element: <AlertRules /> },
           { path: 'history', element: <AlertHistory /> },
         ],

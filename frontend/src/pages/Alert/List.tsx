@@ -27,6 +27,7 @@ import {
   StarOutlined,
   DownloadOutlined,
 } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import type { ColumnsType } from 'antd/es/table'
 import { useAlertStore } from '@/stores/alertStore'
 import type { AlertInstance } from '@/services/alertService'
@@ -43,6 +44,7 @@ import {
 const { RangePicker } = DatePicker
 
 export default function AlertList() {
+  const navigate = useNavigate()
   const {
     alerts,
     loading,
@@ -296,9 +298,7 @@ export default function AlertList() {
           <Button
             type="link"
             size="small"
-            onClick={() => {
-              message.info(`告警ID: ${record.id}\n标题: ${record.title}\n描述: ${record.description}`)
-            }}
+            onClick={() => navigate(`/alerts/${record.id}`)}
           >
             详情
           </Button>
