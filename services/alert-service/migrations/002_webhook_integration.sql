@@ -135,5 +135,4 @@ COMMENT ON COLUMN inbound_webhooks.last_received IS '最后接收时间';
 
 COMMENT ON COLUMN outbound_webhooks.endpoint_url IS '推送目标URL';
 COMMENT ON COLUMN outbound_webhooks.target_type IS '推送目标类型';
-COMMENT ON COLUMN outbound_webhooks.secret IS '签名密钥（可选）';
 COMMENT ON COLUMN outbound_webhooks.last_sent IS '最后推送时间';

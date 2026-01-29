@@ -20,6 +20,7 @@ type WebhookService struct {
 	db            *gorm.DB
 	httpClient    *http.Client
 	notifyService *NotificationService
+	routingService *RoutingService
 }
 
 // NewWebhookService 创建Webhook服务
@@ -30,6 +31,7 @@ func NewWebhookService(db *gorm.DB) *WebhookService {
 			Timeout: 30 * time.Second,
 		},
 		notifyService: NewNotificationService(),
+		routingService: NewRoutingService(db),
 	}
 }
 
@@ -158,6 +160,35 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 	// 生成alert_id（唯一标识）- 使用fingerprint作为唯一标识
 	alertID := fmt.Sprintf("%s-%s", webhook.SourceType, fingerprint)
 
+	// 匹配路由规则（用于记录和通知）
+	receiverGroupIDs, err := s.routingService.MatchReceiverGroups(labelsMap, webhook.DefaultReceiverGroupID)
+	if err != nil {
+		fmt.Printf("[ERROR] Failed to match routing rules: %v\n", err)
+	}
+
+	// 获取匹配的路由规则ID（用于记录）
+	var routingRuleID *int
+	if len(receiverGroupIDs) > 0 {
+		// 查找匹配的路由规则
+		rules, err := s.routingService.ruleRepo.FindEnabled()
+		if err == nil {
+			for _, rule := range rules {
+				if rule.Matches(labelsMap) && rule.ReceiverGroupID != nil {
+					for _, groupID := range receiverGroupIDs {
+						if *rule.ReceiverGroupID == groupID {
+							ruleID := rule.ID
+							routingRuleID = &ruleID
+							break
+						}
+					}
+					if routingRuleID != nil {
+						break
+					}
+				}
+			}
+		}
+	}
+
 	// 提取告警标题和描述
 	title := labelsMap["alertname"]
 	if title == "" {
@@ -226,6 +257,16 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 			LastTriggered:     now,
 			Tags:              convertStringMapToJSONMap(labelsMap),
 			TriggerConditions: convertStringMapToJSONMap(annotationsMap),
+			RoutingRuleID:     routingRuleID,
+		}
+
+		// 设置通知渠道（记录匹配到的接收人组）
+		if len(receiverGroupIDs) > 0 {
+			receiverGroupsMap := make(map[string]interface{})
+			for i, groupID := range receiverGroupIDs {
+				receiverGroupsMap[fmt.Sprintf("group_%d", i)] = groupID
+			}
+			newAlert.NotificationChannels = receiverGroupsMap
 		}
 
 		if err := s.db.Create(&newAlert).Error; err != nil {
@@ -239,10 +280,10 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 		return fmt.Errorf("failed to query alert: %w", err)
 	}
 
-	// 5. 广播告警到所有启用的推送目标
+	// 5. 使用路由规则匹配接收人并发送通知
 	go func() {
-		// 构造告警数据用于推送
-		alertDataForBroadcast := map[string]interface{}{
+		// 构造告警数据用于路由和通知
+		alertDataForRouting := map[string]interface{}{
 			"alert_id":    alertID,
 			"title":       title,
 			"content":     description,
@@ -252,14 +293,14 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 			"instance":    labelsMap["instance"],
 			"labels":     labelsMap,
 			"annotations": annotationsMap,
-			"timestamp":   now,
+			"timestamp":   now.Format("2006-01-02 15:04:05"),
 			"fingerprint": fingerprint,
 		}
 
-		// 异步广播，不影响主流程
-		if err := s.BroadcastAlert(alertDataForBroadcast); err != nil {
+		// 使用路由服务进行匹配和通知
+		if err := s.routingService.RouteAndNotify(alertDataForRouting, webhook); err != nil {
 			// 记录错误但不影响告警创建
-			fmt.Printf("[ERROR] Failed to broadcast alert: %v\n", err)
+			fmt.Printf("[ERROR] Failed to route and notify: %v\n", err)
 		}
 	}()
 
