@@ -152,7 +152,7 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 	// 如果没有fingerprint，生成一个
 	if fingerprint == "" {
 		// 使用labels生成指纹
-		fingerprint = generateFingerprint(convertMapToString(labels))
+		fingerprint = generateFingerprint(labelsMap)
 	}
 
 	// 生成alert_id（唯一标识）- 使用fingerprint作为唯一标识
