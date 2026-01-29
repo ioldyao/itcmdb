@@ -177,17 +177,17 @@ export default function MainLayout() {
             </div>
 
             {/* 横向菜单 - 主导航和子导航切换 */}
-            <nav className="flex items-center gap-1 relative h-10">
+            <nav className="relative h-10 min-w-[600px]">
               {/* 主导航 */}
-              <AnimatePresence mode="wait">
+              <AnimatePresence>
                 {!showSubNav && (
                   <motion.div
                     key="main-nav"
-                    initial={{ opacity: 0, x: -30 }}
+                    initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -30 }}
-                    transition={{ duration: 0.3, ease: 'easeInOut' }}
-                    className="flex items-center gap-1"
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                    className="absolute inset-0 flex items-center gap-1"
                   >
                     {menuItems.map((item) => {
                       const Icon = item.icon
@@ -236,15 +236,15 @@ export default function MainLayout() {
               </AnimatePresence>
 
               {/* 子导航 - CMDB 或告警模块 */}
-              <AnimatePresence mode="wait">
+              <AnimatePresence>
                 {showSubNav && (
                   <motion.div
                     key={`sub-nav-${currentSubNav}`}
-                    initial={{ opacity: 0, x: 30 }}
+                    initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 30 }}
-                    transition={{ duration: 0.3, ease: 'easeInOut' }}
-                    className="flex items-center gap-1"
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                    className="absolute inset-0 flex items-center gap-1"
                   >
                     {/* 返回按钮 */}
                     <button
