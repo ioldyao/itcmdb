@@ -139,14 +139,14 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 	// 调试：打印原始接收数据
 	fmt.Printf("[DEBUG] Received alert data: %+v\n", alertData)
 
-	// 1. 提取告警信息
-	labels := getInterfaceMapValue(alertData, "labels")
-	annotations := getInterfaceMapValue(alertData, "annotations")
+	// 1. 提取告警信息 - labels和annotations是map[string]string类型
+	labelsMap := getStringMapValue(alertData, "labels")
+	annotationsMap := getStringMapValue(alertData, "annotations")
 	status := getStringValue(alertData, "status", "firing")
 	fingerprint := getStringValue(alertData, "fingerprint", "")
 
-	fmt.Printf("[DEBUG] labels: %+v\n", labels)
-	fmt.Printf("[DEBUG] annotations: %+v\n", annotations)
+	fmt.Printf("[DEBUG] labelsMap: %+v\n", labelsMap)
+	fmt.Printf("[DEBUG] annotationsMap: %+v\n", annotationsMap)
 	fmt.Printf("[DEBUG] status: %s, fingerprint: %s\n", status, fingerprint)
 
 	// 如果没有fingerprint，生成一个
@@ -159,14 +159,17 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 	alertID := fmt.Sprintf("%s-%s", webhook.SourceType, fingerprint)
 
 	// 提取告警标题和描述
-	title := getMapStringValue(labels, "alertname", "")
+	title := labelsMap["alertname"]
 	if title == "" {
-		title = getMapStringValue(annotations, "summary", "告警")
+		title = annotationsMap["summary"]
 	}
-	description := getMapStringValue(annotations, "description", "")
+	if title == "" {
+		title = "告警"
+	}
+	description := annotationsMap["description"]
 
 	// 提取严重程度
-	severity := getMapStringValue(labels, "severity", "warning")
+	severity := labelsMap["severity"]
 	if severity == "" {
 		severity = "warning"
 	}
@@ -206,7 +209,7 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 		}
 
 		// 记录历史
-		s.recordAlertHistory(&existingAlert, "status_update", fmt.Sprintf("Status changed to %s", status))
+		s.recordAlertHistory(&existingAlert, "updated", fmt.Sprintf("Status changed to %s", status))
 
 	} else if err == gorm.ErrRecordNotFound {
 		// 3. 创建新告警记录
@@ -217,12 +220,12 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 			Severity:          severity,
 			Status:            status,
 			Category:          webhook.SourceType,
-			ObjectType:        getMapStringValue(labels, "instance", "外部告警"), // 使用instance字段作为空间名
+			ObjectType:        labelsMap["instance"], // 使用instance字段作为空间名
 			Fingerprint:       fingerprint,
 			FirstTriggered:    now,
 			LastTriggered:     now,
-			Tags:              convertInterfaceMapToJSONMap(labels),
-			TriggerConditions: convertInterfaceMapToJSONMap(annotations),
+			Tags:              convertStringMapToJSONMap(labelsMap),
+			TriggerConditions: convertStringMapToJSONMap(annotationsMap),
 		}
 
 		if err := s.db.Create(&newAlert).Error; err != nil {
@@ -256,11 +259,36 @@ func convertToJSONMap(m map[string]string) models.JSONMap {
 
 // getInterfaceMapValue 从map中获取map[string]interface{}值
 func getInterfaceMapValue(m map[string]interface{}, key string) map[string]interface{} {
-	result := make(map[string]interface{})
-	if val, ok := m[key]; ok {
-		if m, ok := val.(map[string]interface{}); ok {
-			return m
+	if val, ok := m[key]; ok && val != nil {
+		// 尝试直接类型断言
+		if mapVal, ok := val.(map[string]interface{}); ok {
+			return mapVal
 		}
+		// 如果不是map[string]interface{}，可能是其他类型，尝试转换
+		fmt.Printf("[DEBUG] getInterfaceMapValue: key=%s, val type=%T\n", key, val)
+	}
+	// 如果键不存在或为nil，返回空map而不是nil
+	return make(map[string]interface{})
+}
+
+// getStringMapValue 从map中获取map[string]string值
+func getStringMapValue(m map[string]interface{}, key string) map[string]string {
+	result := make(map[string]string)
+	if val, ok := m[key]; ok && val != nil {
+		// 尝试类型断言
+		if mapVal, ok := val.(map[string]string); ok {
+			return mapVal
+		}
+		// 如果是map[string]interface{}，转换
+		if mapVal, ok := val.(map[string]interface{}); ok {
+			for k, v := range mapVal {
+				if str, ok := v.(string); ok {
+					result[k] = str
+				}
+			}
+			return result
+		}
+		fmt.Printf("[DEBUG] getStringMapValue: key=%s, val type=%T\n", key, val)
 	}
 	return result
 }
@@ -294,6 +322,18 @@ func convertInterfaceMapToJSONMap(m map[string]interface{}) models.JSONMap {
 	result := make(models.JSONMap)
 	for k, v := range m {
 		result[k] = fmt.Sprintf("%v", v)
+	}
+	return result
+}
+
+// convertStringMapToJSONMap 将map[string]string转换为JSONMap
+func convertStringMapToJSONMap(m map[string]string) models.JSONMap {
+	if m == nil {
+		return nil
+	}
+	result := make(models.JSONMap)
+	for k, v := range m {
+		result[k] = v
 	}
 	return result
 }
