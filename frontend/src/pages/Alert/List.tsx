@@ -175,20 +175,16 @@ export default function AlertList() {
     {
       title: 'ID',
       dataIndex: 'id',
-      width: 120,
+      width: 80,
       fixed: 'left',
-      render: (_: number, record: AlertInstance) => (
-        <Space size={4}>
-          <div style={{ width: 4, height: 16, background: record.severity === 'critical' ? '#ff4d4f' : record.severity === 'high' ? '#fa8c16' : '#52c41a', borderRadius: 2 }} />
-          <span style={{ color: '#1890ff', cursor: 'pointer' }}>{record.alert_id?.substring(0, 12)}...</span>
-        </Space>
-      ),
+      render: (id: number) => <span style={{ color: '#1890ff' }}>{id}</span>,
     },
     {
       title: '空间名',
-      dataIndex: 'space',
-      width: 100,
-      render: () => <span style={{ color: '#999' }}>--</span>,
+      dataIndex: 'object_type',
+      width: 120,
+      ellipsis: true,
+      render: (type: string) => type || '外部告警',
     },
     {
       title: '告警名称',
@@ -208,7 +204,8 @@ export default function AlertList() {
       dataIndex: 'metric',
       width: 120,
       render: (_: any, record: AlertInstance) => {
-        const metric = record.trigger_conditions?.metric || '未知指标'
+        // 从tags中获取指标信息
+        const metric = record.tags?.__name__ || record.tags?.metric || '未知指标'
         return <Tag>{metric}</Tag>
       },
     },
@@ -292,10 +289,19 @@ export default function AlertList() {
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 200,
       fixed: 'right',
       render: (_: any, record: AlertInstance) => (
         <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            onClick={() => {
+              message.info(`告警ID: ${record.id}\n标题: ${record.title}\n描述: ${record.description}`)
+            }}
+          >
+            详情
+          </Button>
           {record.status === 'firing' && (
             <>
               <Button
