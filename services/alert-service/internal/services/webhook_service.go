@@ -239,8 +239,29 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 		return fmt.Errorf("failed to query alert: %w", err)
 	}
 
-	// 5. 根据配置决定是否发送通知（这里暂时不做）
-	// TODO: 根据webhook配置决定是否发送通知
+	// 5. 广播告警到所有启用的推送目标
+	go func() {
+		// 构造告警数据用于推送
+		alertDataForBroadcast := map[string]interface{}{
+			"alert_id":    alertID,
+			"title":       title,
+			"content":     description,
+			"severity":    severity,
+			"status":      status,
+			"category":    webhook.SourceType,
+			"instance":    labelsMap["instance"],
+			"labels":     labelsMap,
+			"annotations": annotationsMap,
+			"timestamp":   now,
+			"fingerprint": fingerprint,
+		}
+
+		// 异步广播，不影响主流程
+		if err := s.BroadcastAlert(alertDataForBroadcast); err != nil {
+			// 记录错误但不影响告警创建
+			fmt.Printf("[ERROR] Failed to broadcast alert: %v\n", err)
+		}
+	}()
 
 	return nil
 }
