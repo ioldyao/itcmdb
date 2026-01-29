@@ -97,11 +97,20 @@ func (h *InboundWebhookHandler) CreateInboundWebhook(c *gin.Context) {
 	}
 
 	// 构建完整的Webhook URL
-	scheme := "http"
-	if c.Request.TLS != nil {
-		scheme = "https"
+	// 优先使用X-Forwarded头（来自nginx反向代理）
+	scheme := c.GetHeader("X-Forwarded-Proto")
+	if scheme == "" {
+		scheme = "http"
+		if c.Request.TLS != nil {
+			scheme = "https"
+		}
 	}
-	host := c.Request.Host
+
+	host := c.GetHeader("X-Forwarded-Host")
+	if host == "" {
+		host = c.Request.Host
+	}
+
 	webhookURL := scheme + "://" + host + "/api/v1/webhooks/inbound/" + token
 
 	webhook := models.InboundWebhook{
