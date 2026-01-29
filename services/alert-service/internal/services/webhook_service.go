@@ -2,10 +2,13 @@ package services
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/itcmdb/alert-service/internal/models"
@@ -133,14 +136,115 @@ func (s *WebhookService) ParseCustomPayload(r *http.Request) ([]map[string]inter
 
 // ProcessInboundAlert 处理接收到的告警
 func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, alertData map[string]interface{}) error {
-	// TODO: 实现告警处理逻辑
 	// 1. 提取告警信息
-	// 2. 生成告警指纹
-	// 3. 检查是否已存在（去重）
-	// 4. 创建或更新告警记录
-	// 5. 根据配置发送通知
+	labels := getMapValue(alertData, "labels")
+	annotations := getMapValue(alertData, "annotations")
+	status := getStringValue(alertData, "status", "firing")
+	fingerprint := getStringValue(alertData, "fingerprint", "")
+
+	// 如果没有fingerprint，生成一个
+	if fingerprint == "" {
+		// 使用labels生成指纹
+		fingerprint = generateFingerprint(labels)
+	}
+
+	// 生成alert_id（唯一标识）
+	alertID := fmt.Sprintf("%s-%s", webhook.SourceType, fingerprint)
+
+	// 提取告警标题和描述
+	title := getMapValue(labels, "alertname")
+	if title == "" {
+		title = getStringValue(annotations, "summary", "告警")
+	}
+	description := getStringValue(annotations, "description", "")
+
+	// 提取严重程度
+	severity := getStringValue(labels, "severity", "warning")
+	if severity == "" {
+		severity = "warning"
+	}
+	// 标准化严重程度
+	switch severity {
+	case "critical", "crit", "fatal":
+		severity = "critical"
+	case "high", "major", "error":
+		severity = "high"
+	case "warning", "warn", "minor":
+		severity = "medium"
+	case "info", "low":
+		severity = "low"
+	default:
+		severity = "medium"
+	}
+
+	// 2. 检查是否已存在（去重）
+	var existingAlert models.AlertInstance
+	err := s.db.Where("alert_id = ?", alertID).First(&existingAlert).Error
+
+	now := time.Now()
+	if err == nil {
+		// 告警已存在，更新状态和时间
+		updates := map[string]interface{}{
+			"status":         status,
+			"last_triggered": now,
+		}
+
+		// 如果状态从firing变为resolved，记录恢复时间
+		if existingAlert.Status == "firing" && status == "resolved" {
+			updates["recovered_at"] = &now
+		}
+
+		if err := s.db.Model(&existingAlert).Updates(updates).Error; err != nil {
+			return fmt.Errorf("failed to update alert: %w", err)
+		}
+
+		// 记录历史
+		s.recordAlertHistory(&existingAlert, "status_update", fmt.Sprintf("Status changed to %s", status))
+
+	} else if err == gorm.ErrRecordNotFound {
+		// 3. 创建新告警记录
+		newAlert := models.AlertInstance{
+			AlertID:           alertID,
+			Title:             title,
+			Description:       description,
+			Severity:          severity,
+			Status:            status,
+			Category:          webhook.SourceType,
+			ObjectType:        webhook.Name,
+			Fingerprint:       fingerprint,
+			FirstTriggered:    now,
+			LastTriggered:     now,
+			Tags:              convertToJSONMap(labels),
+			TriggerConditions: convertToJSONMap(annotations),
+		}
+
+		if err := s.db.Create(&newAlert).Error; err != nil {
+			return fmt.Errorf("failed to create alert: %w", err)
+		}
+
+		// 记录历史
+		s.recordAlertHistory(&newAlert, "triggered", "Alert received from webhook")
+
+	} else {
+		return fmt.Errorf("failed to query alert: %w", err)
+	}
+
+	// 5. 根据配置决定是否发送通知（这里暂时不做）
+	// TODO: 根据webhook配置决定是否发送通知
 
 	return nil
+}
+
+// convertToJSONMap 将map[string]string转换为JSONMap
+func convertToJSONMap(m map[string]string) models.JSONMap {
+	if m == nil {
+		return nil
+	}
+	result := make(models.JSONMap)
+	for k, v := range m {
+		result[k] = v
+	}
+	return result
 }
 
 // SendOutboundWebhook 发送推送Webhook
@@ -350,3 +454,37 @@ func getTimeValue(m map[string]interface{}, key string) time.Time {
 	}
 	return time.Now()
 }
+
+// generateFingerprint 生成告警指纹
+func generateFingerprint(labels map[string]string) string {
+	// 使用labels生成指纹（简单实现：排序后拼接）
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	h := sha1.New()
+	for _, k := range keys {
+		h.Write([]byte(k))
+		h.Write([]byte("="))
+		h.Write([]byte(labels[k]))
+		h.Write([]byte(","))
+	}
+	return hex.EncodeToString(h.Sum(nil))[:16]
+}
+
+// recordAlertHistory 记录告警历史
+func (s *WebhookService) recordAlertHistory(alert *models.AlertInstance, eventType string, message string) {
+	history := models.AlertHistory{
+		AlertID:      alert.ID,
+		EventType:    eventType,
+		Message:      message,
+		OldStatus:    alert.Status,
+		NewStatus:    alert.Status,
+		OperatedBy:   nil,
+		OperatedAt:   time.Now(),
+	}
+	s.db.Create(&history)
+}
+
