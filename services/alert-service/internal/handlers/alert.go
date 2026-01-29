@@ -58,13 +58,13 @@ func (h *AlertHandler) GetAlerts(c *gin.Context) {
 	if req.StartTime != "" {
 		startTime, err := time.Parse(time.RFC3339, req.StartTime)
 		if err == nil {
-			query = query.Where("first_triggered >= ?", startTime)
+			query = query.Where("triggered_at >= ?", startTime)
 		}
 	}
 	if req.EndTime != "" {
 		endTime, err := time.Parse(time.RFC3339, req.EndTime)
 		if err == nil {
-			query = query.Where("last_triggered <= ?", endTime)
+			query = query.Where("triggered_at <= ?", endTime)
 		}
 	}
 
@@ -79,7 +79,7 @@ func (h *AlertHandler) GetAlerts(c *gin.Context) {
 	query.Count(&total)
 
 	// 排序
-	orderClause := "last_triggered DESC"
+	orderClause := "triggered_at DESC"
 	if req.SortField != "" {
 		direction := "DESC"
 		if req.SortOrder == "asc" {
@@ -291,7 +291,7 @@ func (h *AlertHandler) GetAlertAnalytics(c *gin.Context) {
 
 	// 查询时间范围内的告警
 	var alerts []models.AlertInstance
-	query := h.db.Where("first_triggered >= ? AND first_triggered <= ?", startTime, endTime)
+	query := h.db.Where("triggered_at >= ? AND triggered_at <= ?", startTime, endTime)
 
 	if err := query.Find(&alerts).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, response.Error("查询失败", err.Error()))
