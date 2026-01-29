@@ -137,29 +137,29 @@ func (s *WebhookService) ParseCustomPayload(r *http.Request) ([]map[string]inter
 // ProcessInboundAlert 处理接收到的告警
 func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, alertData map[string]interface{}) error {
 	// 1. 提取告警信息
-	labels := getMapValue(alertData, "labels")
-	annotations := getMapValue(alertData, "annotations")
+	labels := getInterfaceMapValue(alertData, "labels")
+	annotations := getInterfaceMapValue(alertData, "annotations")
 	status := getStringValue(alertData, "status", "firing")
 	fingerprint := getStringValue(alertData, "fingerprint", "")
 
 	// 如果没有fingerprint，生成一个
 	if fingerprint == "" {
 		// 使用labels生成指纹
-		fingerprint = generateFingerprint(labels)
+		fingerprint = generateFingerprint(convertMapToString(labels))
 	}
 
 	// 生成alert_id（唯一标识）
 	alertID := fmt.Sprintf("%s-%s", webhook.SourceType, fingerprint)
 
 	// 提取告警标题和描述
-	title := getMapValue(labels, "alertname")
+	title := getMapStringValue(labels, "alertname", "")
 	if title == "" {
-		title = getStringValue(annotations, "summary", "告警")
+		title = getMapStringValue(annotations, "summary", "告警")
 	}
-	description := getStringValue(annotations, "description", "")
+	description := getMapStringValue(annotations, "description", "")
 
 	// 提取严重程度
-	severity := getStringValue(labels, "severity", "warning")
+	severity := getMapStringValue(labels, "severity", "warning")
 	if severity == "" {
 		severity = "warning"
 	}
@@ -214,8 +214,8 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 			Fingerprint:       fingerprint,
 			FirstTriggered:    now,
 			LastTriggered:     now,
-			Tags:              convertToJSONMap(labels),
-			TriggerConditions: convertToJSONMap(annotations),
+			Tags:              convertInterfaceMapToJSONMap(labels),
+			TriggerConditions: convertInterfaceMapToJSONMap(annotations),
 		}
 
 		if err := s.db.Create(&newAlert).Error; err != nil {
@@ -243,6 +243,50 @@ func convertToJSONMap(m map[string]string) models.JSONMap {
 	result := make(models.JSONMap)
 	for k, v := range m {
 		result[k] = v
+	}
+	return result
+}
+
+// getInterfaceMapValue 从map中获取map[string]interface{}值
+func getInterfaceMapValue(m map[string]interface{}, key string) map[string]interface{} {
+	result := make(map[string]interface{})
+	if val, ok := m[key]; ok {
+		if m, ok := val.(map[string]interface{}); ok {
+			return m
+		}
+	}
+	return result
+}
+
+// getMapStringValue 从map[string]interface{}中获取string值
+func getMapStringValue(m map[string]interface{}, key, defaultValue string) string {
+	if val, ok := m[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return defaultValue
+}
+
+// convertMapToString 将map[string]interface{}转换为map[string]string
+func convertMapToString(m map[string]interface{}) map[string]string {
+	result := make(map[string]string)
+	for k, v := range m {
+		if str, ok := v.(string); ok {
+			result[k] = str
+		}
+	}
+	return result
+}
+
+// convertInterfaceMapToJSONMap 将map[string]interface{}转换为JSONMap
+func convertInterfaceMapToJSONMap(m map[string]interface{}) models.JSONMap {
+	if m == nil {
+		return nil
+	}
+	result := make(models.JSONMap)
+	for k, v := range m {
+		result[k] = fmt.Sprintf("%v", v)
 	}
 	return result
 }
