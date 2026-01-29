@@ -115,8 +115,12 @@ function InboundWebhooks() {
     setLoading(true)
     try {
       const response = await inboundWebhookService.getWebhooks()
+      console.log('Inbound webhooks response:', response)
+      console.log('Inbound webhooks data:', response?.data)
+      console.log('Inbound webhooks list:', response?.data?.webhooks)
       setWebhooks(response?.data?.webhooks || [])
     } catch (error) {
+      console.error('Failed to fetch inbound webhooks:', error)
       message.error('获取接收地址失败')
       setWebhooks([])
     } finally {
@@ -433,8 +437,12 @@ function OutboundWebhooks() {
     setLoading(true)
     try {
       const response = await outboundWebhookService.getWebhooks()
+      console.log('Outbound webhooks response:', response)
+      console.log('Outbound webhooks data:', response?.data)
+      console.log('Outbound webhooks list:', response?.data?.webhooks)
       setWebhooks(response?.data?.webhooks || [])
     } catch (error) {
+      console.error('Failed to fetch outbound webhooks:', error)
       message.error('获取推送配置失败')
       setWebhooks([])
     } finally {
