@@ -136,11 +136,18 @@ func (s *WebhookService) ParseCustomPayload(r *http.Request) ([]map[string]inter
 
 // ProcessInboundAlert 处理接收到的告警
 func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, alertData map[string]interface{}) error {
+	// 调试：打印原始接收数据
+	fmt.Printf("[DEBUG] Received alert data: %+v\n", alertData)
+
 	// 1. 提取告警信息
 	labels := getInterfaceMapValue(alertData, "labels")
 	annotations := getInterfaceMapValue(alertData, "annotations")
 	status := getStringValue(alertData, "status", "firing")
 	fingerprint := getStringValue(alertData, "fingerprint", "")
+
+	fmt.Printf("[DEBUG] labels: %+v\n", labels)
+	fmt.Printf("[DEBUG] annotations: %+v\n", annotations)
+	fmt.Printf("[DEBUG] status: %s, fingerprint: %s\n", status, fingerprint)
 
 	// 如果没有fingerprint，生成一个
 	if fingerprint == "" {
