@@ -148,7 +148,7 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 		fingerprint = generateFingerprint(convertMapToString(labels))
 	}
 
-	// 生成alert_id（唯一标识）
+	// 生成alert_id（唯一标识）- 使用fingerprint作为唯一标识
 	alertID := fmt.Sprintf("%s-%s", webhook.SourceType, fingerprint)
 
 	// 提取告警标题和描述
@@ -177,9 +177,9 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 		severity = "medium"
 	}
 
-	// 2. 检查是否已存在（去重）
+	// 2. 检查是否已存在（去重）- 使用fingerprint查找
 	var existingAlert models.AlertInstance
-	err := s.db.Where("alert_id = ?", alertID).First(&existingAlert).Error
+	err := s.db.Where("fingerprint = ? AND category = ?", fingerprint, webhook.SourceType).First(&existingAlert).Error
 
 	now := time.Now()
 	if err == nil {
@@ -210,7 +210,7 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 			Severity:          severity,
 			Status:            status,
 			Category:          webhook.SourceType,
-			ObjectType:        webhook.Name,
+			ObjectType:        getMapStringValue(labels, "instance", "外部告警"), // 使用instance字段作为空间名
 			Fingerprint:       fingerprint,
 			FirstTriggered:    now,
 			LastTriggered:     now,
