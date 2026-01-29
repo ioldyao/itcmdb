@@ -154,9 +154,29 @@ function InboundWebhooks() {
     }
   }
 
-  const handleCopyUrl = (url: string) => {
-    navigator.clipboard.writeText(url)
-    message.success('URL已复制到剪贴板')
+  const handleCopyUrl = async (url: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url)
+      } else {
+        // 备用方案：使用传统方法
+        const textArea = document.createElement('textarea')
+        textArea.value = url
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-999999px'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        try {
+          document.execCommand('copy')
+        } finally {
+          document.body.removeChild(textArea)
+        }
+      }
+      message.success('URL已复制到剪贴板')
+    } catch (error) {
+      message.error('复制失败，请手动复制')
+    }
   }
 
   const handleSubmit = async () => {
