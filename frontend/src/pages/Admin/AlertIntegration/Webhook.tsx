@@ -31,17 +31,14 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { inboundWebhookService, outboundWebhookService, InboundWebhook, OutboundWebhook } from '@/services/webhookService'
 import { alertReceiverService, AlertReceiver } from '@/services/alertReceiverService'
+import { WEBHOOK_TYPE_MAP, RECEIVER_TYPE_MAP, DEFAULT_PAGE_SIZE } from './constants'
+import { useInboundWebhookStats, useOutboundWebhookStats } from './hooks/useWebhookStats'
+import StatCard from './components/StatCard'
 
 const { Title, Paragraph, Text } = Typography
 
 export default function AlertIntegrationWebhook() {
   const [activeTab, setActiveTab] = useState('inbound')
-
-  // 渲染接收外部告警标签页内容
-  const renderInboundTab = () => <InboundWebhooks />
-
-  // 渲染ITCMDB推送标签页内容
-  const renderOutboundTab = () => <OutboundWebhooks />
 
   return (
     <div>
@@ -79,7 +76,7 @@ export default function AlertIntegrationWebhook() {
                   接收外部告警
                 </span>
               ),
-              children: renderInboundTab(),
+              children: <InboundWebhooks />,
             },
             {
               key: 'outbound',
@@ -89,7 +86,7 @@ export default function AlertIntegrationWebhook() {
                   ITCMDB推送
                 </span>
               ),
-              children: renderOutboundTab(),
+              children: <OutboundWebhooks />,
             },
           ]}
         />
@@ -107,6 +104,8 @@ function InboundWebhooks() {
   const [editingWebhook, setEditingWebhook] = useState<InboundWebhook | null>(null)
   const [form] = Form.useForm()
 
+  const stats = useInboundWebhookStats(webhooks)
+
   useEffect(() => {
     fetchInboundWebhooks()
   }, [])
@@ -115,8 +114,6 @@ function InboundWebhooks() {
     setLoading(true)
     try {
       const response = await inboundWebhookService.getWebhooks()
-      console.log('Inbound webhooks response:', response)
-      console.log('Inbound webhooks list:', response?.webhooks)
       setWebhooks(response?.webhooks || [])
     } catch (error) {
       console.error('Failed to fetch inbound webhooks:', error)
@@ -159,7 +156,6 @@ function InboundWebhooks() {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(url)
       } else {
-        // 备用方案：使用传统方法
         const textArea = document.createElement('textarea')
         textArea.value = url
         textArea.style.position = 'fixed'
@@ -212,13 +208,7 @@ function InboundWebhooks() {
       dataIndex: 'source_type',
       width: 150,
       render: (type: string) => {
-        const typeMap: Record<string, { text: string; color: string }> = {
-          alertmanager: { text: 'Alertmanager', color: 'orange' },
-          prometheus: { text: 'Prometheus', color: 'blue' },
-          victoriametrics: { text: 'VictoriaMetrics', color: 'green' },
-          custom: { text: '自定义', color: 'purple' },
-        }
-        const config = typeMap[type] || { text: type, color: 'default' }
+        const config = WEBHOOK_TYPE_MAP[type as keyof typeof WEBHOOK_TYPE_MAP] || { text: type, color: 'default' }
         return <Tag color={config.color}>{config.text}</Tag>
       },
     },
@@ -263,7 +253,7 @@ function InboundWebhooks() {
       key: 'action',
       width: 150,
       fixed: 'right',
-      render: (_: any, record: InboundWebhook) => (
+      render: (_: unknown, record: InboundWebhook) => (
         <Space size="small">
           <Button
             type="link"
@@ -292,44 +282,16 @@ function InboundWebhooks() {
     <div>
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 600, color: '#1890ff' }}>{webhooks.length}</div>
-              <div style={{ color: '#999', marginTop: 8 }}>接收地址总数</div>
-            </div>
-          </Card>
+          <StatCard value={stats.total} label="接收地址总数" color="#1890ff" />
         </Col>
         <Col span={6}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 600, color: '#52c41a' }}>
-                {webhooks.filter(w => w.enabled).length}
-              </div>
-              <div style={{ color: '#999', marginTop: 8 }}>已启用</div>
-            </div>
-          </Card>
+          <StatCard value={stats.enabled} label="已启用" color="#52c41a" />
         </Col>
         <Col span={6}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 600, color: '#13c2c2' }}>
-                {webhooks.filter(w => w.last_received &&
-                  new Date(w.last_received!) > new Date(Date.now() - 3600000)).length
-                }
-              </div>
-              <div style={{ color: '#999', marginTop: 8 }}>活跃（1小时内）</div>
-            </div>
-          </Card>
+          <StatCard value={stats.activeInLastHour} label="活跃（1小时内）" color="#13c2c2" />
         </Col>
         <Col span={6}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 600, color: '#722ed1' }}>
-                {webhooks.reduce((acc, w) => acc + (w.last_received ? 1 : 0), 0)}
-              </div>
-              <div style={{ color: '#999', marginTop: 8 }}>有接收记录</div>
-            </div>
-          </Card>
+          <StatCard value={stats.withRecords} label="有接收记录" color="#722ed1" />
         </Col>
       </Row>
 
@@ -432,6 +394,8 @@ function OutboundWebhooks() {
   const [targetType, setTargetType] = useState<'alertmanager' | 'receiver'>('alertmanager')
   const [form] = Form.useForm()
 
+  const stats = useOutboundWebhookStats(webhooks)
+
   useEffect(() => {
     fetchOutboundWebhooks()
     fetchAllReceivers()
@@ -439,7 +403,7 @@ function OutboundWebhooks() {
 
   const fetchAllReceivers = async () => {
     try {
-      const response = await alertReceiverService.getReceivers({ page: 1, page_size: 1000 })
+      const response = await alertReceiverService.getReceivers({ page: 1, page_size: DEFAULT_PAGE_SIZE })
       if (response?.receivers) {
         setReceivers(response.receivers)
       }
@@ -448,16 +412,10 @@ function OutboundWebhooks() {
     }
   }
 
-  useEffect(() => {
-    fetchOutboundWebhooks()
-  }, [])
-
   const fetchOutboundWebhooks = async () => {
     setLoading(true)
     try {
       const response = await outboundWebhookService.getWebhooks()
-      console.log('Outbound webhooks response:', response)
-      console.log('Outbound webhooks list:', response?.webhooks)
       setWebhooks(response?.webhooks || [])
     } catch (error) {
       console.error('Failed to fetch outbound webhooks:', error)
@@ -477,7 +435,7 @@ function OutboundWebhooks() {
 
   const handleEdit = (record: OutboundWebhook) => {
     setEditingWebhook(record)
-    setTargetType(record.target_type)
+    setTargetType(record.target_type as 'alertmanager' | 'receiver')
     form.setFieldsValue({
       name: record.name,
       target_type: record.target_type,
@@ -541,27 +499,16 @@ function OutboundWebhooks() {
       dataIndex: 'target_type',
       width: 150,
       render: (type: string) => {
-        const typeMap: Record<string, { text: string; color: string }> = {
-          alertmanager: { text: 'Alertmanager', color: 'orange' },
-          receiver: { text: '告警接收人', color: 'blue' },
-        }
-        const config = typeMap[type] || { text: type, color: 'default' }
+        const config = WEBHOOK_TYPE_MAP[type as keyof typeof WEBHOOK_TYPE_MAP] || { text: type, color: 'default' }
         return <Tag color={config.color}>{config.text}</Tag>
       },
     },
     {
       title: '推送目标',
       width: 300,
-      render: (_: any, record: OutboundWebhook) => {
+      render: (_: unknown, record: OutboundWebhook) => {
         if (record.target_type === 'receiver' && record.receiver) {
-          const typeMap: Record<string, { text: string; color: string }> = {
-            wechat: { text: '企业微信', color: 'green' },
-            dingtalk: { text: '钉钉', color: 'blue' },
-            feishu: { text: '飞书', color: 'cyan' },
-            email: { text: '邮件', color: 'purple' },
-            sms: { text: '短信', color: 'magenta' },
-          }
-          const config = typeMap[record.receiver.type] || { text: record.receiver.type, color: 'default' }
+          const config = RECEIVER_TYPE_MAP[record.receiver.type as keyof typeof RECEIVER_TYPE_MAP] || { text: record.receiver.type, color: 'default' }
           return (
             <Space>
               <Tag color={config.color}>{config.text}</Tag>
@@ -597,7 +544,7 @@ function OutboundWebhooks() {
       key: 'action',
       width: 200,
       fixed: 'right',
-      render: (_: any, record: OutboundWebhook) => (
+      render: (_: unknown, record: OutboundWebhook) => (
         <Space size="small">
           <Button
             type="link"
@@ -633,34 +580,13 @@ function OutboundWebhooks() {
     <div>
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={8}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 600, color: '#1890ff' }}>{webhooks.length}</div>
-              <div style={{ color: '#999', marginTop: 8 }}>推送目标总数</div>
-            </div>
-          </Card>
+          <StatCard value={stats.total} label="推送目标总数" color="#1890ff" />
         </Col>
         <Col span={8}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 600, color: '#52c41a' }}>
-                {webhooks.filter(w => w.enabled).length}
-              </div>
-              <div style={{ color: '#999', marginTop: 8 }}>已启用</div>
-            </div>
-          </Card>
+          <StatCard value={stats.enabled} label="已启用" color="#52c41a" />
         </Col>
         <Col span={8}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 600, color: '#13c2c2' }}>
-                {webhooks.filter(w => w.last_sent &&
-                  new Date(w.last_sent!) > new Date(Date.now() - 3600000)).length
-                }
-              </div>
-              <div style={{ color: '#999', marginTop: 8 }}>活跃（1小时内）</div>
-            </div>
-          </Card>
+          <StatCard value={stats.activeInLastHour} label="活跃（1小时内）" color="#13c2c2" />
         </Col>
       </Row>
 
@@ -729,14 +655,7 @@ function OutboundWebhooks() {
             >
               <Select placeholder="请选择已配置的告警接收人">
                 {receivers.map(recv => {
-                  const typeMap: Record<string, { text: string; color: string }> = {
-                    wechat: { text: '企业微信', color: 'green' },
-                    dingtalk: { text: '钉钉', color: 'blue' },
-                    feishu: { text: '飞书', color: 'cyan' },
-                    email: { text: '邮件', color: 'purple' },
-                    sms: { text: '短信', color: 'magenta' },
-                  }
-                  const config = typeMap[recv.type] || { text: recv.type, color: 'default' }
+                  const config = RECEIVER_TYPE_MAP[recv.type as keyof typeof RECEIVER_TYPE_MAP] || { text: recv.type, color: 'default' }
                   return (
                     <Select.Option key={recv.id} value={recv.id}>
                       <Space>

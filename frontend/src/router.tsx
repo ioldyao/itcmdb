@@ -38,8 +38,6 @@ import AdminAudit from '@/pages/Admin/Audit'
 import AdminDefaultPage from '@/pages/Admin/DefaultPage'
 import AdminAlertReceivers from '@/pages/Admin/AlertReceivers'
 import AdminAlertReceiverGroups from '@/pages/Admin/AlertReceiverGroups'
-import AlertIntegrationLayout from '@/pages/Admin/AlertIntegration'
-import AlertIntegrationConfig from '@/pages/Admin/AlertIntegration/Config'
 import AlertIntegrationWebhook from '@/pages/Admin/AlertIntegration/Webhook'
 import VictoriaMetrics from '@/pages/Monitoring/VictoriaMetrics'
 
@@ -71,6 +69,7 @@ const router = createBrowserRouter([
           { path: 'roles', element: <CIRoles /> },
           { path: 'tags', element: <Tags /> },
           { path: 'instances/:id', element: <CIDetail /> },
+          { path: 'victoriametrics', element: <VictoriaMetrics /> },
         ],
       },
       {
@@ -88,6 +87,7 @@ const router = createBrowserRouter([
           { path: ':id', element: <AlertDetail /> },
           { path: 'rules', element: <AlertRules /> },
           { path: 'history', element: <AlertHistory /> },
+          { path: 'integration/webhook', element: <AlertIntegrationWebhook /> },
         ],
       },
       {
@@ -111,42 +111,9 @@ const router = createBrowserRouter([
               </PermissionGuard>
             )
           },
-          { path: 'victoriametrics', element: <VictoriaMetrics /> },
           { path: 'audit', element: <AdminAudit /> },
           { path: 'alert-receivers', element: <AdminAlertReceivers /> },
           { path: 'alert-receiver-groups', element: <AdminAlertReceiverGroups /> },
-          {
-            path: 'alert-integration',
-            element: <AlertIntegrationLayout />,
-            children: [
-              {
-                index: true,
-                element: <Navigate to="/admin/alert-integration/config" replace />
-              },
-              {
-                path: 'config',
-                element: <AlertIntegrationConfig />,
-                children: [
-                  {
-                    index: true,
-                    element: <Navigate to="/admin/alert-integration/config/receivers" replace />
-                  },
-                  {
-                    path: 'receivers',
-                    element: <AdminAlertReceivers />
-                  },
-                  {
-                    path: 'groups',
-                    element: <AdminAlertReceiverGroups />
-                  }
-                ]
-              },
-              {
-                path: 'webhook',
-                element: <AlertIntegrationWebhook />
-              }
-            ]
-          }
         ],
       },
     ],

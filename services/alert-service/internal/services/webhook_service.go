@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/itcmdb/alert-service/internal/models"
@@ -17,10 +18,16 @@ import (
 
 // WebhookService Webhook服务
 type WebhookService struct {
-	db            *gorm.DB
-	httpClient    *http.Client
-	notifyService *NotificationService
-	routingService *RoutingService
+	db               *gorm.DB
+	httpClient       *http.Client
+	notifyService    *NotificationService
+	routingService   *RoutingService
+	dlqService       *DeadLetterService
+	metricsService   *MetricsService
+	rateLimiter      *RateLimiter
+	circuitBreakers  map[int]*CircuitBreaker // webhookID -> CircuitBreaker
+	retryConfig      *RetryConfig
+	mu               sync.RWMutex
 }
 
 // NewWebhookService 创建Webhook服务
@@ -30,8 +37,13 @@ func NewWebhookService(db *gorm.DB) *WebhookService {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		notifyService: NewNotificationService(),
-		routingService: NewRoutingService(db),
+		notifyService:   NewNotificationService(),
+		routingService:  NewRoutingService(db),
+		dlqService:      NewDeadLetterService(db),
+		metricsService:  NewMetricsService(db),
+		rateLimiter:     NewRateLimiter(100, 200), // 100 req/s, 容量200
+		circuitBreakers: make(map[int]*CircuitBreaker),
+		retryConfig:     DefaultRetryConfig(),
 	}
 }
 
@@ -161,7 +173,7 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 	alertID := fmt.Sprintf("%s-%s", webhook.SourceType, fingerprint)
 
 	// 匹配路由规则（用于记录和通知）
-	receiverGroupIDs, err := s.routingService.MatchReceiverGroups(labelsMap, webhook.DefaultReceiverGroupID)
+	receiverGroupIDs, err := s.routingService.MatchReceiverGroups(labelsMap, nil)
 	if err != nil {
 		fmt.Printf("[ERROR] Failed to match routing rules: %v\n", err)
 	}
@@ -220,7 +232,7 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 
 	// 2. 检查是否已存在（去重）- 使用fingerprint查找
 	var existingAlert models.AlertInstance
-	err := s.db.Where("fingerprint = ? AND category = ?", fingerprint, webhook.SourceType).First(&existingAlert).Error
+	err = s.db.Where("fingerprint = ? AND category = ?", fingerprint, webhook.SourceType).First(&existingAlert).Error
 
 	now := time.Now()
 	if err == nil {
@@ -257,7 +269,6 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 			LastTriggered:     now,
 			Tags:              convertStringMapToJSONMap(labelsMap),
 			TriggerConditions: convertStringMapToJSONMap(annotationsMap),
-			RoutingRuleID:     routingRuleID,
 		}
 
 		// 设置通知渠道（记录匹配到的接收人组）
@@ -453,41 +464,110 @@ func (s *WebhookService) sendToReceiver(receiver *models.AlertReceiver, alertDat
 	)
 }
 
-// sendHTTP 发送HTTP请求
+// sendHTTP 发送HTTP请求（带企业级特性）
 func (s *WebhookService) sendHTTP(webhook *models.OutboundWebhook, url string, payload interface{}, alertData map[string]interface{}) error {
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal payload: %w", err)
+	// 1. 速率限制检查
+	if !s.rateLimiter.Allow() {
+		err := fmt.Errorf("rate limit exceeded")
+		s.metricsService.RecordRequest(webhook.ID, "outbound", false, 0)
+		return err
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+	// 2. 获取或创建断路器
+	cb := s.getOrCreateCircuitBreaker(webhook.ID)
+
+	// 3. 使用断路器和重试机制发送请求
+	startTime := time.Now()
+	var lastErr error
+
+	err := cb.Call(func() error {
+		return RetryWithExponentialBackoff(s.retryConfig, func() error {
+			body, err := json.Marshal(payload)
+			if err != nil {
+				return fmt.Errorf("failed to marshal payload: %w", err)
+			}
+
+			req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+			if err != nil {
+				return fmt.Errorf("failed to create request: %w", err)
+			}
+
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := s.httpClient.Do(req)
+			if err != nil {
+				lastErr = err
+				return fmt.Errorf("failed to send webhook: %w", err)
+			}
+			defer resp.Body.Close()
+
+			respBody, _ := io.ReadAll(resp.Body)
+
+			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				lastErr = fmt.Errorf("webhook returned status %d: %s", resp.StatusCode, string(respBody))
+				return lastErr
+			}
+
+			// 成功响应
+			s.logOutboundSuccess(webhook.ID, alertData, resp.StatusCode, string(respBody))
+			return nil
+		})
+	})
+
+	// 4. 记录指标
+	responseTime := float64(time.Since(startTime).Milliseconds())
+	success := err == nil
+	s.metricsService.RecordRequest(webhook.ID, "outbound", success, responseTime)
+
+	// 5. 更新断路器状态到数据库
+	state := "closed"
+	switch cb.GetState() {
+	case StateOpen:
+		state = "open"
+	case StateHalfOpen:
+		state = "half_open"
 	}
+	s.metricsService.UpdateCircuitState(webhook.ID, "outbound", state)
 
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.httpClient.Do(req)
+	// 6. 如果失败，添加到死信队列
 	if err != nil {
+		s.dlqService.AddToDeadLetter(webhook.ID, "outbound", alertData, err)
 		s.logOutboundError(webhook.ID, alertData, err)
-		return fmt.Errorf("failed to send webhook: %w", err)
+		return err
 	}
-	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
-
-	// 更新最后发送时间
+	// 7. 更新最后发送时间
 	now := time.Now()
 	webhook.LastSent = &now
-	s.db.Save(webhook)
-
-	s.logOutboundSuccess(webhook.ID, alertData, resp.StatusCode, string(respBody))
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("webhook returned status %d: %s", resp.StatusCode, string(respBody))
+	if dbErr := s.db.Save(webhook).Error; dbErr != nil {
+		fmt.Printf("[ERROR] Failed to update webhook last_sent: %v\n", dbErr)
 	}
 
 	return nil
+}
+
+// getOrCreateCircuitBreaker 获取或创建断路器
+func (s *WebhookService) getOrCreateCircuitBreaker(webhookID int) *CircuitBreaker {
+	s.mu.RLock()
+	cb, exists := s.circuitBreakers[webhookID]
+	s.mu.RUnlock()
+
+	if exists {
+		return cb
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// 双重检查
+	if cb, exists := s.circuitBreakers[webhookID]; exists {
+		return cb
+	}
+
+	// 创建新的断路器：5次失败后打开，60秒后尝试恢复
+	cb = NewCircuitBreaker(5, 60*time.Second)
+	s.circuitBreakers[webhookID] = cb
+	return cb
 }
 
 // buildAlertmanagerPayload 构建Alertmanager格式的payload

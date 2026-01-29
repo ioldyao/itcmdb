@@ -13,19 +13,34 @@ import {
   Sun,
   Moon,
   Monitor,
+  ArrowLeft,
+  Webhook,
+  SlidersHorizontal,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import type { MenuProps } from 'antd'
+import { useState, useEffect } from 'react'
 
 const menuItems = [
   { key: '/dashboard', label: '仪表板', icon: LayoutDashboard },
-  { key: '/cmdb', label: 'CMDB', icon: Server },
+  { key: '/cmdb', label: 'CMDB', icon: Server, hasSubNav: true },
   { key: '/tickets', label: '工单', icon: FileText },
-  { key: '/alerts', label: '告警', icon: Bell },
+  { key: '/alerts', label: '告警', icon: Bell, hasSubNav: true },
   { key: '/reports', label: '报表', icon: BarChart3 },
   { key: '/admin', label: '系统', icon: Settings },
+]
+
+const cmdbSubMenuItems = [
+  { key: '/cmdb', label: 'CMDB', icon: Server },
+  { key: '/cmdb/victoriametrics', label: 'VictoriaMetrics配置', icon: Monitor },
+]
+
+const alertSubMenuItems = [
+  { key: '/alerts', label: '工单', icon: FileText },
+  { key: '/alerts/rules', label: '配置', icon: SlidersHorizontal },
+  { key: '/alerts/integration/webhook', label: 'Webhook', icon: Webhook },
 ]
 
 export default function MainLayout() {
@@ -33,6 +48,25 @@ export default function MainLayout() {
   const location = useLocation()
   const { user, logout, token } = useAuthStore()
   const { theme, setTheme } = useThemeStore()
+  const [showSubNav, setShowSubNav] = useState(false)
+  const [currentSubNav, setCurrentSubNav] = useState<'cmdb' | 'alerts' | null>(null)
+
+  // 检查当前是否在子导航模块下
+  useEffect(() => {
+    const isInAlerts = location.pathname.startsWith('/alerts')
+    const isInCMDB = location.pathname.startsWith('/cmdb')
+
+    if (isInAlerts) {
+      setShowSubNav(true)
+      setCurrentSubNav('alerts')
+    } else if (isInCMDB) {
+      setShowSubNav(true)
+      setCurrentSubNav('cmdb')
+    } else {
+      setShowSubNav(false)
+      setCurrentSubNav(null)
+    }
+  }, [location.pathname])
 
   const handleLogout = async () => {
     try {
@@ -45,6 +79,27 @@ export default function MainLayout() {
     }
     logout()
     navigate('/login')
+  }
+
+  // 处理 CMDB 菜单点击
+  const handleCMDBClick = () => {
+    setShowSubNav(true)
+    setCurrentSubNav('cmdb')
+    navigate('/cmdb')
+  }
+
+  // 处理告警菜单点击
+  const handleAlertClick = () => {
+    setShowSubNav(true)
+    setCurrentSubNav('alerts')
+    navigate('/alerts')
+  }
+
+  // 返回主导航
+  const handleBackToMain = () => {
+    setShowSubNav(false)
+    setCurrentSubNav(null)
+    navigate('/dashboard')
   }
 
   const userMenuItems: MenuProps['items'] = [
@@ -95,6 +150,14 @@ export default function MainLayout() {
     return location.pathname.startsWith(path)
   }
 
+  // 判断子导航项是否激活
+  const isSubNavActive = (path: string) => {
+    if (path === '/alerts') {
+      return location.pathname === '/alerts'
+    }
+    return location.pathname.startsWith(path)
+  }
+
   // 获取当前主题图标
   const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor
 
@@ -113,40 +176,120 @@ export default function MainLayout() {
               <span className="text-xl font-semibold text-gray-900 dark:text-text-primary">ITCMDB</span>
             </div>
 
-            {/* 横向菜单 */}
-            <nav className="flex items-center gap-1">
-              {menuItems.map((item) => {
-                const Icon = item.icon
-                const active = isActive(item.key)
-
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => navigate(item.key)}
-                    className={`
-                      relative px-4 py-2 rounded-lg flex items-center gap-2
-                      transition-all duration-200
-                      ${active
-                        ? 'text-brand-primary bg-brand-primary/10'
-                        : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5'
-                      }
-                    `}
+            {/* 横向菜单 - 主导航和子导航切换 */}
+            <nav className="flex items-center gap-1 relative h-10">
+              {/* 主导航 */}
+              <AnimatePresence mode="wait">
+                {!showSubNav && (
+                  <motion.div
+                    key="main-nav"
+                    initial={{ opacity: 0, x: -30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -30 }}
+                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    className="flex items-center gap-1"
                   >
-                    <Icon size={18} />
-                    <span className="text-sm font-medium">{item.label}</span>
+                    {menuItems.map((item) => {
+                      const Icon = item.icon
+                      const active = isActive(item.key)
 
-                    {/* 活动指示器 */}
-                    {active && (
-                      <motion.div
-                        layoutId="activeTab"
-                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary"
-                        initial={false}
-                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                      />
-                    )}
-                  </button>
-                )
-              })}
+                      return (
+                        <button
+                          key={item.key}
+                          onClick={() => {
+                            if (item.hasSubNav) {
+                              if (item.key === '/cmdb') {
+                                handleCMDBClick()
+                              } else if (item.key === '/alerts') {
+                                handleAlertClick()
+                              }
+                            } else {
+                              navigate(item.key)
+                            }
+                          }}
+                          className={`
+                            relative px-4 py-2 rounded-lg flex items-center gap-2
+                            transition-all duration-200
+                            ${active
+                              ? 'text-brand-primary bg-brand-primary/10'
+                              : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5'
+                            }
+                          `}
+                        >
+                          <Icon size={18} />
+                          <span className="text-sm font-medium">{item.label}</span>
+
+                          {/* 活动指示器 */}
+                          {active && (
+                            <motion.div
+                              layoutId="activeTab"
+                              className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary"
+                              initial={false}
+                              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                            />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* 子导航 - CMDB 或告警模块 */}
+              <AnimatePresence mode="wait">
+                {showSubNav && (
+                  <motion.div
+                    key={`sub-nav-${currentSubNav}`}
+                    initial={{ opacity: 0, x: 30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 30 }}
+                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    className="flex items-center gap-1"
+                  >
+                    {/* 返回按钮 */}
+                    <button
+                      onClick={handleBackToMain}
+                      className="px-3 py-2 rounded-lg flex items-center gap-2 text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5 transition-all duration-200"
+                    >
+                      <ArrowLeft size={18} />
+                    </button>
+
+                    {/* 子菜单项 */}
+                    {(currentSubNav === 'cmdb' ? cmdbSubMenuItems : alertSubMenuItems).map((item) => {
+                      const Icon = item.icon
+                      const active = isSubNavActive(item.key)
+
+                      return (
+                        <button
+                          key={item.key}
+                          onClick={() => navigate(item.key)}
+                          className={`
+                            relative px-4 py-2 rounded-lg flex items-center gap-2
+                            transition-all duration-200
+                            ${active
+                              ? 'text-brand-primary bg-brand-primary/10'
+                              : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5'
+                            }
+                          `}
+                        >
+                          <Icon size={18} />
+                          <span className="text-sm font-medium">{item.label}</span>
+
+                          {/* 活动指示器 */}
+                          {active && (
+                            <motion.div
+                              layoutId="activeSubTab"
+                              className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary"
+                              initial={false}
+                              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                            />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </nav>
           </div>
 

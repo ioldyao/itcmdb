@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -284,7 +285,10 @@ func (h *OutboundWebhookHandler) CreateOutboundWebhook(c *gin.Context) {
 	}
 
 	// 重新加载包含接收人的数据
-	h.db.Preload("Receiver").First(&webhook, webhook.ID)
+	if err := h.db.Preload("Receiver").First(&webhook, webhook.ID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, response.Error("Failed to reload webhook", err.Error()))
+		return
+	}
 
 	c.JSON(http.StatusCreated, webhook)
 }
@@ -336,7 +340,10 @@ func (h *OutboundWebhookHandler) UpdateOutboundWebhook(c *gin.Context) {
 	}
 
 	// 重新加载包含接收人的数据
-	h.db.Preload("Receiver").First(&webhook, webhook.ID)
+	if err := h.db.Preload("Receiver").First(&webhook, webhook.ID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, response.Error("Failed to reload webhook", err.Error()))
+		return
+	}
 
 	c.JSON(http.StatusOK, webhook)
 }
@@ -401,9 +408,23 @@ func HandleInboundWebhook(db *gorm.DB, webhookService *services.WebhookService) 
 	return func(c *gin.Context) {
 		token := c.Param("token")
 
-		// 根据token查找webhook配置
+		// 根据token查找webhook配置 - 使用精确匹配而不是LIKE查询
 		var webhook models.InboundWebhook
-		if err := db.Where("webhook_url LIKE ?", "%/inbound/"+token).First(&webhook).Error; err != nil {
+		// 构建完整URL进行精确匹配
+		scheme := c.GetHeader("X-Forwarded-Proto")
+		if scheme == "" {
+			scheme = "http"
+			if c.Request.TLS != nil {
+				scheme = "https"
+			}
+		}
+		host := c.GetHeader("X-Forwarded-Host")
+		if host == "" {
+			host = c.Request.Host
+		}
+		expectedURL := scheme + "://" + host + "/api/v1/webhooks/inbound/" + token
+
+		if err := db.Where("webhook_url = ?", expectedURL).First(&webhook).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				c.JSON(http.StatusNotFound, response.Error("Webhook not found", ""))
 			} else {
@@ -421,7 +442,10 @@ func HandleInboundWebhook(db *gorm.DB, webhookService *services.WebhookService) 
 		// 记录接收日志
 		now := time.Now()
 		webhook.LastReceived = &now
-		db.Save(&webhook)
+		if err := db.Save(&webhook).Error; err != nil {
+			// 记录错误但不阻止处理
+			logInboundError(db, webhook.ID, c, err)
+		}
 
 		// 根据类型解析payload
 		var alerts []map[string]interface{}
@@ -475,7 +499,10 @@ func logInboundSuccess(db *gorm.DB, webhookID int, c *gin.Context, alertCount in
 		StatusCode:   200,
 		ProcessedAt:  time.Now(),
 	}
-	db.Create(&log)
+	if err := db.Create(&log).Error; err != nil {
+		// 日志记录失败不应影响主流程，仅打印错误
+		fmt.Printf("[ERROR] Failed to create inbound webhook log: %v\n", err)
+	}
 }
 
 // logInboundError 记录接收错误日志
@@ -488,5 +515,8 @@ func logInboundError(db *gorm.DB, webhookID int, c *gin.Context, err error) {
 		ErrorMessage:  err.Error(),
 		ProcessedAt:   time.Now(),
 	}
-	db.Create(&log)
+	if dbErr := db.Create(&log).Error; dbErr != nil {
+		// 日志记录失败不应影响主流程，仅打印错误
+		fmt.Printf("[ERROR] Failed to create inbound webhook error log: %v\n", dbErr)
+	}
 }

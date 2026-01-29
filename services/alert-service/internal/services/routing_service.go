@@ -146,7 +146,7 @@ func (s *RoutingService) RouteAndNotify(alertData map[string]interface{}, inboun
 	labelsMap := getStringMapValue(alertData, "labels")
 
 	// 匹配接收人组
-	receiverGroupIDs, err := s.MatchReceiverGroups(labelsMap, inboundWebhook.DefaultReceiverGroupID)
+	receiverGroupIDs, err := s.MatchReceiverGroups(labelsMap, nil)
 	if err != nil {
 		return fmt.Errorf("failed to match receiver groups: %w", err)
 	}
@@ -179,32 +179,32 @@ func (s *RoutingService) RouteAndNotify(alertData map[string]interface{}, inboun
 		}
 
 		// 获取组中的所有接收人
-		if group.Members != nil {
-			for _, member := range group.Members {
-				if member.Receiver == nil || !member.Receiver.Enabled {
+		if group.Receivers != nil {
+			for _, receiver := range group.Receivers {
+				if !receiver.Enabled {
 					continue
 				}
 
 				// 渲染模板
-				message, err := s.RenderTemplate(member.Receiver.Type, templateData, nil)
+				message, err := s.RenderTemplate(receiver.Type, templateData, nil)
 				if err != nil {
 					fmt.Printf("[ERROR] Failed to render template: %v\n", err)
 					continue
 				}
 
 				// 异步发送通知
-				go func(receiver *models.AlertReceiver) {
+				go func(recv models.AlertReceiver) {
 					if err := s.notifyService.SendNotification(
-						receiver.Type,
-						receiver.WebhookURL,
-						receiver.Secret,
+						recv.Type,
+						recv.WebhookURL,
+						recv.Secret,
 						message,
 					); err != nil {
-						fmt.Printf("[ERROR] Failed to send notification to %s: %v\n", receiver.Name, err)
+						fmt.Printf("[ERROR] Failed to send notification to %s: %v\n", recv.Name, err)
 					} else {
-						fmt.Printf("[INFO] Successfully sent notification to %s\n", receiver.Name)
+						fmt.Printf("[INFO] Successfully sent notification to %s\n", recv.Name)
 					}
-				}(member.Receiver)
+				}(receiver)
 			}
 		}
 	}

@@ -1,8 +1,6 @@
 package models
 
 import (
-	"database/sql/driver"
-	"encoding/json"
 	"time"
 )
 
@@ -154,24 +152,3 @@ type UpdateAlertNotificationTemplateRequest struct {
 // ============================================
 // JSONB 自定义类型 (已在alert.go中定义，这里不需要重复定义)
 // ============================================
-
-// Scan 实现 sql.Scanner 接口
-func (j *JSONMap) Scan(value interface{}) error {
-	if value == nil {
-		*j = nil
-		return nil
-	}
-	bytes, ok := value.([]byte)
-	if !ok {
-		return nil
-	}
-	return json.Unmarshal(bytes, j)
-}
-
-// Value 实现 driver.Valuer 接口
-func (j JSONMap) Value() (driver.Value, error) {
-	if j == nil {
-		return nil, nil
-	}
-	return json.Marshal(j)
-}
