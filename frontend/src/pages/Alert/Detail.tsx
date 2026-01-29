@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Tabs, Descriptions, Tag, Button, Spin, message, Space, Divider } from 'antd'
+import { Card, Tabs, Descriptions, Tag, Button, Spin, message, Space } from 'antd'
 import { ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { useAlertStore } from '@/stores/alertStore'
 import { useAuthStore } from '@/stores/authStore'
