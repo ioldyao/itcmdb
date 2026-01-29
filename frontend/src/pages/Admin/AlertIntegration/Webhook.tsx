@@ -115,7 +115,7 @@ function InboundWebhooks() {
     setLoading(true)
     try {
       const response = await inboundWebhookService.getWebhooks()
-      setWebhooks(response?.webhooks || [])
+      setWebhooks(response?.data?.webhooks || [])
     } catch (error) {
       message.error('获取接收地址失败')
       setWebhooks([])
@@ -433,7 +433,7 @@ function OutboundWebhooks() {
     setLoading(true)
     try {
       const response = await outboundWebhookService.getWebhooks()
-      setWebhooks(response?.webhooks || [])
+      setWebhooks(response?.data?.webhooks || [])
     } catch (error) {
       message.error('获取推送配置失败')
       setWebhooks([])

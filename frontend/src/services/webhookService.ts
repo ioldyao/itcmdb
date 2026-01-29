@@ -70,8 +70,6 @@ export interface OutboundWebhookListResponse {
   webhooks: OutboundWebhook[]
 }
 
-const API_BASE = '/api/v1'
-
 // Inbound Webhook Service
 export const inboundWebhookService = {
   // 获取接收Webhook列表
