@@ -75,31 +75,31 @@ export const inboundWebhookService = {
   // 获取接收Webhook列表
   getWebhooks: async (params?: { page?: number; page_size?: number; source_type?: string; enabled?: boolean }): Promise<InboundWebhookListResponse> => {
     const response = await api.get<InboundWebhookListResponse>(`/webhooks/inbound`, { params })
-    return response
+    return response as unknown as InboundWebhookListResponse
   },
 
   // 获取接收Webhook详情
   getWebhook: async (id: number): Promise<InboundWebhook> => {
     const response = await api.get<InboundWebhook>(`/webhooks/inbound/${id}`)
-    return response
+    return response as unknown as InboundWebhook
   },
 
   // 创建接收Webhook
   createWebhook: async (data: CreateInboundWebhookRequest): Promise<InboundWebhook> => {
     const response = await api.post<InboundWebhook>(`/webhooks/inbound`, data)
-    return response
+    return response as unknown as InboundWebhook
   },
 
   // 更新接收Webhook
   updateWebhook: async (id: number, data: UpdateInboundWebhookRequest): Promise<InboundWebhook> => {
     const response = await api.put<InboundWebhook>(`/webhooks/inbound/${id}`, data)
-    return response
+    return response as unknown as InboundWebhook
   },
 
   // 删除接收Webhook
   deleteWebhook: async (id: number): Promise<{ message: string }> => {
     const response = await api.delete<{ message: string }>(`/webhooks/inbound/${id}`)
-    return response
+    return response as unknown as { message: string }
   },
 }
 
@@ -108,36 +108,36 @@ export const outboundWebhookService = {
   // 获取推送Webhook列表
   getWebhooks: async (params?: { page?: number; page_size?: number; target_type?: string; enabled?: boolean }): Promise<OutboundWebhookListResponse> => {
     const response = await api.get<OutboundWebhookListResponse>(`/webhooks/outbound`, { params })
-    return response
+    return response as unknown as OutboundWebhookListResponse
   },
 
   // 获取推送Webhook详情
   getWebhook: async (id: number): Promise<OutboundWebhook> => {
     const response = await api.get<OutboundWebhook>(`/webhooks/outbound/${id}`)
-    return response
+    return response as unknown as OutboundWebhook
   },
 
   // 创建推送Webhook
   createWebhook: async (data: CreateOutboundWebhookRequest): Promise<OutboundWebhook> => {
     const response = await api.post<OutboundWebhook>(`/webhooks/outbound`, data)
-    return response
+    return response as unknown as OutboundWebhook
   },
 
   // 更新推送Webhook
   updateWebhook: async (id: number, data: UpdateOutboundWebhookRequest): Promise<OutboundWebhook> => {
     const response = await api.put<OutboundWebhook>(`/webhooks/outbound/${id}`, data)
-    return response
+    return response as unknown as OutboundWebhook
   },
 
   // 删除推送Webhook
   deleteWebhook: async (id: number): Promise<{ message: string }> => {
     const response = await api.delete<{ message: string }>(`/webhooks/outbound/${id}`)
-    return response
+    return response as unknown as { message: string }
   },
 
   // 测试推送Webhook
   testWebhook: async (id: number): Promise<{ message: string }> => {
     const response = await api.post<{ message: string }>(`/webhooks/outbound/${id}/test`)
-    return response
+    return response as unknown as { message: string }
   },
 }
