@@ -43,8 +43,7 @@ const alertSubMenuItems = [
   { key: '/alerts', label: '告警', icon: Bell },
   { key: '/alerts/rules', label: '配置', icon: SlidersHorizontal },
   { key: '/alerts/integration/webhook', label: 'Webhook', icon: Webhook },
-  { key: '/alerts/receivers', label: '告警接收人', icon: UserPlus },
-  { key: '/alerts/receiver-groups', label: '告警接收组', icon: Users },
+  { key: '/alerts/receivers', label: '告警接收', icon: Users },
 ]
 
 export default function MainLayout() {
