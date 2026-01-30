@@ -407,23 +407,10 @@ func HandleInboundWebhook(db *gorm.DB, webhookService *services.WebhookService) 
 	return func(c *gin.Context) {
 		token := c.Param("token")
 
-		// 根据token查找webhook配置 - 使用精确匹配而不是LIKE查询
+		// 根据token查找webhook配置 - 使用token匹配而不是完整URL
+		// 因为可能存在多IP、负载均衡、反向代理等情况，导致请求URL和存储URL不一致
 		var webhook models.InboundWebhook
-		// 构建完整URL进行精确匹配
-		scheme := c.GetHeader("X-Forwarded-Proto")
-		if scheme == "" {
-			scheme = "http"
-			if c.Request.TLS != nil {
-				scheme = "https"
-			}
-		}
-		host := c.GetHeader("X-Forwarded-Host")
-		if host == "" {
-			host = c.Request.Host
-		}
-		expectedURL := scheme + "://" + host + "/api/v1/webhooks/inbound/" + token
-
-		if err := db.Where("webhook_url = ?", expectedURL).First(&webhook).Error; err != nil {
+		if err := db.Where("webhook_url LIKE ?", "%/api/v1/webhooks/inbound/"+token).First(&webhook).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				c.JSON(http.StatusNotFound, response.Error("Webhook not found", ""))
 			} else {
