@@ -55,8 +55,17 @@ func main() {
 	// 初始化告警引擎
 	alertEngine := services.NewAlertEngine(vmClient)
 
+	// 初始化路由引擎
+	routingEngine := services.NewRoutingEngine(db)
+
+	// 初始化通知服务
+	notificationService := services.NewNotificationService()
+
+	// 初始化通知管道
+	notificationPipeline := services.NewNotificationPipeline(db, routingEngine, notificationService)
+
 	// 初始化Webhook服务
-	webhookService := services.NewWebhookService(db)
+	webhookService := services.NewWebhookService(db, notificationPipeline)
 
 	// 初始化JWT管理器
 	jwtManager := auth.NewJWTManager(
@@ -70,7 +79,7 @@ func main() {
 	}
 
 	r := gin.Default()
-	setupRoutes(r, db, alertEngine, vmClient, webhookService, jwtManager)
+	setupRoutes(r, db, alertEngine, vmClient, webhookService, jwtManager, routingEngine)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
 	logger.Info("Alert service starting", zap.String("addr", addr))
@@ -138,7 +147,7 @@ func autoMigrate(db *gorm.DB) error {
 	return nil
 }
 
-func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, vmClient *services.VictoriaMetricsClient, webhookService *services.WebhookService, jwtManager *auth.JWTManager) {
+func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, vmClient *services.VictoriaMetricsClient, webhookService *services.WebhookService, jwtManager *auth.JWTManager, routingEngine *services.RoutingEngine) {
 	// 健康检查
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
@@ -222,7 +231,7 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 			protected.POST("/webhooks/outbound/:id/test", outboundHandler.TestOutboundWebhook)
 
 			// 路由规则管理
-			routingHandler := handlers.NewRoutingHandler(db)
+			routingHandler := handlers.NewRoutingHandler(db, routingEngine)
 			protected.GET("/alert-routing-rules", routingHandler.ListRoutingRules)
 			protected.GET("/alert-routing-rules/:id", routingHandler.GetRoutingRule)
 			protected.POST("/alert-routing-rules", routingHandler.CreateRoutingRule)
