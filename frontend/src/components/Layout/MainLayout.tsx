@@ -40,7 +40,7 @@ const cmdbSubMenuItems = [
 
 const alertSubMenuItems = [
   { key: '/alerts', label: '告警', icon: Bell },
-  { key: '/alerts/rules', label: '配置', icon: SlidersHorizontal },
+  { key: '/alerts/rules', label: '规则配置', icon: SlidersHorizontal },
   { key: '/alerts/integration/webhook', label: 'Webhook', icon: Webhook },
   { key: '/alerts/receivers', label: '告警接收', icon: Users },
 ]
