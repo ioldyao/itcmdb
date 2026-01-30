@@ -22,7 +22,6 @@ type WebhookService struct {
 	httpClient          *http.Client
 	notifyService       *NotificationService
 	routingService      *RoutingService
-	notificationPipeline *NotificationPipeline
 	dlqService          *DeadLetterService
 	metricsService      *MetricsService
 	rateLimiter         *RateLimiter
@@ -32,7 +31,7 @@ type WebhookService struct {
 }
 
 // NewWebhookService 创建Webhook服务
-func NewWebhookService(db *gorm.DB, notificationPipeline *NotificationPipeline) *WebhookService {
+func NewWebhookService(db *gorm.DB) *WebhookService {
 	return &WebhookService{
 		db: db,
 		httpClient: &http.Client{
@@ -40,7 +39,6 @@ func NewWebhookService(db *gorm.DB, notificationPipeline *NotificationPipeline) 
 		},
 		notifyService:        NewNotificationService(),
 		routingService:       NewRoutingService(db),
-		notificationPipeline: notificationPipeline,
 		dlqService:           NewDeadLetterService(db),
 		metricsService:       NewMetricsService(db),
 		rateLimiter:          NewRateLimiter(100, 200), // 100 req/s, 容量200
@@ -259,15 +257,26 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 		return fmt.Errorf("failed to query alert: %w", err)
 	}
 
-	// 4. 使用新的通知管道进行路由和发送通知
-	if s.notificationPipeline != nil {
-		go func() {
-			if err := s.notificationPipeline.ProcessAlert(alertInstance); err != nil {
-				// 记录错误但不影响告警创建
-				fmt.Printf("Failed to process alert through notification pipeline: %v\n", err)
-			}
-		}()
-	}
+	// 4. 使用 RoutingService 进行路由和发送通知
+	go func() {
+		// 准备告警数据
+		alertData := map[string]interface{}{
+			"alert_id":    alertInstance.AlertID,
+			"title":       alertInstance.Title,
+			"content":     alertInstance.Description,
+			"severity":    alertInstance.Severity,
+			"status":      alertInstance.Status,
+			"instance":    alertInstance.ObjectType,
+			"labels":      labelsMap,
+			"annotations": annotationsMap,
+			"timestamp":   alertInstance.LastTriggered.Format(time.RFC3339),
+		}
+
+		if err := s.routingService.RouteAndNotify(alertData, webhook, alertInstance.ID, nil); err != nil {
+			// 记录错误但不影响告警创建
+			fmt.Printf("Failed to route and notify alert: %v\n", err)
+		}
+	}()
 
 	return nil
 }

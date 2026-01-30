@@ -742,38 +742,32 @@ ADD COLUMN IF NOT EXISTS routing_rule_id INTEGER REFERENCES alert_routing_rules(
 
 CREATE INDEX IF NOT EXISTS idx_alert_instances_routing_rule_id ON alert_instances(routing_rule_id);
 
--- 死信队列表
-CREATE TABLE IF NOT EXISTS dead_letter_queues (
-    id SERIAL PRIMARY KEY,
-    webhook_id INTEGER NOT NULL,
-    webhook_type VARCHAR(20) NOT NULL,
-    alert_data JSONB,
-    error_message TEXT,
-    retry_count INTEGER DEFAULT 0,
-    last_retry_at TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- ============================================
+-- 架构修复：添加模板关联字段
+-- ============================================
 
-CREATE INDEX IF NOT EXISTS idx_dlq_webhook_id ON dead_letter_queues(webhook_id);
-CREATE INDEX IF NOT EXISTS idx_dlq_status ON dead_letter_queues(status);
+-- 为路由规则添加模板ID字段（优先级最高）
+ALTER TABLE alert_routing_rules
+ADD COLUMN IF NOT EXISTS template_id INTEGER REFERENCES alert_notification_templates(id) ON DELETE SET NULL;
 
--- Webhook指标表
-CREATE TABLE IF NOT EXISTS webhook_metrics (
-    id SERIAL PRIMARY KEY,
-    webhook_id INTEGER NOT NULL UNIQUE,
-    webhook_type VARCHAR(20) NOT NULL,
-    total_requests BIGINT DEFAULT 0,
-    success_requests BIGINT DEFAULT 0,
-    failed_requests BIGINT DEFAULT 0,
-    avg_response_time DOUBLE PRECISION DEFAULT 0,
-    last_request_at TIMESTAMP,
-    circuit_state VARCHAR(20) DEFAULT 'closed',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+COMMENT ON COLUMN alert_routing_rules.template_id IS '路由规则指定的通知模板ID（优先级最高）';
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_template_id ON alert_routing_rules(template_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_webhook_metrics_webhook ON webhook_metrics(webhook_id, webhook_type);
+-- 为接收人添加默认模板ID字段（如果路由规则未指定模板则使用此模板）
+ALTER TABLE alert_receivers
+ADD COLUMN IF NOT EXISTS default_template_id INTEGER REFERENCES alert_notification_templates(id) ON DELETE SET NULL;
+
+COMMENT ON COLUMN alert_receivers.default_template_id IS '接收人的默认通知模板ID（如果路由规则未指定模板则使用此模板）';
+CREATE INDEX IF NOT EXISTS idx_alert_receivers_default_template_id ON alert_receivers(default_template_id);
+
+-- 为 notification_logs 添加缺失的索引
+CREATE INDEX IF NOT EXISTS idx_notification_logs_routing_rule_id ON notification_logs(routing_rule_id);
+
+-- 更新表注释说明新的架构
+COMMENT ON TABLE alert_routing_rules IS '告警路由规则表：定义告警如何路由到接收组，以及使用哪个通知模板';
+COMMENT ON TABLE alert_receivers IS '告警接收人表：定义通知发送的目标（钉钉/飞书/企业微信等），每个接收人可指定默认模板';
+COMMENT ON TABLE alert_notification_templates IS '通知模板表：定义不同类型接收人的消息格式模板';
+COMMENT ON TABLE notification_logs IS '统一通知日志表：记录所有通知的发送状态、重试次数和结果';
 
 -- ============================================
 -- 通知模块

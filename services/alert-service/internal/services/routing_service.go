@@ -5,35 +5,69 @@ import (
 	"fmt"
 	"html/template"
 	"sort"
+	"sync"
+	"time"
 
 	"github.com/itcmdb/alert-service/internal/models"
 	"github.com/itcmdb/alert-service/internal/repositories"
 	"gorm.io/gorm"
 )
 
+// routingCache 路由规则缓存
+type routingCache struct {
+	rules      []models.AlertRoutingRule
+	lastUpdate time.Time
+	ttl        time.Duration
+	mu         sync.RWMutex
+}
+
 // RoutingService 路由服务
 type RoutingService struct {
-	db              *gorm.DB
-	notifyService   *NotificationService
-	ruleRepo        *repositories.AlertRoutingRuleRepository
-	templateRepo    *repositories.AlertNotificationTemplateRepository
+	db                *gorm.DB
+	notifyService     *NotificationService
+	ruleRepo          *repositories.AlertRoutingRuleRepository
+	templateRepo      *repositories.AlertNotificationTemplateRepository
 	receiverGroupRepo *repositories.AlertReceiverGroupRepository
+	cache             *routingCache
 }
 
 // NewRoutingService 创建路由服务
 func NewRoutingService(db *gorm.DB) *RoutingService {
 	return &RoutingService{
-		db:              db,
-		notifyService:   NewNotificationService(),
-		ruleRepo:        repositories.NewAlertRoutingRuleRepository(db),
-		templateRepo:    repositories.NewAlertNotificationTemplateRepository(db),
+		db:                db,
+		notifyService:     NewNotificationService(),
+		ruleRepo:          repositories.NewAlertRoutingRuleRepository(db),
+		templateRepo:      repositories.NewAlertNotificationTemplateRepository(db),
 		receiverGroupRepo: repositories.NewAlertReceiverGroupRepository(db),
+		cache: &routingCache{
+			rules:      []models.AlertRoutingRule{},
+			lastUpdate: time.Time{},
+			ttl:        5 * time.Minute, // 5分钟缓存TTL
+		},
 	}
 }
 
-// MatchReceiverGroups 根据告警labels匹配接收人组
-func (s *RoutingService) MatchReceiverGroups(labels map[string]string, defaultReceiverGroupID *int) ([]int, error) {
-	// 获取所有启用的路由规则，按优先级排序
+// getRoutingRules 获取路由规则（带缓存）
+func (s *RoutingService) getRoutingRules() ([]models.AlertRoutingRule, error) {
+	s.cache.mu.RLock()
+	// 检查缓存是否有效
+	if time.Since(s.cache.lastUpdate) < s.cache.ttl && len(s.cache.rules) > 0 {
+		rules := s.cache.rules
+		s.cache.mu.RUnlock()
+		return rules, nil
+	}
+	s.cache.mu.RUnlock()
+
+	// 缓存失效，重新加载
+	s.cache.mu.Lock()
+	defer s.cache.mu.Unlock()
+
+	// 双重检查，防止并发重复加载
+	if time.Since(s.cache.lastUpdate) < s.cache.ttl && len(s.cache.rules) > 0 {
+		return s.cache.rules, nil
+	}
+
+	// 从数据库加载
 	rules, err := s.ruleRepo.FindEnabled()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get routing rules: %w", err)
@@ -43,6 +77,28 @@ func (s *RoutingService) MatchReceiverGroups(labels map[string]string, defaultRe
 	sort.Slice(rules, func(i, j int) bool {
 		return rules[i].Priority < rules[j].Priority
 	})
+
+	// 更新缓存
+	s.cache.rules = rules
+	s.cache.lastUpdate = time.Now()
+
+	return rules, nil
+}
+
+// InvalidateCache 使缓存失效
+func (s *RoutingService) InvalidateCache() {
+	s.cache.mu.Lock()
+	defer s.cache.mu.Unlock()
+	s.cache.lastUpdate = time.Time{}
+}
+
+// MatchReceiverGroups 根据告警labels匹配接收人组
+func (s *RoutingService) MatchReceiverGroups(labels map[string]string, defaultReceiverGroupID *int) ([]int, error) {
+	// 获取所有启用的路由规则（使用缓存）
+	rules, err := s.getRoutingRules()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get routing rules: %w", err)
+	}
 
 	// 匹配的接收人组ID集合
 	matchedGroupIDs := make(map[int]bool)
@@ -140,8 +196,8 @@ func (s *RoutingService) executeTemplate(tplContent string, data *models.AlertTe
 	return buf.String(), nil
 }
 
-// RouteAndNotify 路由并通知
-func (s *RoutingService) RouteAndNotify(alertData map[string]interface{}, inboundWebhook *models.InboundWebhook) error {
+// RouteAndNotify 路由并通知（带通知日志和重试机制）
+func (s *RoutingService) RouteAndNotify(alertData map[string]interface{}, inboundWebhook *models.InboundWebhook, alertInstanceID int, routingRuleID *int) error {
 	// 提取labels
 	labelsMap := getStringMapValue(alertData, "labels")
 
@@ -185,31 +241,100 @@ func (s *RoutingService) RouteAndNotify(alertData map[string]interface{}, inboun
 					continue
 				}
 
+				// 选择模板：路由规则模板 > 接收人默认模板 > 系统默认模板
+				var templateID *int
+				if routingRuleID != nil {
+					rule, err := s.ruleRepo.FindByID(*routingRuleID)
+					if err == nil && rule.TemplateID != nil {
+						templateID = rule.TemplateID
+					}
+				}
+				if templateID == nil && receiver.DefaultTemplateID != nil {
+					templateID = receiver.DefaultTemplateID
+				}
+
 				// 渲染模板
-				message, err := s.RenderTemplate(receiver.Type, templateData, nil)
+				message, err := s.RenderTemplate(receiver.Type, templateData, templateID)
 				if err != nil {
 					fmt.Printf("[ERROR] Failed to render template: %v\n", err)
 					continue
 				}
 
+				// 创建通知日志
+				notifLog := &models.NotificationLog{
+					AlertInstanceID:  alertInstanceID,
+					ReceiverID:       receiver.ID,
+					ReceiverGroupID:  groupID,
+					RoutingRuleID:    routingRuleID,
+					Status:           "pending",
+					NotificationType: receiver.Type,
+					Subject:          templateData.Title,
+					Body:             fmt.Sprintf("%v", message),
+					MaxRetries:       3,
+					RetryCount:       0,
+				}
+
+				// 保存通知日志
+				if err := s.db.Create(notifLog).Error; err != nil {
+					fmt.Printf("[ERROR] Failed to create notification log: %v\n", err)
+					continue
+				}
+
 				// 异步发送通知
-				go func(recv models.AlertReceiver) {
-					if err := s.notifyService.SendNotification(
-						recv.Type,
-						recv.WebhookURL,
-						recv.Secret,
-						message,
-					); err != nil {
-						fmt.Printf("[ERROR] Failed to send notification to %s: %v\n", recv.Name, err)
-					} else {
-						fmt.Printf("[INFO] Successfully sent notification to %s\n", recv.Name)
-					}
-				}(receiver)
+				go s.sendNotificationWithRetry(receiver, message, notifLog)
 			}
 		}
 	}
 
 	return nil
+}
+
+// sendNotificationWithRetry 发送通知并处理重试
+func (s *RoutingService) sendNotificationWithRetry(receiver models.AlertReceiver, message interface{}, notifLog *models.NotificationLog) {
+	err := s.notifyService.SendNotification(
+		receiver.Type,
+		receiver.WebhookURL,
+		receiver.Secret,
+		message,
+	)
+
+	if err != nil {
+		fmt.Printf("[ERROR] Failed to send notification to %s: %v\n", receiver.Name, err)
+
+		// 检查是否可以重试
+		if notifLog.IsRetryable() {
+			// 计算下次重试时间（指数退避：1分钟、5分钟、15分钟）
+			retryDelays := []time.Duration{1 * time.Minute, 5 * time.Minute, 15 * time.Minute}
+			nextRetryDelay := retryDelays[0]
+			if notifLog.RetryCount < len(retryDelays) {
+				nextRetryDelay = retryDelays[notifLog.RetryCount]
+			}
+			nextRetryAt := time.Now().Add(nextRetryDelay)
+
+			notifLog.MarkAsRetrying(nextRetryAt)
+			if updateErr := s.db.Save(notifLog).Error; updateErr != nil {
+				fmt.Printf("[ERROR] Failed to update notification log: %v\n", updateErr)
+			}
+
+			// 安排重试
+			time.AfterFunc(nextRetryDelay, func() {
+				s.sendNotificationWithRetry(receiver, message, notifLog)
+			})
+		} else {
+			// 超过最大重试次数
+			notifLog.MarkAsMaxRetriesExceeded()
+			notifLog.MarkAsFailed(err.Error())
+			if updateErr := s.db.Save(notifLog).Error; updateErr != nil {
+				fmt.Printf("[ERROR] Failed to update notification log: %v\n", updateErr)
+			}
+		}
+	} else {
+		fmt.Printf("[INFO] Successfully sent notification to %s\n", receiver.Name)
+		notifLog.MarkAsSent()
+		if updateErr := s.db.Save(notifLog).Error; updateErr != nil {
+			fmt.Printf("[ERROR] Failed to update notification log: %v\n", updateErr)
+		}
+	}
 }
 
 // GetRoutingRule 获取路由规则
@@ -238,6 +363,9 @@ func (s *RoutingService) CreateRoutingRule(req *models.CreateAlertRoutingRuleReq
 	if err := s.db.Create(rule).Error; err != nil {
 		return nil, fmt.Errorf("failed to create routing rule: %w", err)
 	}
+
+	// 使缓存失效
+	s.InvalidateCache()
 
 	return rule, nil
 }
@@ -280,12 +408,22 @@ func (s *RoutingService) UpdateRoutingRule(id int, req *models.UpdateAlertRoutin
 		return nil, fmt.Errorf("failed to update routing rule: %w", err)
 	}
 
+	// 使缓存失效
+	s.InvalidateCache()
+
 	return rule, nil
 }
 
 // DeleteRoutingRule 删除路由规则
 func (s *RoutingService) DeleteRoutingRule(id int) error {
-	return s.ruleRepo.Delete(id)
+	if err := s.ruleRepo.Delete(id); err != nil {
+		return err
+	}
+
+	// 使缓存失效
+	s.InvalidateCache()
+
+	return nil
 }
 
 // GetNotificationTemplate 获取通知模板

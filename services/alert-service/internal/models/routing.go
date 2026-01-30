@@ -17,6 +17,8 @@ type AlertRoutingRule struct {
 	MatchType         string                 `json:"match_type" gorm:"size:20;notNull;default:'match';check:match_type IN ('match','match_re')"`
 	ReceiverGroupID   *int                   `json:"receiver_group_id" gorm:"index"`
 	ReceiverGroup     *AlertReceiverGroup    `json:"receiver_group,omitempty" gorm:"foreignKey:ReceiverGroupID"`
+	TemplateID        *int                   `json:"template_id" gorm:"index"`
+	Template          *AlertNotificationTemplate `json:"template,omitempty" gorm:"foreignKey:TemplateID"`
 	Continue          bool                   `json:"continue" gorm:"default:false"`
 	Priority          int                    `json:"priority" gorm:"notNull;default:0"`
 	Enabled           bool                   `json:"enabled" gorm:"default:true;index"`

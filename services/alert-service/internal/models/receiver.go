@@ -19,17 +19,19 @@ type AlertReceiverGroup struct {
 
 // AlertReceiver 告警接收人
 type AlertReceiver struct {
-	ID          int                `json:"id" gorm:"primaryKey"`
-	Name        string             `json:"name" gorm:"not null" validate:"required"`
-	Type        string             `json:"type" gorm:"not null;type:varchar(50)" validate:"required,oneof=wechat dingtalk feishu email sms"`
-	WebhookURL  string             `json:"webhook_url" gorm:"type:text"`
-	AtMobiles   StringArray        `json:"at_mobiles" gorm:"type:text[]"`
-	AtUserIDs   StringArray        `json:"at_user_ids" gorm:"type:text[]"`
-	Secret      string             `json:"secret"`
-	Config      JSONMap            `json:"config" gorm:"type:jsonb"`
-	Enabled     bool               `json:"enabled" gorm:"default:true"`
-	CreatedAt   time.Time          `json:"created_at"`
-	UpdatedAt   time.Time          `json:"updated_at"`
+	ID                 int                `json:"id" gorm:"primaryKey"`
+	Name               string             `json:"name" gorm:"not null" validate:"required"`
+	Type               string             `json:"type" gorm:"not null;type:varchar(50)" validate:"required,oneof=wechat dingtalk feishu email sms"`
+	WebhookURL         string             `json:"webhook_url" gorm:"type:text"`
+	AtMobiles          StringArray        `json:"at_mobiles" gorm:"type:text[]"`
+	AtUserIDs          StringArray        `json:"at_user_ids" gorm:"type:text[]"`
+	Secret             string             `json:"secret"`
+	Config             JSONMap            `json:"config" gorm:"type:jsonb"`
+	DefaultTemplateID  *int               `json:"default_template_id" gorm:"index"`
+	DefaultTemplate    *AlertNotificationTemplate `json:"default_template,omitempty" gorm:"foreignKey:DefaultTemplateID"`
+	Enabled            bool               `json:"enabled" gorm:"default:true"`
+	CreatedAt          time.Time          `json:"created_at"`
+	UpdatedAt          time.Time          `json:"updated_at"`
 }
 
 // StringArray 字符串数组类型

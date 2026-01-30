@@ -14,14 +14,12 @@ import (
 // RoutingHandler 路由规则处理器
 type RoutingHandler struct {
 	routingService *services.RoutingService
-	routingEngine  *services.RoutingEngine
 }
 
 // NewRoutingHandler 创建路由规则处理器
-func NewRoutingHandler(db *gorm.DB, routingEngine *services.RoutingEngine) *RoutingHandler {
+func NewRoutingHandler(db *gorm.DB) *RoutingHandler {
 	return &RoutingHandler{
 		routingService: services.NewRoutingService(db),
-		routingEngine:  routingEngine,
 	}
 }
 
@@ -70,11 +68,6 @@ func (h *RoutingHandler) CreateRoutingRule(c *gin.Context) {
 		return
 	}
 
-	// 使缓存失效
-	if h.routingEngine != nil {
-		h.routingEngine.InvalidateCache()
-	}
-
 	c.JSON(http.StatusCreated, response.Success(rule))
 }
 
@@ -98,11 +91,6 @@ func (h *RoutingHandler) UpdateRoutingRule(c *gin.Context) {
 		return
 	}
 
-	// 使缓存失效
-	if h.routingEngine != nil {
-		h.routingEngine.InvalidateCache()
-	}
-
 	c.JSON(http.StatusOK, response.Success(rule))
 }
 
@@ -117,11 +105,6 @@ func (h *RoutingHandler) DeleteRoutingRule(c *gin.Context) {
 	if err := h.routingService.DeleteRoutingRule(id); err != nil {
 		c.JSON(http.StatusInternalServerError, response.Error("Failed to delete routing rule", err.Error()))
 		return
-	}
-
-	// 使缓存失效
-	if h.routingEngine != nil {
-		h.routingEngine.InvalidateCache()
 	}
 
 	c.JSON(http.StatusOK, response.Success(gin.H{"message": "Routing rule deleted successfully"}))
