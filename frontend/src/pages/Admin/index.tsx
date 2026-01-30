@@ -5,8 +5,6 @@ import {
   Shield,
   FileText,
   Database,
-  Bell,
-  Link2,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useAuthStore } from '@/stores/authStore'
@@ -56,20 +54,7 @@ export default function AdminLayout() {
     allMenuItems.forEach(item => {
       // 如果菜单项不需要权限，直接显示
       if (!item.permission) {
-        if (item.children) {
-          // 有子菜单的项
-          filteredItems.push({
-            ...item,
-            children: item.children.map(child => ({
-              key: child.key,
-              label: child.label,
-              icon: child.icon || <Link2 size={16} />,
-              permission: child.permission
-            }))
-          })
-        } else {
-          filteredItems.push(item)
-        }
+        filteredItems.push(item)
         return
       }
       // 检查用户是否有所需权限
@@ -83,15 +68,7 @@ export default function AdminLayout() {
 
   // 展平菜单项用于查找选中项
   const flatMenuItems = useMemo(() => {
-    const flat: any[] = []
-    allMenuItems.forEach(item => {
-      if (item.children) {
-        item.children.forEach((child: any) => flat.push(child))
-      } else {
-        flat.push(item)
-      }
-    })
-    return flat
+    return allMenuItems
   }, [])
 
   // 获取当前选中的菜单项
