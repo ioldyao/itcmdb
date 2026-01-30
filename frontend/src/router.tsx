@@ -88,6 +88,8 @@ const router = createBrowserRouter([
           { path: 'rules', element: <AlertRules /> },
           { path: 'history', element: <AlertHistory /> },
           { path: 'integration/webhook', element: <AlertIntegrationWebhook /> },
+          { path: 'receivers', element: <AdminAlertReceivers /> },
+          { path: 'receiver-groups', element: <AdminAlertReceiverGroups /> },
         ],
       },
       {
@@ -112,8 +114,6 @@ const router = createBrowserRouter([
             )
           },
           { path: 'audit', element: <AdminAudit /> },
-          { path: 'alert-receivers', element: <AdminAlertReceivers /> },
-          { path: 'alert-receiver-groups', element: <AdminAlertReceiverGroups /> },
         ],
       },
     ],
