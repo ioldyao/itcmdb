@@ -93,8 +93,6 @@ export default function MainLayout() {
 
   // 返回主导航
   const handleBackToMain = () => {
-    setShowSubNav(false)
-    setCurrentSubNav(null)
     navigate('/dashboard')
   }
 
