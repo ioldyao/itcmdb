@@ -125,6 +125,14 @@ func (h *AlertHandler) GetAlerts(c *gin.Context) {
 		return
 	}
 
+	// 向后兼容：确保tags字段包含labels数据
+	for i := range alerts {
+		if alerts[i].Tags == nil || len(alerts[i].Tags) == 0 {
+			// 如果tags为空但有其他标签数据，可以从其他字段构建
+			alerts[i].Tags = make(models.JSONMap)
+		}
+	}
+
 	// 返回结果
 	c.JSON(http.StatusOK, response.Success(models.AlertListResponse{
 		Total:  int(total),

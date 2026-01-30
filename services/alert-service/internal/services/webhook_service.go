@@ -18,32 +18,34 @@ import (
 
 // WebhookService Webhook服务
 type WebhookService struct {
-	db               *gorm.DB
-	httpClient       *http.Client
-	notifyService    *NotificationService
-	routingService   *RoutingService
-	dlqService       *DeadLetterService
-	metricsService   *MetricsService
-	rateLimiter      *RateLimiter
-	circuitBreakers  map[int]*CircuitBreaker // webhookID -> CircuitBreaker
-	retryConfig      *RetryConfig
-	mu               sync.RWMutex
+	db                  *gorm.DB
+	httpClient          *http.Client
+	notifyService       *NotificationService
+	routingService      *RoutingService
+	notificationPipeline *NotificationPipeline
+	dlqService          *DeadLetterService
+	metricsService      *MetricsService
+	rateLimiter         *RateLimiter
+	circuitBreakers     map[int]*CircuitBreaker // webhookID -> CircuitBreaker
+	retryConfig         *RetryConfig
+	mu                  sync.RWMutex
 }
 
 // NewWebhookService 创建Webhook服务
-func NewWebhookService(db *gorm.DB) *WebhookService {
+func NewWebhookService(db *gorm.DB, notificationPipeline *NotificationPipeline) *WebhookService {
 	return &WebhookService{
 		db: db,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		notifyService:   NewNotificationService(),
-		routingService:  NewRoutingService(db),
-		dlqService:      NewDeadLetterService(db),
-		metricsService:  NewMetricsService(db),
-		rateLimiter:     NewRateLimiter(100, 200), // 100 req/s, 容量200
-		circuitBreakers: make(map[int]*CircuitBreaker),
-		retryConfig:     DefaultRetryConfig(),
+		notifyService:        NewNotificationService(),
+		routingService:       NewRoutingService(db),
+		notificationPipeline: notificationPipeline,
+		dlqService:           NewDeadLetterService(db),
+		metricsService:       NewMetricsService(db),
+		rateLimiter:          NewRateLimiter(100, 200), // 100 req/s, 容量200
+		circuitBreakers:      make(map[int]*CircuitBreaker),
+		retryConfig:          DefaultRetryConfig(),
 	}
 }
 
@@ -148,7 +150,7 @@ func (s *WebhookService) ParseCustomPayload(r *http.Request) ([]map[string]inter
 	return []map[string]interface{}{alertMap}, nil
 }
 
-// ProcessInboundAlert 处理接收到的告警
+// ProcessInboundAlert 处理接收到的告警 - 使用新的通知管道
 func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, alertData map[string]interface{}) error {
 	// 1. 提取告警信息 - labels和annotations是map[string]string类型
 	labelsMap := getStringMapValue(alertData, "labels")
@@ -165,36 +167,6 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 	// 生成alert_id（唯一标识）- 使用fingerprint作为唯一标识
 	alertID := fmt.Sprintf("%s-%s", webhook.SourceType, fingerprint)
 
-	// 匹配路由规则（用于记录和通知）
-	receiverGroupIDs, err := s.routingService.MatchReceiverGroups(labelsMap, nil)
-	if err != nil {
-		// 路由匹配失败不应阻止告警创建，仅记录错误
-		// TODO: 使用结构化日志记录错误
-	}
-
-	// 获取匹配的路由规则ID（用于记录）
-	var routingRuleID *int
-	if len(receiverGroupIDs) > 0 {
-		// 查找匹配的路由规则
-		rules, err := s.routingService.ruleRepo.FindEnabled()
-		if err == nil {
-			for _, rule := range rules {
-				if rule.Matches(labelsMap) && rule.ReceiverGroupID != nil {
-					for _, groupID := range receiverGroupIDs {
-						if *rule.ReceiverGroupID == groupID {
-							ruleID := rule.ID
-							routingRuleID = &ruleID
-							break
-						}
-					}
-					if routingRuleID != nil {
-						break
-					}
-				}
-			}
-		}
-	}
-
 	// 提取告警标题和描述
 	title := labelsMap["alertname"]
 	if title == "" {
@@ -204,6 +176,9 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 		title = "告警"
 	}
 	description := annotationsMap["description"]
+	if description == "" {
+		description = annotationsMap["message"]
+	}
 
 	// 提取严重程度
 	severity := labelsMap["severity"]
@@ -226,14 +201,17 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 
 	// 2. 检查是否已存在（去重）- 使用fingerprint查找
 	var existingAlert models.AlertInstance
-	err = s.db.Where("fingerprint = ? AND category = ?", fingerprint, webhook.SourceType).First(&existingAlert).Error
+	err := s.db.Where("fingerprint = ? AND category = ?", fingerprint, webhook.SourceType).First(&existingAlert).Error
 
 	now := time.Now()
+	var alertInstance *models.AlertInstance
+
 	if err == nil {
 		// 告警已存在，更新状态和时间
 		updates := map[string]interface{}{
 			"status":         status,
 			"last_triggered": now,
+			"count":          existingAlert.Count + 1,
 		}
 
 		// 如果状态从firing变为resolved，记录恢复时间
@@ -248,6 +226,8 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 		// 记录历史
 		s.recordAlertHistory(&existingAlert, "updated", fmt.Sprintf("Status changed to %s", status))
 
+		alertInstance = &existingAlert
+
 	} else if err == gorm.ErrRecordNotFound {
 		// 3. 创建新告警记录
 		newAlert := models.AlertInstance{
@@ -257,21 +237,13 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 			Severity:          severity,
 			Status:            status,
 			Category:          webhook.SourceType,
-			ObjectType:        labelsMap["instance"], // 使用instance字段作为空间名
+			ObjectType:        labelsMap["instance"],
 			Fingerprint:       fingerprint,
 			FirstTriggered:    now,
 			LastTriggered:     now,
+			Count:             1,
 			Tags:              convertStringMapToJSONMap(labelsMap),
 			TriggerConditions: convertStringMapToJSONMap(annotationsMap),
-		}
-
-		// 设置通知渠道（记录匹配到的接收人组）
-		if len(receiverGroupIDs) > 0 {
-			receiverGroupsMap := make(map[string]interface{})
-			for i, groupID := range receiverGroupIDs {
-				receiverGroupsMap[fmt.Sprintf("group_%d", i)] = groupID
-			}
-			newAlert.NotificationChannels = receiverGroupsMap
 		}
 
 		if err := s.db.Create(&newAlert).Error; err != nil {
@@ -281,33 +253,21 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 		// 记录历史
 		s.recordAlertHistory(&newAlert, "triggered", "Alert received from webhook")
 
+		alertInstance = &newAlert
+
 	} else {
 		return fmt.Errorf("failed to query alert: %w", err)
 	}
 
-	// 5. 使用路由规则匹配接收人并发送通知
-	go func() {
-		// 构造告警数据用于路由和通知
-		alertDataForRouting := map[string]interface{}{
-			"alert_id":    alertID,
-			"title":       title,
-			"content":     description,
-			"severity":    severity,
-			"status":      status,
-			"category":    webhook.SourceType,
-			"instance":    labelsMap["instance"],
-			"labels":     labelsMap,
-			"annotations": annotationsMap,
-			"timestamp":   now.Format("2006-01-02 15:04:05"),
-			"fingerprint": fingerprint,
-		}
-
-		// 使用路由服务进行匹配和通知
-		if err := s.routingService.RouteAndNotify(alertDataForRouting, webhook); err != nil {
-			// 记录错误但不影响告警创建
-			// TODO: 使用结构化日志记录错误
-		}
-	}()
+	// 4. 使用新的通知管道进行路由和发送通知
+	if s.notificationPipeline != nil {
+		go func() {
+			if err := s.notificationPipeline.ProcessAlert(alertInstance); err != nil {
+				// 记录错误但不影响告警创建
+				fmt.Printf("Failed to process alert through notification pipeline: %v\n", err)
+			}
+		}()
+	}
 
 	return nil
 }

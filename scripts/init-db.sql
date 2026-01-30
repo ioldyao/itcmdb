@@ -374,7 +374,9 @@ CREATE TABLE IF NOT EXISTS alert_instances (
 
     -- 分类信息
     category VARCHAR(100),
-    tags JSONB,
+    tags JSONB, -- DEPRECATED: 使用 labels 替代，保留用于向后兼容
+    labels JSONB DEFAULT '{}'::jsonb, -- 新增：Alertmanager风格的标签
+    annotations JSONB DEFAULT '{}'::jsonb, -- 新增：告警注解
     object_type VARCHAR(100),
 
     -- 目标信息
@@ -405,7 +407,7 @@ CREATE TABLE IF NOT EXISTS alert_instances (
 
     -- 通知信息
     notification_sent BOOLEAN DEFAULT false,
-    notification_channels JSONB,
+    notification_channels JSONB, -- DEPRECATED: 使用路由规则替代，保留用于向后兼容
 
     -- 审计字段
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -415,7 +417,11 @@ CREATE TABLE IF NOT EXISTS alert_instances (
     CONSTRAINT alert_instances_severity_check
         CHECK (severity IN ('critical', 'high', 'medium', 'low')),
     CONSTRAINT alert_instances_status_check
-        CHECK (status IN ('firing', 'acknowledged', 'resolved', 'closed'))
+        CHECK (status IN ('firing', 'acknowledged', 'resolved', 'closed')),
+    CONSTRAINT alert_instances_labels_is_object
+        CHECK (jsonb_typeof(labels) = 'object'),
+    CONSTRAINT alert_instances_annotations_is_object
+        CHECK (jsonb_typeof(annotations) = 'object')
 );
 
 CREATE INDEX IF NOT EXISTS idx_alert_instances_status ON alert_instances(status);
@@ -426,6 +432,10 @@ CREATE INDEX IF NOT EXISTS idx_alert_instances_ci_id ON alert_instances(affected
 CREATE INDEX IF NOT EXISTS idx_alert_instances_time_range ON alert_instances(first_triggered, last_triggered);
 CREATE INDEX IF NOT EXISTS idx_alert_instances_category ON alert_instances(category);
 CREATE INDEX IF NOT EXISTS idx_alert_instances_composite ON alert_instances(status, severity, last_triggered DESC);
+CREATE INDEX IF NOT EXISTS idx_alert_instances_labels ON alert_instances USING GIN (labels);
+CREATE INDEX IF NOT EXISTS idx_alert_instances_labels_severity ON alert_instances ((labels->>'severity'));
+CREATE INDEX IF NOT EXISTS idx_alert_instances_labels_alertname ON alert_instances ((labels->>'alertname'));
+CREATE INDEX IF NOT EXISTS idx_alert_instances_labels_instance ON alert_instances ((labels->>'instance'));
 
 -- 告警历史表
 CREATE TABLE IF NOT EXISTS alert_history (
@@ -552,7 +562,7 @@ CREATE TABLE IF NOT EXISTS inbound_webhooks (
     enabled BOOLEAN DEFAULT true,
     description TEXT,
     last_received TIMESTAMP,
-    default_receiver_group_id INTEGER REFERENCES alert_receiver_groups(id) ON DELETE SET NULL,
+    -- REMOVED: default_receiver_group_id (使用路由规则替代)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -615,26 +625,99 @@ CREATE INDEX IF NOT EXISTS idx_outbound_webhook_logs_alert_id ON outbound_webhoo
 CREATE INDEX IF NOT EXISTS idx_outbound_webhook_logs_created_at ON outbound_webhook_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_outbound_webhook_logs_status_code ON outbound_webhook_logs(status_code);
 
+-- 统一通知日志表（新增）
+CREATE TABLE IF NOT EXISTS notification_logs (
+    id SERIAL PRIMARY KEY,
+    alert_instance_id INTEGER NOT NULL REFERENCES alert_instances(id) ON DELETE CASCADE,
+    receiver_id INTEGER NOT NULL REFERENCES alert_receivers(id) ON DELETE CASCADE,
+    receiver_group_id INTEGER NOT NULL REFERENCES alert_receiver_groups(id) ON DELETE CASCADE,
+    routing_rule_id INTEGER REFERENCES alert_routing_rules(id) ON DELETE SET NULL,
+
+    -- 通知详情
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed', 'retrying', 'max_retries_exceeded')),
+    notification_type VARCHAR(50) NOT NULL, -- email, webhook, slack, dingtalk, feishu, wechat, sms
+
+    -- 内容
+    subject TEXT,
+    body TEXT,
+    rendered_template TEXT,
+
+    -- 投递跟踪
+    sent_at TIMESTAMP,
+    delivered_at TIMESTAMP,
+    failed_at TIMESTAMP,
+
+    -- 错误处理
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    max_retries INTEGER DEFAULT 3,
+    next_retry_at TIMESTAMP,
+
+    -- 元数据
+    request_payload JSONB,
+    response_payload JSONB,
+    delivery_metadata JSONB DEFAULT '{}'::jsonb,
+
+    -- 时间戳
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE notification_logs IS '统一通知日志表，记录所有告警通知的发送状态和历史';
+COMMENT ON COLUMN notification_logs.status IS '通知状态：pending-待发送, sent-已发送, failed-失败, retrying-重试中, max_retries_exceeded-超过最大重试次数';
+COMMENT ON COLUMN notification_logs.retry_count IS '当前重试次数';
+COMMENT ON COLUMN notification_logs.next_retry_at IS '下次重试时间（指数退避：1分钟、5分钟、15分钟）';
+
+CREATE INDEX IF NOT EXISTS idx_notification_logs_alert_instance_id ON notification_logs(alert_instance_id);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_receiver_id ON notification_logs(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_receiver_group_id ON notification_logs(receiver_group_id);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_status ON notification_logs(status);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_created_at ON notification_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_next_retry_at ON notification_logs(next_retry_at) WHERE status = 'retrying';
+
 -- 告警路由规则表
 CREATE TABLE IF NOT EXISTS alert_routing_rules (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     matchers JSONB NOT NULL DEFAULT '{}',
-    match_type VARCHAR(20) NOT NULL DEFAULT 'match' CHECK (match_type IN ('match', 'match_re')),
+    match_type VARCHAR(20) NOT NULL DEFAULT 'match' CHECK (match_type IN ('match', 'match_re', 'exact', 'regex', 'all')),
     receiver_group_id INTEGER REFERENCES alert_receiver_groups(id) ON DELETE SET NULL,
     continue BOOLEAN DEFAULT false,
     priority INTEGER NOT NULL DEFAULT 0,
     enabled BOOLEAN DEFAULT true,
+
+    -- 新增：告警分组配置（Alertmanager风格）
+    group_by TEXT[] DEFAULT ARRAY[]::TEXT[],
+    group_wait INTEGER DEFAULT 30 CHECK (group_wait > 0),
+    group_interval INTEGER DEFAULT 300 CHECK (group_interval > 0),
+    repeat_interval INTEGER DEFAULT 3600 CHECK (repeat_interval > 0),
+
+    -- 新增：层级路由支持
+    parent_id INTEGER REFERENCES alert_routing_rules(id) ON DELETE CASCADE,
+    route_path TEXT,
+    continue_matching BOOLEAN DEFAULT false,
+
     created_by INTEGER,
     updated_by INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+COMMENT ON COLUMN alert_routing_rules.group_by IS '告警分组标签列表（如 [''alertname'', ''cluster'']）';
+COMMENT ON COLUMN alert_routing_rules.group_wait IS '发送首次通知前的等待时间（秒）';
+COMMENT ON COLUMN alert_routing_rules.group_interval IS '发送分组更新的间隔时间（秒）';
+COMMENT ON COLUMN alert_routing_rules.repeat_interval IS '重复发送通知的间隔时间（秒）';
+COMMENT ON COLUMN alert_routing_rules.parent_id IS '父路由规则ID，用于层级路由';
+COMMENT ON COLUMN alert_routing_rules.route_path IS '路由树中的完整路径（如 ''/root/team-a/critical''）';
+COMMENT ON COLUMN alert_routing_rules.continue_matching IS '匹配后是否继续评估其他规则';
+
 CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_enabled ON alert_routing_rules(enabled);
 CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_priority ON alert_routing_rules(priority);
 CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_receiver_group_id ON alert_routing_rules(receiver_group_id);
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_parent_id ON alert_routing_rules(parent_id);
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_route_path ON alert_routing_rules(route_path);
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_enabled_priority ON alert_routing_rules(enabled, priority DESC);
 
 -- 告警通知模板表
 CREATE TABLE IF NOT EXISTS alert_notification_templates (
@@ -894,6 +977,19 @@ CREATE TRIGGER update_notification_templates_updated_at BEFORE UPDATE ON notific
 
 CREATE TRIGGER update_report_configs_updated_at BEFORE UPDATE ON report_configs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_notification_logs_updated_at BEFORE UPDATE ON notification_logs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- 告警指纹生成函数
+CREATE OR REPLACE FUNCTION generate_alert_fingerprint(labels_input JSONB)
+RETURNS VARCHAR(64) AS $$
+BEGIN
+    RETURN encode(digest(labels_input::text, 'sha256'), 'hex');
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+COMMENT ON FUNCTION generate_alert_fingerprint(JSONB) IS '根据告警标签生成SHA256指纹用于去重';
 
 -- 告警历史自动记录触发器
 CREATE OR REPLACE FUNCTION log_alert_changes()
@@ -1164,6 +1260,44 @@ VALUES
     ('VictoriaMetrics环境', 'https://itcmdb.example.com/api/v1/webhooks/inbound/def456uvw', 'victoriametrics', '接收VictoriaMetrics推送的告警')
 ON CONFLICT (webhook_url) DO NOTHING;
 
+-- 插入默认路由规则
+INSERT INTO alert_routing_rules (name, description, matchers, match_type, receiver_group_id, priority, enabled, continue_matching, route_path, group_by, group_wait, group_interval, repeat_interval)
+VALUES (
+    'Default Catch-All Route',
+    '默认兜底路由规则，匹配所有未被其他规则匹配的告警',
+    '{}'::jsonb,
+    'all',
+    (SELECT id FROM alert_receiver_groups WHERE name = '运维组' LIMIT 1),
+    0,
+    true,
+    false,
+    '/default',
+    ARRAY['alertname']::TEXT[],
+    30,
+    300,
+    3600
+)
+ON CONFLICT DO NOTHING;
+
+-- 插入严重级别路由规则
+INSERT INTO alert_routing_rules (name, description, matchers, match_type, receiver_group_id, priority, enabled, continue_matching, route_path, group_by, group_wait, group_interval, repeat_interval)
+VALUES (
+    'Critical Alerts',
+    '严重告警路由规则，匹配 severity=critical 的告警',
+    '{"severity": "critical"}'::jsonb,
+    'exact',
+    (SELECT id FROM alert_receiver_groups WHERE name = '运维组' LIMIT 1),
+    90,
+    true,
+    false,
+    '/severity/critical',
+    ARRAY['alertname', 'instance']::TEXT[],
+    10,
+    60,
+    1800
+)
+ON CONFLICT DO NOTHING;
+
 INSERT INTO outbound_webhooks (name, target_type, endpoint_url, description, enabled)
 VALUES
     ('推送至主Alertmanager', 'alertmanager', 'http://alertmanager:9093/api/v1/alerts', '将ITCMDB告警推送到主集群Alertmanager', true)
@@ -1247,6 +1381,13 @@ COMMENT ON TABLE tags IS '标签定义表';
 COMMENT ON TABLE ci_tags IS 'CI实例标签关联表';
 COMMENT ON TABLE tag_history IS '标签使用历史表';
 COMMENT ON TABLE system_configs IS '系统配置表';
+
+-- 告警模块注释
+COMMENT ON TABLE alert_rule_receiver_groups IS 'DEPRECATED: 告警规则-接收组关联表（已废弃，使用 alert_routing_rules 替代）';
+COMMENT ON TABLE outbound_webhooks IS 'DEPRECATED: 推送Webhook表（已废弃，使用 alert_receivers 替代）';
+COMMENT ON COLUMN alert_rules.notification_channels IS 'DEPRECATED: 通知渠道配置（已废弃，使用路由规则替代）';
+COMMENT ON COLUMN alert_instances.tags IS 'DEPRECATED: 标签字段（已废弃，使用 labels 替代，保留用于向后兼容）';
+COMMENT ON COLUMN alert_instances.notification_channels IS 'DEPRECATED: 通知渠道（已废弃，使用路由规则和 notification_logs 替代）';
 
 -- ============================================
 -- 完成
