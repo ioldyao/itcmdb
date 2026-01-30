@@ -16,6 +16,8 @@ import {
   ArrowLeft,
   Webhook,
   SlidersHorizontal,
+  Users,
+  UserPlus,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '@/stores/authStore'
@@ -41,6 +43,8 @@ const alertSubMenuItems = [
   { key: '/alerts', label: '告警', icon: Bell },
   { key: '/alerts/rules', label: '配置', icon: SlidersHorizontal },
   { key: '/alerts/integration/webhook', label: 'Webhook', icon: Webhook },
+  { key: '/admin/alert-receivers', label: '告警接收人', icon: UserPlus },
+  { key: '/admin/alert-receiver-groups', label: '告警接收组', icon: Users },
 ]
 
 export default function MainLayout() {
