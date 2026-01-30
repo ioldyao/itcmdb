@@ -24,10 +24,12 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { alertReceiverService, AlertReceiver } from '@/services/alertReceiverService'
+import { alertTemplateService, AlertNotificationTemplate } from '@/services/alertTemplateService'
 
 export default function AlertReceivers() {
   const [loading, setLoading] = useState(false)
   const [receivers, setReceivers] = useState<AlertReceiver[]>([])
+  const [templates, setTemplates] = useState<AlertNotificationTemplate[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -37,6 +39,7 @@ export default function AlertReceivers() {
 
   useEffect(() => {
     fetchReceivers()
+    fetchTemplates()
   }, [page, pageSize])
 
   const fetchReceivers = async () => {
@@ -51,6 +54,15 @@ export default function AlertReceivers() {
       message.error('获取接收人列表失败')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchTemplates = async () => {
+    try {
+      const response = await alertTemplateService.getTemplates({})
+      setTemplates(response.data.templates)
+    } catch (error) {
+      console.error('获取通知模板失败', error)
     }
   }
 
@@ -314,6 +326,22 @@ export default function AlertReceivers() {
               placeholder="输入用户ID后回车"
               tokenSeparators={[',', ' ']}
             />
+          </Form.Item>
+
+          <Form.Item
+            label="默认通知模板（可选）"
+            name="default_template_id"
+            tooltip="指定此接收人的默认通知模板，如果路由规则未指定模板则使用此模板"
+          >
+            <Select placeholder="请选择默认通知模板（不选则使用系统默认模板）" allowClear>
+              {templates
+                .filter(t => t.template_type === form.getFieldValue('type'))
+                .map((template) => (
+                  <Select.Option key={template.id} value={template.id}>
+                    {template.name}
+                  </Select.Option>
+                ))}
+            </Select>
           </Form.Item>
 
           <Divider />

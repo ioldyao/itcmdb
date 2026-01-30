@@ -21,6 +21,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { alertRoutingService, AlertRoutingRule } from '@/services/alertRoutingService'
 import { alertReceiverService, AlertReceiverGroup } from '@/services/alertReceiverService'
+import { alertTemplateService, AlertNotificationTemplate } from '@/services/alertTemplateService'
 
 const { TextArea } = Input
 
@@ -28,6 +29,7 @@ export default function RoutingRulesTab() {
   const [loading, setLoading] = useState(false)
   const [rules, setRules] = useState<AlertRoutingRule[]>([])
   const [receiverGroups, setReceiverGroups] = useState<AlertReceiverGroup[]>([])
+  const [templates, setTemplates] = useState<AlertNotificationTemplate[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -38,6 +40,7 @@ export default function RoutingRulesTab() {
   useEffect(() => {
     fetchRules()
     fetchReceiverGroups()
+    fetchTemplates()
   }, [page, pageSize])
 
   const fetchRules = async () => {
@@ -59,6 +62,15 @@ export default function RoutingRulesTab() {
       setReceiverGroups(response.groups)
     } catch (error) {
       console.error('获取接收组失败', error)
+    }
+  }
+
+  const fetchTemplates = async () => {
+    try {
+      const response = await alertTemplateService.getTemplates({})
+      setTemplates(response.data.templates)
+    } catch (error) {
+      console.error('获取通知模板失败', error)
     }
   }
 
@@ -242,6 +254,16 @@ export default function RoutingRulesTab() {
               {receiverGroups.map((group) => (
                 <Select.Option key={group.id} value={group.id}>
                   {group.name}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item name="template_id" label="通知模板（可选）" tooltip="指定此路由规则使用的通知模板，优先级最高">
+            <Select placeholder="请选择通知模板（不选则使用接收人默认模板）" allowClear>
+              {templates.map((template) => (
+                <Select.Option key={template.id} value={template.id}>
+                  {template.name} ({template.template_type})
                 </Select.Option>
               ))}
             </Select>
