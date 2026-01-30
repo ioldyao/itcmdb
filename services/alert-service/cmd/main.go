@@ -220,6 +220,24 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 			protected.PUT("/webhooks/outbound/:id", outboundHandler.UpdateOutboundWebhook)
 			protected.DELETE("/webhooks/outbound/:id", outboundHandler.DeleteOutboundWebhook)
 			protected.POST("/webhooks/outbound/:id/test", outboundHandler.TestOutboundWebhook)
+
+			// 路由规则管理
+			routingHandler := handlers.NewRoutingHandler(db)
+			protected.GET("/alert-routing-rules", routingHandler.ListRoutingRules)
+			protected.GET("/alert-routing-rules/:id", routingHandler.GetRoutingRule)
+			protected.POST("/alert-routing-rules", routingHandler.CreateRoutingRule)
+			protected.PUT("/alert-routing-rules/:id", routingHandler.UpdateRoutingRule)
+			protected.DELETE("/alert-routing-rules/:id", routingHandler.DeleteRoutingRule)
+
+			// 通知模板管理
+			templateHandler := handlers.NewTemplateHandler(db)
+			protected.GET("/alert-notification-templates", templateHandler.ListNotificationTemplates)
+			protected.GET("/alert-notification-templates/:id", templateHandler.GetNotificationTemplate)
+			protected.POST("/alert-notification-templates", templateHandler.CreateNotificationTemplate)
+			protected.PUT("/alert-notification-templates/:id", templateHandler.UpdateNotificationTemplate)
+			protected.DELETE("/alert-notification-templates/:id", templateHandler.DeleteNotificationTemplate)
+			protected.POST("/alert-notification-templates/:id/set-default", templateHandler.SetDefaultTemplate)
+			protected.POST("/alert-notification-templates/preview", templateHandler.PreviewTemplate)
 		}
 	}
 }
