@@ -37,8 +37,6 @@ import AdminUsers from '@/pages/Admin/Users'
 import AdminRoles from '@/pages/Admin/Roles'
 import AdminAudit from '@/pages/Admin/Audit'
 import AdminDefaultPage from '@/pages/Admin/DefaultPage'
-import AdminAlertReceivers from '@/pages/Admin/AlertReceivers'
-import AdminAlertReceiverGroups from '@/pages/Admin/AlertReceiverGroups'
 import AlertIntegrationWebhook from '@/pages/Admin/AlertIntegration/Webhook'
 import VictoriaMetrics from '@/pages/Monitoring/VictoriaMetrics'
 

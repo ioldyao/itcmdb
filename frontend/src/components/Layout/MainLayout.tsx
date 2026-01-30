@@ -17,7 +17,6 @@ import {
   Webhook,
   SlidersHorizontal,
   Users,
-  UserPlus,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '@/stores/authStore'
