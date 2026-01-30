@@ -36,21 +36,27 @@ func NewCircuitBreaker(maxFailures int, resetTimeout time.Duration) *CircuitBrea
 
 // Call 执行操作，如果断路器打开则返回错误
 func (cb *CircuitBreaker) Call(fn func() error) error {
+	// 第一步：检查断路器状态（持有锁）
 	cb.mu.Lock()
-	defer cb.mu.Unlock()
-
-	// 检查是否需要从Open转换到HalfOpen
 	if cb.state == StateOpen {
 		if time.Since(cb.lastFailTime) > cb.resetTimeout {
+			// 从Open转换到HalfOpen
 			cb.state = StateHalfOpen
 			cb.failures = 0
 		} else {
+			cb.mu.Unlock()
 			return errors.New("circuit breaker is open")
 		}
 	}
+	currentState := cb.state
+	cb.mu.Unlock()
 
-	// 执行操作
+	// 第二步：在锁外执行操作（避免阻塞其他goroutine）
 	err := fn()
+
+	// 第三步：根据执行结果更新状态（持有锁）
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
 
 	if err != nil {
 		cb.failures++
@@ -63,7 +69,7 @@ func (cb *CircuitBreaker) Call(fn func() error) error {
 	}
 
 	// 成功则重置
-	if cb.state == StateHalfOpen {
+	if currentState == StateHalfOpen {
 		cb.state = StateClosed
 	}
 	cb.failures = 0

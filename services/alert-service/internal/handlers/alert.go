@@ -36,6 +36,17 @@ func (h *AlertHandler) GetAlerts(c *gin.Context) {
 		return
 	}
 
+	// 验证和规范化分页参数
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.PageSize < 1 {
+		req.PageSize = 20
+	}
+	if req.PageSize > 100 {
+		req.PageSize = 100 // 限制最大页大小，防止性能问题
+	}
+
 	// 构建查询
 	query := h.db.Model(&models.AlertInstance{})
 
@@ -54,17 +65,17 @@ func (h *AlertHandler) GetAlerts(c *gin.Context) {
 		query = query.Where("category = ?", req.Category)
 	}
 
-	// 时间范围过滤
+	// 时间范围过滤 - 使用正确的字段名 last_triggered
 	if req.StartTime != "" {
 		startTime, err := time.Parse(time.RFC3339, req.StartTime)
 		if err == nil {
-			query = query.Where("triggered_at >= ?", startTime)
+			query = query.Where("last_triggered >= ?", startTime)
 		}
 	}
 	if req.EndTime != "" {
 		endTime, err := time.Parse(time.RFC3339, req.EndTime)
 		if err == nil {
-			query = query.Where("triggered_at <= ?", endTime)
+			query = query.Where("last_triggered <= ?", endTime)
 		}
 	}
 
@@ -76,18 +87,32 @@ func (h *AlertHandler) GetAlerts(c *gin.Context) {
 
 	// 获取总数
 	var total int64
-	query.Count(&total)
-
-	// 排序
-	orderClause := "triggered_at DESC"
-	if req.SortField != "" {
-		direction := "DESC"
-		if req.SortOrder == "asc" {
-			direction = "ASC"
-		}
-		orderClause = req.SortField + " " + direction
+	if err := query.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, response.Error("查询总数失败", err.Error()))
+		return
 	}
-	query = query.Order(orderClause)
+
+	// 排序 - 使用白名单防止SQL注入
+	allowedSortFields := map[string]bool{
+		"last_triggered":  true,
+		"first_triggered": true,
+		"severity":        true,
+		"status":          true,
+		"created_at":      true,
+		"updated_at":      true,
+	}
+
+	sortField := "last_triggered" // 默认排序字段
+	if req.SortField != "" && allowedSortFields[req.SortField] {
+		sortField = req.SortField
+	}
+
+	direction := "DESC"
+	if req.SortOrder == "asc" {
+		direction = "ASC"
+	}
+
+	query = query.Order(sortField + " " + direction)
 
 	// 分页
 	offset := (req.Page - 1) * req.PageSize
@@ -157,16 +182,35 @@ func (h *AlertHandler) AcknowledgeAlert(c *gin.Context) {
 		return
 	}
 
-	// 更新状态
-	now := time.Now()
-	updates := map[string]interface{}{
-		"status":          "acknowledged",
-		"handler":         req.Handler,
-		"handling_notes":  req.Notes,
-		"acknowledged_at": &now,
-	}
+	// 使用事务更新状态和创建历史记录
+	err = h.db.Transaction(func(tx *gorm.DB) error {
+		// 更新告警状态
+		now := time.Now()
+		updates := map[string]interface{}{
+			"status":          "acknowledged",
+			"handler":         req.Handler,
+			"handling_notes":  req.Notes,
+			"acknowledged_at": &now,
+		}
 
-	if err := h.db.Model(&alert).Updates(updates).Error; err != nil {
+		if err := tx.Model(&alert).Updates(updates).Error; err != nil {
+			return err
+		}
+
+		// 创建历史记录
+		history := models.AlertHistory{
+			AlertID:    alert.ID,
+			EventType:  "acknowledged",
+			OldStatus:  "firing",
+			NewStatus:  "acknowledged",
+			OperatedBy: req.Handler,
+			Message:    "告警已确认",
+			OperatedAt: now,
+		}
+		return tx.Create(&history).Error
+	})
+
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, response.Error("确认失败", err.Error()))
 		return
 	}
@@ -202,16 +246,35 @@ func (h *AlertHandler) CloseAlert(c *gin.Context) {
 		return
 	}
 
-	// 更新状态
-	now := time.Now()
-	updates := map[string]interface{}{
-		"status":         "closed",
-		"handler":        req.Handler,
-		"handling_notes": req.Notes,
-		"closed_at":      &now,
-	}
+	// 使用事务更新状态和创建历史记录
+	err = h.db.Transaction(func(tx *gorm.DB) error {
+		// 更新告警状态
+		now := time.Now()
+		updates := map[string]interface{}{
+			"status":         "closed",
+			"handler":        req.Handler,
+			"handling_notes": req.Notes,
+			"closed_at":      &now,
+		}
 
-	if err := h.db.Model(&alert).Updates(updates).Error; err != nil {
+		if err := tx.Model(&alert).Updates(updates).Error; err != nil {
+			return err
+		}
+
+		// 创建历史记录
+		history := models.AlertHistory{
+			AlertID:    alert.ID,
+			EventType:  "closed",
+			OldStatus:  alert.Status,
+			NewStatus:  "closed",
+			OperatedBy: req.Handler,
+			Message:    "告警已关闭",
+			OperatedAt: now,
+		}
+		return tx.Create(&history).Error
+	})
+
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, response.Error("关闭失败", err.Error()))
 		return
 	}
@@ -242,20 +305,43 @@ func (h *AlertHandler) GetAlertHistory(c *gin.Context) {
 
 // GetAlertStatistics 获取告警统计
 func (h *AlertHandler) GetAlertStatistics(c *gin.Context) {
-	// 统计各种状态的告警数量
-	var stats struct {
+	// 使用单个聚合查询优化性能，避免N+1查询
+	var statusStats []struct {
+		Status string `json:"status"`
+		Count  int64  `json:"count"`
+	}
+
+	if err := h.db.Model(&models.AlertInstance{}).
+		Select("status, count(*) as count").
+		Group("status").
+		Scan(&statusStats).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, response.Error("查询失败", err.Error()))
+		return
+	}
+
+	// 构建响应数据
+	stats := struct {
 		Total        int64 `json:"total"`
 		Firing       int64 `json:"firing"`
 		Acknowledged int64 `json:"acknowledged"`
 		Resolved     int64 `json:"resolved"`
 		Closed       int64 `json:"closed"`
-	}
+	}{}
 
-	h.db.Model(&models.AlertInstance{}).Count(&stats.Total)
-	h.db.Model(&models.AlertInstance{}).Where("status = ?", "firing").Count(&stats.Firing)
-	h.db.Model(&models.AlertInstance{}).Where("status = ?", "acknowledged").Count(&stats.Acknowledged)
-	h.db.Model(&models.AlertInstance{}).Where("status = ?", "resolved").Count(&stats.Resolved)
-	h.db.Model(&models.AlertInstance{}).Where("status = ?", "closed").Count(&stats.Closed)
+	// 从聚合结果中提取数据
+	for _, stat := range statusStats {
+		stats.Total += stat.Count
+		switch stat.Status {
+		case "firing":
+			stats.Firing = stat.Count
+		case "acknowledged":
+			stats.Acknowledged = stat.Count
+		case "resolved":
+			stats.Resolved = stat.Count
+		case "closed":
+			stats.Closed = stat.Count
+		}
+	}
 
 	// 严重程度统计
 	var severityStats []struct {
@@ -263,13 +349,16 @@ func (h *AlertHandler) GetAlertStatistics(c *gin.Context) {
 		Count    int64  `json:"count"`
 	}
 
-	h.db.Model(&models.AlertInstance{}).
+	if err := h.db.Model(&models.AlertInstance{}).
 		Select("severity, count(*) as count").
 		Group("severity").
-		Scan(&severityStats)
+		Scan(&severityStats).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, response.Error("查询失败", err.Error()))
+		return
+	}
 
 	c.JSON(http.StatusOK, response.Success(gin.H{
-		"stats":         stats,
+		"stats":          stats,
 		"severity_stats": severityStats,
 	}))
 }
@@ -289,9 +378,9 @@ func (h *AlertHandler) GetAlertAnalytics(c *gin.Context) {
 		return
 	}
 
-	// 查询时间范围内的告警
+	// 查询时间范围内的告警 - 使用正确的字段名
 	var alerts []models.AlertInstance
-	query := h.db.Where("triggered_at >= ? AND triggered_at <= ?", startTime, endTime)
+	query := h.db.Where("last_triggered >= ? AND last_triggered <= ?", startTime, endTime)
 
 	if err := query.Find(&alerts).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, response.Error("查询失败", err.Error()))

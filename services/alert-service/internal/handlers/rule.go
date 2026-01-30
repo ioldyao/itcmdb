@@ -25,6 +25,18 @@ func NewRuleHandler(db *gorm.DB) *RuleHandler {
 func (h *RuleHandler) GetRules(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+
+	// 验证和规范化分页参数
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100 // 限制最大页大小
+	}
+
 	severity := c.Query("severity")
 	enabled := c.Query("enabled")
 
@@ -47,7 +59,10 @@ func (h *RuleHandler) GetRules(c *gin.Context) {
 
 	// 获取总数
 	var total int64
-	query.Count(&total)
+	if err := query.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, response.Error("查询总数失败", err.Error()))
+		return
+	}
 
 	// 分页查询
 	var rules []models.AlertRule
@@ -100,6 +115,18 @@ func (h *RuleHandler) CreateRule(c *gin.Context) {
 		return
 	}
 
+	// 安全的类型转换
+	var userIDInt *int
+	switch v := userID.(type) {
+	case int:
+		userIDInt = &v
+	case *int:
+		userIDInt = v
+	default:
+		c.JSON(http.StatusInternalServerError, response.Error("无效的用户ID类型", ""))
+		return
+	}
+
 	// 创建规则
 	rule := models.AlertRule{
 		Name:                 req.Name,
@@ -112,8 +139,8 @@ func (h *RuleHandler) CreateRule(c *gin.Context) {
 		Enabled:              req.Enabled,
 		CITypeID:             req.CITypeID,
 		NotificationChannels: req.NotificationChannels,
-		CreatedBy:            userID.(*int),
-		UpdatedBy:            userID.(*int),
+		CreatedBy:            userIDInt,
+		UpdatedBy:            userIDInt,
 	}
 
 	if req.Duration == 0 {
@@ -147,6 +174,18 @@ func (h *RuleHandler) UpdateRule(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, response.Error("未授权", ""))
+		return
+	}
+
+	// 安全的类型转换
+	var userIDInt *int
+	switch v := userID.(type) {
+	case int:
+		userIDInt = &v
+	case *int:
+		userIDInt = v
+	default:
+		c.JSON(http.StatusInternalServerError, response.Error("无效的用户ID类型", ""))
 		return
 	}
 
@@ -198,7 +237,7 @@ func (h *RuleHandler) UpdateRule(c *gin.Context) {
 			updates["silenced_until"] = silencedUntil
 		}
 	}
-	updates["updated_by"] = userID.(*int)
+	updates["updated_by"] = userIDInt
 
 	// 更新规则
 	if err := h.db.Model(&rule).Updates(updates).Error; err != nil {

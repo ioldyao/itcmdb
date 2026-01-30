@@ -2,7 +2,7 @@ package services
 
 import (
 	"bytes"
-	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -150,18 +150,11 @@ func (s *WebhookService) ParseCustomPayload(r *http.Request) ([]map[string]inter
 
 // ProcessInboundAlert 处理接收到的告警
 func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, alertData map[string]interface{}) error {
-	// 调试：打印原始接收数据
-	fmt.Printf("[DEBUG] Received alert data: %+v\n", alertData)
-
 	// 1. 提取告警信息 - labels和annotations是map[string]string类型
 	labelsMap := getStringMapValue(alertData, "labels")
 	annotationsMap := getStringMapValue(alertData, "annotations")
 	status := getStringValue(alertData, "status", "firing")
 	fingerprint := getStringValue(alertData, "fingerprint", "")
-
-	fmt.Printf("[DEBUG] labelsMap: %+v\n", labelsMap)
-	fmt.Printf("[DEBUG] annotationsMap: %+v\n", annotationsMap)
-	fmt.Printf("[DEBUG] status: %s, fingerprint: %s\n", status, fingerprint)
 
 	// 如果没有fingerprint，生成一个
 	if fingerprint == "" {
@@ -175,7 +168,8 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 	// 匹配路由规则（用于记录和通知）
 	receiverGroupIDs, err := s.routingService.MatchReceiverGroups(labelsMap, nil)
 	if err != nil {
-		fmt.Printf("[ERROR] Failed to match routing rules: %v\n", err)
+		// 路由匹配失败不应阻止告警创建，仅记录错误
+		// TODO: 使用结构化日志记录错误
 	}
 
 	// 获取匹配的路由规则ID（用于记录）
@@ -311,7 +305,7 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 		// 使用路由服务进行匹配和通知
 		if err := s.routingService.RouteAndNotify(alertDataForRouting, webhook); err != nil {
 			// 记录错误但不影响告警创建
-			fmt.Printf("[ERROR] Failed to route and notify: %v\n", err)
+			// TODO: 使用结构化日志记录错误
 		}
 	}()
 
@@ -337,8 +331,8 @@ func getInterfaceMapValue(m map[string]interface{}, key string) map[string]inter
 		if mapVal, ok := val.(map[string]interface{}); ok {
 			return mapVal
 		}
-		// 如果不是map[string]interface{}，可能是其他类型，尝试转换
-		fmt.Printf("[DEBUG] getInterfaceMapValue: key=%s, val type=%T\n", key, val)
+		// 如果不是map[string]interface{}，可能是其他类型
+		// TODO: 使用结构化日志记录类型不匹配
 	}
 	// 如果键不存在或为nil，返回空map而不是nil
 	return make(map[string]interface{})
@@ -361,7 +355,7 @@ func getStringMapValue(m map[string]interface{}, key string) map[string]string {
 			}
 			return result
 		}
-		fmt.Printf("[DEBUG] getStringMapValue: key=%s, val type=%T\n", key, val)
+		// TODO: 使用结构化日志记录类型不匹配
 	}
 	return result
 }
@@ -540,7 +534,8 @@ func (s *WebhookService) sendHTTP(webhook *models.OutboundWebhook, url string, p
 	now := time.Now()
 	webhook.LastSent = &now
 	if dbErr := s.db.Save(webhook).Error; dbErr != nil {
-		fmt.Printf("[ERROR] Failed to update webhook last_sent: %v\n", dbErr)
+		// 更新失败不应影响主流程
+		// TODO: 使用结构化日志记录错误
 	}
 
 	return nil
@@ -690,14 +685,14 @@ func getTimeValue(m map[string]interface{}, key string) time.Time {
 
 // generateFingerprint 生成告警指纹
 func generateFingerprint(labels map[string]string) string {
-	// 使用labels生成指纹（简单实现：排序后拼接）
+	// 使用labels生成指纹（排序后拼接）
 	keys := make([]string, 0, len(labels))
 	for k := range labels {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	h := sha1.New()
+	h := sha256.New()
 	for _, k := range keys {
 		h.Write([]byte(k))
 		h.Write([]byte("="))

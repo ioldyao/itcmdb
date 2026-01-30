@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -500,8 +499,8 @@ func logInboundSuccess(db *gorm.DB, webhookID int, c *gin.Context, alertCount in
 		ProcessedAt:  time.Now(),
 	}
 	if err := db.Create(&log).Error; err != nil {
-		// 日志记录失败不应影响主流程，仅打印错误
-		fmt.Printf("[ERROR] Failed to create inbound webhook log: %v\n", err)
+		// 日志记录失败不应影响主流程
+		// TODO: 使用结构化日志记录错误
 	}
 }
 
@@ -516,7 +515,7 @@ func logInboundError(db *gorm.DB, webhookID int, c *gin.Context, err error) {
 		ProcessedAt:   time.Now(),
 	}
 	if dbErr := db.Create(&log).Error; dbErr != nil {
-		// 日志记录失败不应影响主流程，仅打印错误
-		fmt.Printf("[ERROR] Failed to create inbound webhook error log: %v\n", dbErr)
+		// 日志记录失败不应影响主流程
+		// TODO: 使用结构化日志记录错误
 	}
 }
