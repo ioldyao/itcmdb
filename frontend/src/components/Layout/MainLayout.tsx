@@ -38,7 +38,7 @@ const cmdbSubMenuItems = [
 ]
 
 const alertSubMenuItems = [
-  { key: '/alerts', label: '工单', icon: FileText },
+  { key: '/alerts', label: '告警', icon: Bell },
   { key: '/alerts/rules', label: '配置', icon: SlidersHorizontal },
   { key: '/alerts/integration/webhook', label: 'Webhook', icon: Webhook },
 ]
@@ -83,15 +83,11 @@ export default function MainLayout() {
 
   // 处理 CMDB 菜单点击
   const handleCMDBClick = () => {
-    setShowSubNav(true)
-    setCurrentSubNav('cmdb')
     navigate('/cmdb')
   }
 
   // 处理告警菜单点击
   const handleAlertClick = () => {
-    setShowSubNav(true)
-    setCurrentSubNav('alerts')
     navigate('/alerts')
   }
 
