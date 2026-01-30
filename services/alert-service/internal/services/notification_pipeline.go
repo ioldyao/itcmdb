@@ -141,8 +141,7 @@ func (np *NotificationPipeline) sendNotification(alert *models.AlertInstance, re
 		return
 	}
 
-	// 序列化请求payload
-	requestPayload, _ := json.Marshal(message)
+	// 设置请求payload
 	notifLog.RequestPayload = models.JSONMap{"message": message}
 
 	// 发送通知
