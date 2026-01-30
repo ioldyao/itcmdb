@@ -58,6 +58,19 @@ func main() {
 	// 初始化Webhook服务
 	webhookService := services.NewWebhookService(db)
 
+	// 初始化路由服务
+	routingService := services.NewRoutingService(db)
+
+	// 初始化规则评估器（1分钟评估一次）
+	ruleEvaluator := services.NewRuleEvaluator(db, alertEngine, routingService, 1*time.Minute)
+
+	// 启动规则评估器
+	if err := ruleEvaluator.Start(); err != nil {
+		logger.Error("Failed to start rule evaluator", zap.Error(err))
+	} else {
+		logger.Info("Rule evaluator started successfully")
+	}
+
 	// 初始化JWT管理器
 	jwtManager := auth.NewJWTManager(
 		viper.GetString("jwt.secret"),
