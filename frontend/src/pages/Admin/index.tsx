@@ -28,32 +28,6 @@ const allMenuItems = [
     permission: { resource: 'role', action: 'view' }
   },
   {
-    key: '/admin/victoriametrics',
-    label: 'VictoriaMetrics配置',
-    icon: <Database size={16} />,
-    permission: null
-  },
-  {
-    key: 'alert-integration',
-    label: '告警集成',
-    icon: <Bell size={16} />,
-    permission: null,
-    children: [
-      {
-        key: '/admin/alert-integration/config',
-        label: '配置',
-        icon: <Bell size={16} />,
-        permission: null
-      },
-      {
-        key: '/admin/alert-integration/webhook',
-        label: 'Webhook',
-        icon: <Link2 size={16} />,
-        permission: null
-      }
-    ]
-  },
-  {
     key: '/admin/audit',
     label: '审计日志',
     icon: <FileText size={16} />,
@@ -66,13 +40,6 @@ const breadcrumbMap: Record<string, { title: string; icon?: React.ReactNode; pat
   '/admin': { title: '系统管理', icon: <Database size={14} /> },
   '/admin/users': { title: '用户管理', icon: <Users size={14} /> },
   '/admin/roles': { title: '角色管理', icon: <Shield size={14} /> },
-  '/admin/victoriametrics': { title: 'VictoriaMetrics配置', icon: <Database size={14} /> },
-  '/admin/alert-integration': { title: '告警集成', icon: <Bell size={14} /> },
-  '/admin/alert-integration/config': { title: '配置', path: '/admin/alert-integration' },
-  '/admin/alert-integration/config/receivers': { title: '告警接收人', path: '/admin/alert-integration/config' },
-  '/admin/alert-integration/config/groups': { title: '告警接收组', path: '/admin/alert-integration/config' },
-  '/admin/alert-integration/webhook': { title: 'Webhook', path: '/admin/alert-integration', icon: <Link2 size={14} /> },
-  '/admin/alert-integration/webhook/alertmanager': { title: 'Alertmanager', path: '/admin/alert-integration/webhook' },
   '/admin/audit': { title: '审计日志', icon: <FileText size={14} /> },
 }
 

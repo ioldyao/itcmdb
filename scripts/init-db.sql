@@ -316,56 +316,381 @@ CREATE TABLE IF NOT EXISTS ticket_history (
 );
 
 -- ============================================
--- 告警模块
+-- 告警模块 (来自 alert-service 迁移文件)
 -- ============================================
 
 -- 告警规则表
 CREATE TABLE IF NOT EXISTS alert_rules (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
-    condition JSONB NOT NULL, -- 告警条件
-    severity VARCHAR(20) NOT NULL, -- critical, high, medium, low
-    notification_channels JSONB, -- ["email", "wechat", "sms"]
-    is_active BOOLEAN DEFAULT true,
+
+    -- 规则配置
+    metric_query TEXT NOT NULL,
+    threshold_operator VARCHAR(10) NOT NULL,
+    threshold_value FLOAT NOT NULL,
+    duration INTEGER DEFAULT 300,
+
+    -- 告警属性
+    severity VARCHAR(20) NOT NULL,
+    enabled BOOLEAN DEFAULT true,
+
+    -- 关联配置
+    ci_type_id INTEGER REFERENCES ci_types(id),
+    notification_channels JSONB,
+
+    -- 静默配置
+    silenced_until TIMESTAMP,
+
+    -- 审计字段
+    created_by INTEGER REFERENCES users(id),
+    updated_by INTEGER REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP,
+
+    -- 约束
+    CONSTRAINT alert_rules_severity_check
+        CHECK (severity IN ('critical', 'high', 'medium', 'low')),
+    CONSTRAINT alert_rules_operator_check
+        CHECK (threshold_operator IN ('>', '<', '>=', '<=', '==', '!='))
 );
 
--- 告警阈值表
-CREATE TABLE IF NOT EXISTS alert_thresholds (
-    id SERIAL PRIMARY KEY,
-    rule_id INTEGER REFERENCES alert_rules(id) ON DELETE CASCADE,
-    metric VARCHAR(100) NOT NULL,
-    operator VARCHAR(20) NOT NULL, -- >, <, =, >=, <=
-    threshold DECIMAL(10,2) NOT NULL,
-    duration INTEGER, -- 持续时间(秒)
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+CREATE INDEX IF NOT EXISTS idx_alert_rules_enabled ON alert_rules(enabled) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_alert_rules_severity ON alert_rules(severity);
+CREATE INDEX IF NOT EXISTS idx_alert_rules_ci_type ON alert_rules(ci_type_id);
 
 -- 告警实例表
 CREATE TABLE IF NOT EXISTS alert_instances (
     id SERIAL PRIMARY KEY,
-    rule_id INTEGER REFERENCES alert_rules(id) ON DELETE CASCADE,
-    title VARCHAR(200) NOT NULL,
+    alert_id VARCHAR(64) NOT NULL UNIQUE,
+    rule_id INTEGER REFERENCES alert_rules(id),
+
+    -- 告警基本信息
+    title VARCHAR(255) NOT NULL,
     description TEXT,
     severity VARCHAR(20) NOT NULL,
-    status VARCHAR(20) DEFAULT 'active', -- active, acknowledged, closed
+    status VARCHAR(20) NOT NULL DEFAULT 'firing',
+
+    -- 分类信息
+    category VARCHAR(100),
+    tags JSONB,
+    object_type VARCHAR(100),
+
+    -- 目标信息
+    target_info JSONB,
     affected_ci_id INTEGER REFERENCES ci_instances(id),
-    triggered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- 触发条件
+    trigger_conditions JSONB,
+    metrics JSONB,
+
+    -- 去重指纹
+    fingerprint VARCHAR(64) NOT NULL,
+
+    -- 时间信息
+    first_triggered TIMESTAMP NOT NULL,
+    last_triggered TIMESTAMP NOT NULL,
+    recovered_at TIMESTAMP,
+    closed_at TIMESTAMP,
+
+    -- 计数
+    count INTEGER DEFAULT 1,
+
+    -- 处理信息
+    handler INTEGER REFERENCES users(id),
+    handling_status VARCHAR(20),
+    handling_notes TEXT,
     acknowledged_at TIMESTAMP,
-    acknowledged_by INTEGER REFERENCES users(id),
-    closed_at TIMESTAMP
+
+    -- 通知信息
+    notification_sent BOOLEAN DEFAULT false,
+    notification_channels JSONB,
+
+    -- 审计字段
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- 约束
+    CONSTRAINT alert_instances_severity_check
+        CHECK (severity IN ('critical', 'high', 'medium', 'low')),
+    CONSTRAINT alert_instances_status_check
+        CHECK (status IN ('firing', 'acknowledged', 'resolved', 'closed'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_alert_instances_status ON alert_instances(status);
+CREATE INDEX IF NOT EXISTS idx_alert_instances_fingerprint ON alert_instances(fingerprint);
+CREATE INDEX IF NOT EXISTS idx_alert_instances_rule_id ON alert_instances(rule_id);
+CREATE INDEX IF NOT EXISTS idx_alert_instances_severity ON alert_instances(severity);
+CREATE INDEX IF NOT EXISTS idx_alert_instances_ci_id ON alert_instances(affected_ci_id);
+CREATE INDEX IF NOT EXISTS idx_alert_instances_time_range ON alert_instances(first_triggered, last_triggered);
+CREATE INDEX IF NOT EXISTS idx_alert_instances_category ON alert_instances(category);
+CREATE INDEX IF NOT EXISTS idx_alert_instances_composite ON alert_instances(status, severity, last_triggered DESC);
 
 -- 告警历史表
 CREATE TABLE IF NOT EXISTS alert_history (
     id SERIAL PRIMARY KEY,
     alert_id INTEGER REFERENCES alert_instances(id) ON DELETE CASCADE,
-    event_type VARCHAR(50) NOT NULL, -- triggered, acknowledged, closed, escalated
-    event_data JSONB,
+
+    -- 事件信息
+    event_type VARCHAR(50) NOT NULL,
+    old_status VARCHAR(20),
+    new_status VARCHAR(20),
+
+    -- 操作信息
+    operated_by INTEGER REFERENCES users(id),
+    operated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- 详细信息
+    message TEXT,
+    details JSONB,
+
+    -- 约束
+    CONSTRAINT alert_history_event_type_check
+        CHECK (event_type IN ('triggered', 'updated', 'acknowledged', 'resolved', 'closed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_alert_history_alert_id ON alert_history(alert_id);
+CREATE INDEX IF NOT EXISTS idx_alert_history_operated_at ON alert_history(operated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_alert_history_event_type ON alert_history(event_type);
+
+-- 告警静默表
+CREATE TABLE IF NOT EXISTS alert_silences (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    comment TEXT,
+
+    -- 匹配规则
+    matchers JSONB NOT NULL,
+
+    -- 时间范围
+    starts_at TIMESTAMP NOT NULL,
+    ends_at TIMESTAMP NOT NULL,
+
+    -- 创建信息
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- 状态
+    active BOOLEAN DEFAULT true
+);
+
+CREATE INDEX IF NOT EXISTS idx_alert_silences_time ON alert_silences(starts_at, ends_at);
+CREATE INDEX IF NOT EXISTS idx_alert_silences_active ON alert_silences(active) WHERE active = true;
+
+-- 告警聚合表
+CREATE TABLE IF NOT EXISTS alert_aggregations (
+    id SERIAL PRIMARY KEY,
+    aggregation_key VARCHAR(255) NOT NULL UNIQUE,
+
+    -- 聚合信息
+    base_alert_id INTEGER REFERENCES alert_instances(id),
+    alert_count INTEGER DEFAULT 1,
+    related_alert_ids JSONB,
+
+    -- 时间信息
+    first_triggered TIMESTAMP NOT NULL,
+    last_triggered TIMESTAMP NOT NULL,
+
+    -- 更新时间
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_alert_aggregations_key ON alert_aggregations(aggregation_key);
+CREATE INDEX IF NOT EXISTS idx_alert_aggregations_time ON alert_aggregations(first_triggered, last_triggered);
+
+-- 告警接收组表
+CREATE TABLE IF NOT EXISTS alert_receiver_groups (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    enabled BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 告警接收人表
+CREATE TABLE IF NOT EXISTS alert_receivers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    webhook_url TEXT,
+    at_mobiles TEXT[],
+    at_user_ids TEXT[],
+    secret VARCHAR(255),
+    config JSONB,
+    enabled BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 接收组-接收人关联表
+CREATE TABLE IF NOT EXISTS alert_receiver_group_members (
+    id SERIAL PRIMARY KEY,
+    group_id INTEGER NOT NULL REFERENCES alert_receiver_groups(id) ON DELETE CASCADE,
+    receiver_id INTEGER NOT NULL REFERENCES alert_receivers(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(group_id, receiver_id)
+);
+
+-- 告警规则-接收组关联表
+CREATE TABLE IF NOT EXISTS alert_rule_receiver_groups (
+    id SERIAL PRIMARY KEY,
+    rule_id INTEGER NOT NULL REFERENCES alert_rules(id) ON DELETE CASCADE,
+    group_id INTEGER NOT NULL REFERENCES alert_receiver_groups(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(rule_id, group_id)
+);
+
+-- Webhook集成表
+CREATE TABLE IF NOT EXISTS inbound_webhooks (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    webhook_url VARCHAR(500) NOT NULL UNIQUE,
+    source_type VARCHAR(50) NOT NULL CHECK (source_type IN ('alertmanager', 'prometheus', 'victoriametrics', 'custom')),
+    enabled BOOLEAN DEFAULT true,
+    description TEXT,
+    last_received TIMESTAMP,
+    default_receiver_group_id INTEGER REFERENCES alert_receiver_groups(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_inbound_webhooks_source_type ON inbound_webhooks(source_type);
+CREATE INDEX IF NOT EXISTS idx_inbound_webhooks_enabled ON inbound_webhooks(enabled);
+CREATE INDEX IF NOT EXISTS idx_inbound_webhooks_created_at ON inbound_webhooks(created_at);
+
+CREATE TABLE IF NOT EXISTS outbound_webhooks (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    target_type VARCHAR(50) NOT NULL CHECK (target_type IN ('alertmanager', 'receiver')),
+    receiver_id INTEGER REFERENCES alert_receivers(id) ON DELETE SET NULL,
+    endpoint_url TEXT,
+    enabled BOOLEAN DEFAULT true,
+    description TEXT,
+    last_sent TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_outbound_webhooks_target_type ON outbound_webhooks(target_type);
+CREATE INDEX IF NOT EXISTS idx_outbound_webhooks_receiver_id ON outbound_webhooks(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_outbound_webhooks_enabled ON outbound_webhooks(enabled);
+CREATE INDEX IF NOT EXISTS idx_outbound_webhooks_created_at ON outbound_webhooks(created_at);
+
+CREATE TABLE IF NOT EXISTS inbound_webhook_logs (
+    id SERIAL PRIMARY KEY,
+    webhook_id INTEGER NOT NULL REFERENCES inbound_webhooks(id) ON DELETE CASCADE,
+    source_ip VARCHAR(50),
+    user_agent TEXT,
+    status_code INTEGER,
+    request_data JSONB,
+    response_data TEXT,
+    error_message TEXT,
+    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_inbound_webhook_logs_webhook_id ON inbound_webhook_logs(webhook_id);
+CREATE INDEX IF NOT EXISTS idx_inbound_webhook_logs_created_at ON inbound_webhook_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_inbound_webhook_logs_status_code ON inbound_webhook_logs(status_code);
+
+CREATE TABLE IF NOT EXISTS outbound_webhook_logs (
+    id SERIAL PRIMARY KEY,
+    webhook_id INTEGER NOT NULL REFERENCES outbound_webhooks(id) ON DELETE CASCADE,
+    alert_id VARCHAR(255),
+    target_url TEXT,
+    status_code INTEGER,
+    request_data JSONB,
+    response_data TEXT,
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_outbound_webhook_logs_webhook_id ON outbound_webhook_logs(webhook_id);
+CREATE INDEX IF NOT EXISTS idx_outbound_webhook_logs_alert_id ON outbound_webhook_logs(alert_id);
+CREATE INDEX IF NOT EXISTS idx_outbound_webhook_logs_created_at ON outbound_webhook_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_outbound_webhook_logs_status_code ON outbound_webhook_logs(status_code);
+
+-- 告警路由规则表
+CREATE TABLE IF NOT EXISTS alert_routing_rules (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    matchers JSONB NOT NULL DEFAULT '{}',
+    match_type VARCHAR(20) NOT NULL DEFAULT 'match' CHECK (match_type IN ('match', 'match_re')),
+    receiver_group_id INTEGER REFERENCES alert_receiver_groups(id) ON DELETE SET NULL,
+    continue BOOLEAN DEFAULT false,
+    priority INTEGER NOT NULL DEFAULT 0,
+    enabled BOOLEAN DEFAULT true,
+    created_by INTEGER,
+    updated_by INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_enabled ON alert_routing_rules(enabled);
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_priority ON alert_routing_rules(priority);
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_receiver_group_id ON alert_routing_rules(receiver_group_id);
+
+-- 告警通知模板表
+CREATE TABLE IF NOT EXISTS alert_notification_templates (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    template_type VARCHAR(50) NOT NULL CHECK (template_type IN ('dingtalk', 'feishu', 'wechat', 'email')),
+    template_content TEXT NOT NULL,
+    is_default BOOLEAN DEFAULT false,
+    created_by INTEGER,
+    updated_by INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_alert_notification_templates_type ON alert_notification_templates(template_type);
+CREATE INDEX IF NOT EXISTS idx_alert_notification_templates_default ON alert_notification_templates(is_default);
+
+-- 添加路由规则关联到alert_instances
+ALTER TABLE alert_instances
+ADD COLUMN IF NOT EXISTS routing_rule_id INTEGER REFERENCES alert_routing_rules(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_alert_instances_routing_rule_id ON alert_instances(routing_rule_id);
+
+-- 死信队列表
+CREATE TABLE IF NOT EXISTS dead_letter_queues (
+    id SERIAL PRIMARY KEY,
+    webhook_id INTEGER NOT NULL,
+    webhook_type VARCHAR(20) NOT NULL,
+    alert_data JSONB,
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    last_retry_at TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_dlq_webhook_id ON dead_letter_queues(webhook_id);
+CREATE INDEX IF NOT EXISTS idx_dlq_status ON dead_letter_queues(status);
+
+-- Webhook指标表
+CREATE TABLE IF NOT EXISTS webhook_metrics (
+    id SERIAL PRIMARY KEY,
+    webhook_id INTEGER NOT NULL UNIQUE,
+    webhook_type VARCHAR(20) NOT NULL,
+    total_requests BIGINT DEFAULT 0,
+    success_requests BIGINT DEFAULT 0,
+    failed_requests BIGINT DEFAULT 0,
+    avg_response_time DOUBLE PRECISION DEFAULT 0,
+    last_request_at TIMESTAMP,
+    circuit_state VARCHAR(20) DEFAULT 'closed',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_webhook_metrics_webhook ON webhook_metrics(webhook_id, webhook_type);
 
 -- ============================================
 -- 通知模块
@@ -479,11 +804,6 @@ CREATE INDEX IF NOT EXISTS idx_tickets_assignee ON tickets(assignee_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_requester ON tickets(requester_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at);
 
--- 告警表索引
-CREATE INDEX IF NOT EXISTS idx_alerts_status ON alert_instances(status);
-CREATE INDEX IF NOT EXISTS idx_alerts_severity ON alert_instances(severity);
-CREATE INDEX IF NOT EXISTS idx_alerts_triggered_at ON alert_instances(triggered_at);
-
 -- 审计日志表索引
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
@@ -545,11 +865,80 @@ CREATE TRIGGER update_tickets_updated_at BEFORE UPDATE ON tickets
 CREATE TRIGGER update_alert_rules_updated_at BEFORE UPDATE ON alert_rules
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_alert_instances_updated_at BEFORE UPDATE ON alert_instances
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_alert_silences_updated_at BEFORE UPDATE ON alert_silences
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_alert_receiver_groups_updated_at BEFORE UPDATE ON alert_receiver_groups
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_alert_receivers_updated_at BEFORE UPDATE ON alert_receivers
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_alert_routing_rules_updated_at BEFORE UPDATE ON alert_routing_rules
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_alert_notification_templates_updated_at BEFORE UPDATE ON alert_notification_templates
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_inbound_webhooks_updated_at BEFORE UPDATE ON inbound_webhooks
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_outbound_webhooks_updated_at BEFORE UPDATE ON outbound_webhooks
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_notification_templates_updated_at BEFORE UPDATE ON notification_templates
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_report_configs_updated_at BEFORE UPDATE ON report_configs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- 告警历史自动记录触发器
+CREATE OR REPLACE FUNCTION log_alert_changes()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- 状态变更时记录历史
+    IF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
+        INSERT INTO alert_history (
+            alert_id, event_type, old_status, new_status,
+            operated_by, operated_at, message
+        ) VALUES (
+            NEW.id,
+            CASE NEW.status
+                WHEN 'acknowledged' THEN 'acknowledged'
+                WHEN 'resolved' THEN 'resolved'
+                WHEN 'closed' THEN 'closed'
+                ELSE 'updated'
+            END,
+            OLD.status,
+            NEW.status,
+            NEW.handler,
+            CURRENT_TIMESTAMP,
+            '状态自动变更'
+        );
+    ELSIF TG_OP = 'INSERT' THEN
+        -- 新建告警时记录触发事件
+        INSERT INTO alert_history (
+            alert_id, event_type, new_status, operated_at, message
+        ) VALUES (
+            NEW.id,
+            'triggered',
+            NEW.status,
+            CURRENT_TIMESTAMP,
+            '告警首次触发'
+        );
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_log_alert_changes
+    AFTER INSERT OR UPDATE ON alert_instances
+    FOR EACH ROW
+    EXECUTE FUNCTION log_alert_changes();
 
 -- 工单编号生成函数
 CREATE OR REPLACE FUNCTION generate_ticket_number()
@@ -736,6 +1125,115 @@ INSERT INTO ticket_templates (name, description, workflow_id) VALUES
 ('服务请求', '用户服务请求类工单', (SELECT id FROM ticket_workflows WHERE name = '默认工单流程' LIMIT 1)),
 ('变更申请', '系统变更申请类工单', (SELECT id FROM ticket_workflows WHERE name = '默认工单流程' LIMIT 1))
 ON CONFLICT DO NOTHING;
+
+-- 插入告警接收组
+INSERT INTO alert_receiver_groups (name, description, enabled) VALUES
+('运维组', '负责处理系统告警', true),
+('开发组', '负责处理应用告警', true),
+('测试组', '负责处理测试环境告警', true)
+ON CONFLICT (name) DO NOTHING;
+
+-- 插入示例接收人（webhook_url需要用户配置）
+INSERT INTO alert_receivers (name, type, webhook_url, enabled) VALUES
+('钉钉-运维组', 'dingtalk', '', true),
+('企业微信-运维组', 'wechat', '', true),
+('飞书-运维组', 'feishu', '', true)
+ON CONFLICT DO NOTHING;
+
+-- 关联组和接收人
+INSERT INTO alert_receiver_group_members (group_id, receiver_id)
+SELECT g.id, r.id
+FROM alert_receiver_groups g
+CROSS JOIN alert_receivers r
+WHERE g.name = '运维组'
+ON CONFLICT DO NOTHING;
+
+-- 插入示例告警规则
+INSERT INTO alert_rules (name, description, metric_query, threshold_operator, threshold_value, duration, severity, enabled, created_by, updated_by) VALUES
+('CPU使用率告警', 'CPU使用率超过80%持续5分钟', '100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)', '>', 80.0, 300, 'high', true, 1, 1),
+('内存使用率告警', '内存使用率超过90%持续5分钟', '(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100', '>', 90.0, 300, 'critical', true, 1, 1),
+('磁盘使用率告警', '磁盘使用率超过85%', '(1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100', '>', 85.0, 300, 'high', true, 1, 1),
+('容器CPU使用率告警', '容器CPU使用率超过80%', 'rate(container_cpu_usage_seconds_total{name!=""}[5m]) * 100', '>', 80.0, 300, 'medium', true, 1, 1),
+('Ping不可达告警', '主机Ping不可达', 'icmplatency', '>', 9999, 60, 'critical', true, 1, 1)
+ON CONFLICT (name) DO NOTHING;
+
+-- 插入示例Webhook配置
+INSERT INTO inbound_webhooks (name, webhook_url, source_type, description)
+VALUES
+    ('Alertmanager主集群', 'https://itcmdb.example.com/api/v1/webhooks/inbound/abc123xyz', 'alertmanager', '接收主集群Alertmanager推送的告警'),
+    ('VictoriaMetrics环境', 'https://itcmdb.example.com/api/v1/webhooks/inbound/def456uvw', 'victoriametrics', '接收VictoriaMetrics推送的告警')
+ON CONFLICT (webhook_url) DO NOTHING;
+
+INSERT INTO outbound_webhooks (name, target_type, endpoint_url, description, enabled)
+VALUES
+    ('推送至主Alertmanager', 'alertmanager', 'http://alertmanager:9093/api/v1/alerts', '将ITCMDB告警推送到主集群Alertmanager', true)
+ON CONFLICT DO NOTHING;
+
+-- 插入默认通知模板
+INSERT INTO alert_notification_templates (name, description, template_type, template_content, is_default)
+VALUES (
+    '钉钉默认模板',
+    '钉钉Markdown格式告警模板',
+    'dingtalk',
+    '#### {{ .Title }}
+
+> **告警ID**: {{ .AlertID }}
+> **严重级别**: {{ .Severity }}
+> **状态**: {{ .Status }}
+> **空间/对象**: {{ .Instance }}
+> **时间**: {{ .Timestamp }}
+
+{{ if .Content }}**详情**: {{ .Content }}{{ end }}
+
+{{ if .Labels }}
+**标签**:
+{{ range $key, $value := .Labels }}
+- {{ $key }}: {{ $value }}
+{{ end }}
+{{ end }}',
+    true
+) ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO alert_notification_templates (name, description, template_type, template_content, is_default)
+VALUES (
+    '飞书默认模板',
+    '飞书富文本格式告警模板',
+    'feishu',
+    '{{ .Title }}
+
+告警ID: {{ .AlertID }}
+严重级别: {{ .Severity }}
+状态: {{ .Status }}
+空间/对象: {{ .Instance }}
+时间: {{ .Timestamp }}
+
+{{ if .Content }}详情: {{ .Content }}{{ end }}',
+    true
+) ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO alert_notification_templates (name, description, template_type, template_content, is_default)
+VALUES (
+    '企业微信默认模板',
+    '企业微信Markdown格式告警模板',
+    'wechat',
+    '### {{ .Title }}
+
+**告警ID**: {{ .AlertID }}
+**严重级别**: {{ .Severity }}
+**状态**: {{ .Status }}
+**空间/对象**: {{ .Instance }}
+**时间**: {{ .Timestamp }}
+
+{{ if .Content }}**详情**: {{ .Content }}{{ end }}
+
+{{ if .Labels }}
+**标签**:
+{{ range $key, $value := .Labels }}
+- {{ $key }}: {{ $value }}
+{{ end }}
+{{ end }}',
+    true
+) ON CONFLICT (name) DO NOTHING;
 
 -- ============================================
 -- 添加表注释
