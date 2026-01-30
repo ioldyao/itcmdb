@@ -625,6 +625,50 @@ CREATE INDEX IF NOT EXISTS idx_outbound_webhook_logs_alert_id ON outbound_webhoo
 CREATE INDEX IF NOT EXISTS idx_outbound_webhook_logs_created_at ON outbound_webhook_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_outbound_webhook_logs_status_code ON outbound_webhook_logs(status_code);
 
+-- 告警路由规则表（必须在 notification_logs 之前创建，因为 notification_logs 引用了它）
+CREATE TABLE IF NOT EXISTS alert_routing_rules (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    matchers JSONB NOT NULL DEFAULT '{}',
+    match_type VARCHAR(20) NOT NULL DEFAULT 'match' CHECK (match_type IN ('match', 'match_re', 'exact', 'regex', 'all')),
+    receiver_group_id INTEGER REFERENCES alert_receiver_groups(id) ON DELETE SET NULL,
+    continue BOOLEAN DEFAULT false,
+    priority INTEGER NOT NULL DEFAULT 0,
+    enabled BOOLEAN DEFAULT true,
+
+    -- 新增：告警分组配置（Alertmanager风格）
+    group_by TEXT[] DEFAULT ARRAY[]::TEXT[],
+    group_wait INTEGER DEFAULT 30 CHECK (group_wait > 0),
+    group_interval INTEGER DEFAULT 300 CHECK (group_interval > 0),
+    repeat_interval INTEGER DEFAULT 3600 CHECK (repeat_interval > 0),
+
+    -- 新增：层级路由支持
+    parent_id INTEGER REFERENCES alert_routing_rules(id) ON DELETE CASCADE,
+    route_path TEXT,
+    continue_matching BOOLEAN DEFAULT false,
+
+    created_by INTEGER,
+    updated_by INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON COLUMN alert_routing_rules.group_by IS '告警分组标签列表（如 [''alertname'', ''cluster'']）';
+COMMENT ON COLUMN alert_routing_rules.group_wait IS '发送首次通知前的等待时间（秒）';
+COMMENT ON COLUMN alert_routing_rules.group_interval IS '发送分组更新的间隔时间（秒）';
+COMMENT ON COLUMN alert_routing_rules.repeat_interval IS '重复发送通知的间隔时间（秒）';
+COMMENT ON COLUMN alert_routing_rules.parent_id IS '父路由规则ID，用于层级路由';
+COMMENT ON COLUMN alert_routing_rules.route_path IS '路由树中的完整路径（如 ''/root/team-a/critical''）';
+COMMENT ON COLUMN alert_routing_rules.continue_matching IS '匹配后是否继续评估其他规则';
+
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_enabled ON alert_routing_rules(enabled);
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_priority ON alert_routing_rules(priority);
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_receiver_group_id ON alert_routing_rules(receiver_group_id);
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_parent_id ON alert_routing_rules(parent_id);
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_route_path ON alert_routing_rules(route_path);
+CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_enabled_priority ON alert_routing_rules(enabled, priority DESC);
+
 -- 统一通知日志表（新增）
 CREATE TABLE IF NOT EXISTS notification_logs (
     id SERIAL PRIMARY KEY,
@@ -674,50 +718,6 @@ CREATE INDEX IF NOT EXISTS idx_notification_logs_receiver_group_id ON notificati
 CREATE INDEX IF NOT EXISTS idx_notification_logs_status ON notification_logs(status);
 CREATE INDEX IF NOT EXISTS idx_notification_logs_created_at ON notification_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notification_logs_next_retry_at ON notification_logs(next_retry_at) WHERE status = 'retrying';
-
--- 告警路由规则表
-CREATE TABLE IF NOT EXISTS alert_routing_rules (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    matchers JSONB NOT NULL DEFAULT '{}',
-    match_type VARCHAR(20) NOT NULL DEFAULT 'match' CHECK (match_type IN ('match', 'match_re', 'exact', 'regex', 'all')),
-    receiver_group_id INTEGER REFERENCES alert_receiver_groups(id) ON DELETE SET NULL,
-    continue BOOLEAN DEFAULT false,
-    priority INTEGER NOT NULL DEFAULT 0,
-    enabled BOOLEAN DEFAULT true,
-
-    -- 新增：告警分组配置（Alertmanager风格）
-    group_by TEXT[] DEFAULT ARRAY[]::TEXT[],
-    group_wait INTEGER DEFAULT 30 CHECK (group_wait > 0),
-    group_interval INTEGER DEFAULT 300 CHECK (group_interval > 0),
-    repeat_interval INTEGER DEFAULT 3600 CHECK (repeat_interval > 0),
-
-    -- 新增：层级路由支持
-    parent_id INTEGER REFERENCES alert_routing_rules(id) ON DELETE CASCADE,
-    route_path TEXT,
-    continue_matching BOOLEAN DEFAULT false,
-
-    created_by INTEGER,
-    updated_by INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-COMMENT ON COLUMN alert_routing_rules.group_by IS '告警分组标签列表（如 [''alertname'', ''cluster'']）';
-COMMENT ON COLUMN alert_routing_rules.group_wait IS '发送首次通知前的等待时间（秒）';
-COMMENT ON COLUMN alert_routing_rules.group_interval IS '发送分组更新的间隔时间（秒）';
-COMMENT ON COLUMN alert_routing_rules.repeat_interval IS '重复发送通知的间隔时间（秒）';
-COMMENT ON COLUMN alert_routing_rules.parent_id IS '父路由规则ID，用于层级路由';
-COMMENT ON COLUMN alert_routing_rules.route_path IS '路由树中的完整路径（如 ''/root/team-a/critical''）';
-COMMENT ON COLUMN alert_routing_rules.continue_matching IS '匹配后是否继续评估其他规则';
-
-CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_enabled ON alert_routing_rules(enabled);
-CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_priority ON alert_routing_rules(priority);
-CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_receiver_group_id ON alert_routing_rules(receiver_group_id);
-CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_parent_id ON alert_routing_rules(parent_id);
-CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_route_path ON alert_routing_rules(route_path);
-CREATE INDEX IF NOT EXISTS idx_alert_routing_rules_enabled_priority ON alert_routing_rules(enabled, priority DESC);
 
 -- 告警通知模板表
 CREATE TABLE IF NOT EXISTS alert_notification_templates (
