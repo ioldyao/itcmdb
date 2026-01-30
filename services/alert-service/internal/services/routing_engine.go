@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yourusername/itcmdb/services/alert-service/internal/models"
+	"github.com/itcmdb/alert-service/internal/models"
 	"gorm.io/gorm"
 )
 
