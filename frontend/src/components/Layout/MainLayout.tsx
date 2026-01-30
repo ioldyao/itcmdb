@@ -177,9 +177,9 @@ export default function MainLayout() {
                 {!showSubNav && (
                   <motion.div
                     key="main-nav"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
+                    initial={{ opacity: 0, x: -20, zIndex: 1 }}
+                    animate={{ opacity: 1, x: 0, zIndex: 1 }}
+                    exit={{ opacity: 0, x: -20, zIndex: 0 }}
                     transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
                     className="absolute inset-0 flex items-center gap-1"
                   >
@@ -234,9 +234,9 @@ export default function MainLayout() {
                 {showSubNav && (
                   <motion.div
                     key={`sub-nav-${currentSubNav}`}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
+                    initial={{ opacity: 0, x: 20, zIndex: 1 }}
+                    animate={{ opacity: 1, x: 0, zIndex: 1 }}
+                    exit={{ opacity: 0, x: 20, zIndex: 0 }}
                     transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
                     className="absolute inset-0 flex items-center gap-1"
                   >
