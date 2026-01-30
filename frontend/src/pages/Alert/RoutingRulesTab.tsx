@@ -56,7 +56,7 @@ export default function RoutingRulesTab() {
   const fetchReceiverGroups = async () => {
     try {
       const response = await alertReceiverService.getReceiverGroups({})
-      setReceiverGroups(response.data.groups)
+      setReceiverGroups(response.groups)
     } catch (error) {
       console.error('获取接收组失败', error)
     }
