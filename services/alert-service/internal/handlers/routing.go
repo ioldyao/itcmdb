@@ -213,7 +213,7 @@ func (h *TemplateHandler) DeleteNotificationTemplate(c *gin.Context) {
 
 // SetDefaultTemplate 设置默认模板
 func (h *TemplateHandler) SetDefaultTemplate(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+	_, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, response.Error("Invalid ID", err.Error()))
 		return
