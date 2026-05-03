@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/itcmdb/audit-service/internal/consumer"
 	"github.com/itcmdb/audit-service/internal/handlers"
+	"github.com/itcmdb/audit-service/internal/models"
 	"github.com/itcmdb/audit-service/internal/repository"
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
@@ -90,10 +91,28 @@ func main() {
 
 	logger.Info("Audit service started", zap.String("addr", addr))
 
+	// 记录平台启动事件（直接写入数据库，避免循环依赖）
+	db.Create(&models.AuditLog{
+		Action:    "platform_start",
+		Resource:  "platform",
+		Status:    "success",
+		IPAddress: "127.0.0.1",
+		Details:   models.JSONB{"service": "audit-service", "addr": addr},
+	})
+
 	// 等待中断信号
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
 	<-sigterm
+
+	// 记录平台停止事件
+	db.Create(&models.AuditLog{
+		Action:    "platform_stop",
+		Resource:  "platform",
+		Status:    "success",
+		IPAddress: "127.0.0.1",
+		Details:   models.JSONB{"service": "audit-service"},
+	})
 
 	logger.Info("Shutting down audit service...")
 	cancel()

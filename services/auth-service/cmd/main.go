@@ -113,6 +113,12 @@ func main() {
 
 	// 启动REST API服务
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
+
+	// 记录平台启动事件
+	audit.LogPlatformEvent("platform_start", "auth-service", map[string]interface{}{
+		"addr": addr,
+	})
+
 	logger.Info("Auth REST API service starting", zap.String("addr", addr))
 
 	// 优雅关闭
@@ -120,6 +126,9 @@ func main() {
 		sigterm := make(chan os.Signal, 1)
 		signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
 		<-sigterm
+
+		// 记录平台停止事件
+		audit.LogPlatformEvent("platform_stop", "auth-service", nil)
 
 		logger.Info("Shutting down auth service...")
 		audit.CloseProducer()

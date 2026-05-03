@@ -201,3 +201,39 @@ func LogError(c *gin.Context, action, resource string, resourceID *uint, errorMs
 		ErrorMsg: errorMsg,
 	})
 }
+
+// LogPlatformEvent 记录平台生命周期事件（启动/停止）
+// 不依赖gin.Context，直接构造审计事件
+func LogPlatformEvent(action, serviceName string, details interface{}) {
+	if producer == nil {
+		logger.Warn("Audit producer is nil, skipping platform event", zap.String("action", action))
+		return
+	}
+
+	logger.Info("Recording platform event",
+		zap.String("action", action),
+		zap.String("service", serviceName),
+	)
+
+	event := kafka.AuditEvent{
+		Action:    action,
+		Resource:  "platform",
+		Details:   details,
+		Status:    "success",
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
+
+	// 同步发送，确保平台事件不丢失
+	if err := producer.SendAuditEvent(event); err != nil {
+		logger.Error("Failed to send platform event",
+			zap.String("action", action),
+			zap.String("service", serviceName),
+			zap.Error(err),
+		)
+	} else {
+		logger.Info("Platform event sent successfully",
+			zap.String("action", action),
+			zap.String("service", serviceName),
+		)
+	}
+}

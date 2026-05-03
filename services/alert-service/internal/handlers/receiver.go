@@ -446,8 +446,8 @@ func (h *ReceiverGroupHandler) UpdateReceiverGroup(c *gin.Context) {
 	// 重新加载包含接收人的数据
 	h.db.Preload("Receivers").First(&group, group.ID)
 
-	groupID = uint(group.ID)
-	audit.LogSuccess(c, "update", "alert_receiver_group", &groupID, map[string]interface{}{
+	auditGroupID := uint(group.ID)
+	audit.LogSuccess(c, "update", "alert_receiver_group", &auditGroupID, map[string]interface{}{
 		"name": group.Name,
 	})
 

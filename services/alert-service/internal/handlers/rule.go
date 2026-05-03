@@ -252,8 +252,8 @@ func (h *RuleHandler) UpdateRule(c *gin.Context) {
 		return
 	}
 
-	ruleID := uint(rule.ID)
-	audit.LogSuccess(c, "update", "alert_rule", &ruleID, map[string]interface{}{
+	auditID := uint(rule.ID)
+	audit.LogSuccess(c, "update", "alert_rule", &auditID, map[string]interface{}{
 		"name": rule.Name,
 	})
 

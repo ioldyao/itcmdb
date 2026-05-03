@@ -3,9 +3,13 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
@@ -34,6 +38,14 @@ func main() {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
 
+	// 初始化审计日志Kafka生产者
+	kafkaBrokers := viper.GetStringSlice("kafka.brokers")
+	if err := audit.InitProducer(kafkaBrokers); err != nil {
+		logger.Warn("Failed to init audit producer, audit logging disabled", zap.Error(err))
+	} else {
+		defer audit.CloseProducer()
+	}
+
 	jwtManager := auth.NewJWTManager(
 		viper.GetString("jwt.secret"),
 		viper.GetDuration("jwt.expiration"),
@@ -47,8 +59,30 @@ func main() {
 	setupRoutes(r, jwtManager)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
+
+	// 记录平台启动事件
+	audit.LogPlatformEvent("platform_start", "report-service", map[string]interface{}{
+		"addr": addr,
+	})
+
 	logger.Info("Report service starting", zap.String("addr", addr))
-	r.Run(addr)
+
+	// 启动HTTP服务器
+	go func() {
+		if err := r.Run(addr); err != nil {
+			logger.Fatal("Failed to start HTTP server", zap.Error(err))
+		}
+	}()
+
+	// 等待中断信号
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
+	<-sigterm
+
+	// 记录平台停止事件
+	audit.LogPlatformEvent("platform_stop", "report-service", nil)
+
+	logger.Info("Shutting down report service...")
 }
 
 func loadConfig() error {
@@ -82,6 +116,7 @@ func loadConfig() error {
 	viper.SetDefault("database.sslmode", "disable")
 	viper.SetDefault("jwt.secret", "your-secret-key")
 	viper.SetDefault("jwt.expiration", "24h")
+	viper.SetDefault("kafka.brokers", []string{"kafka:9092"})
 	viper.ReadInConfig()
 	return nil
 }

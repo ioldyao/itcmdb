@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -83,8 +86,30 @@ func main() {
 	setupRoutes(r, db, alertEngine, vmClient, webhookService, jwtManager)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
+
+	// 记录平台启动事件
+	audit.LogPlatformEvent("platform_start", "alert-service", map[string]interface{}{
+		"addr": addr,
+	})
+
 	logger.Info("Alert service starting", zap.String("addr", addr))
-	r.Run(addr)
+
+	// 启动HTTP服务器
+	go func() {
+		if err := r.Run(addr); err != nil {
+			logger.Fatal("Failed to start HTTP server", zap.Error(err))
+		}
+	}()
+
+	// 等待中断信号
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
+	<-sigterm
+
+	// 记录平台停止事件
+	audit.LogPlatformEvent("platform_stop", "alert-service", nil)
+
+	logger.Info("Shutting down alert service...")
 }
 
 func loadConfig() error {

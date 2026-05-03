@@ -8,6 +8,8 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -198,8 +200,30 @@ func main() {
 	setupRoutes(r, authClient, ciHandler, roleHandler, tagHandler, monitoringHandler, configHandler)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
+
+	// 记录平台启动事件
+	audit.LogPlatformEvent("platform_start", "cmdb-service", map[string]interface{}{
+		"addr": addr,
+	})
+
 	logger.Info("CMDB REST API service starting", zap.String("addr", addr))
-	r.Run(addr)
+
+	// 启动HTTP服务器
+	go func() {
+		if err := r.Run(addr); err != nil {
+			logger.Fatal("Failed to start HTTP server", zap.Error(err))
+		}
+	}()
+
+	// 等待中断信号
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
+	<-sigterm
+
+	// 记录平台停止事件
+	audit.LogPlatformEvent("platform_stop", "cmdb-service", nil)
+
+	logger.Info("Shutting down cmdb service...")
 }
 
 func startGRPCServer(ciService service.CIService, authClient *grpcclient.AuthClient) {

@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -56,8 +59,30 @@ func main() {
 	setupRoutes(r, jwtManager)
 
 	addr := fmt.Sprintf(":%s", viper.GetString("server.port"))
+
+	// 记录平台启动事件
+	audit.LogPlatformEvent("platform_start", "ticket-service", map[string]interface{}{
+		"addr": addr,
+	})
+
 	logger.Info("Ticket service starting", zap.String("addr", addr))
-	r.Run(addr)
+
+	// 启动HTTP服务器
+	go func() {
+		if err := r.Run(addr); err != nil {
+			logger.Fatal("Failed to start HTTP server", zap.Error(err))
+		}
+	}()
+
+	// 等待中断信号
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
+	<-sigterm
+
+	// 记录平台停止事件
+	audit.LogPlatformEvent("platform_stop", "ticket-service", nil)
+
+	logger.Info("Shutting down ticket service...")
 }
 
 func loadConfig() error {
