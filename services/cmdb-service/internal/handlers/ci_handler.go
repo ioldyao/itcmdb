@@ -75,14 +75,12 @@ func (h *CIHandler) CreateCIInstance(c *gin.Context) {
 		return
 	}
 
-	// 从JWT中获取用户ID
-	userID, _ := c.Get("user_id")
-	uid, ok := userID.(uint)
+	uid, ok := response.GetUserID(c)
 	if !ok {
-		uid = 1 // fallback
+		return
 	}
 
-	instance, err := h.ciService.CreateCIInstance(&req, uid)
+	instance, err := h.ciService.CreateCIInstance(&req, uint(uid))
 	if err != nil {
 		audit.LogError(c, "create", "ci_instances", nil, err.Error(), req)
 		c.JSON(400, response.Error("Failed to create CI instance", err.Error()))
@@ -111,14 +109,13 @@ func (h *CIHandler) UpdateCIInstance(c *gin.Context) {
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	uid, ok := userID.(uint)
+	uid, ok := response.GetUserID(c)
 	if !ok {
-		uid = 1
+		return
 	}
 
 	instanceID := uint(id)
-	instance, err := h.ciService.UpdateCIInstance(instanceID, &req, uid)
+	instance, err := h.ciService.UpdateCIInstance(instanceID, &req, uint(uid))
 	if err != nil {
 		audit.LogError(c, "update", "ci_instances", &instanceID, err.Error(), req)
 		c.JSON(400, response.Error("Failed to update CI instance", err.Error()))
@@ -140,14 +137,13 @@ func (h *CIHandler) DeleteCIInstance(c *gin.Context) {
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	uid, ok := userID.(uint)
+	uid, ok := response.GetUserID(c)
 	if !ok {
-		uid = 1
+		return
 	}
 
 	instanceID := uint(id)
-	if err := h.ciService.DeleteCIInstance(instanceID, uid); err != nil {
+	if err := h.ciService.DeleteCIInstance(instanceID, uint(uid)); err != nil {
 		audit.LogError(c, "delete", "ci_instances", &instanceID, err.Error(), nil)
 		c.JSON(400, response.Error("Failed to delete CI instance", err.Error()))
 		return
@@ -184,13 +180,12 @@ func (h *CIHandler) CreateCIRelation(c *gin.Context) {
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	uid, ok := userID.(uint)
+	uid, ok := response.GetUserID(c)
 	if !ok {
-		uid = 1
+		return
 	}
 
-	relation, err := h.ciService.CreateCIRelation(&req, uid)
+	relation, err := h.ciService.CreateCIRelation(&req, uint(uid))
 	if err != nil {
 		c.JSON(400, response.Error("Failed to create CI relation", err.Error()))
 		return
@@ -265,14 +260,13 @@ func (h *CIHandler) ImportCIInstances(c *gin.Context) {
 	}
 
 	// 获取用户ID
-	userID, _ := c.Get("user_id")
-	uid, ok := userID.(uint)
+	uid, ok := response.GetUserID(c)
 	if !ok {
-		uid = 1
+		return
 	}
 
 	// 导入数据
-	result, err := h.ciService.ImportCIInstances(uint(ciTypeID), data, uid)
+	result, err := h.ciService.ImportCIInstances(uint(ciTypeID), data, uint(uid))
 	if err != nil {
 		c.JSON(400, response.Error("Failed to import CI instances", err.Error()))
 		return

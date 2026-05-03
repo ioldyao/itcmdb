@@ -133,13 +133,18 @@ func Log(c *gin.Context, action, resource string, resourceID *uint, opts LogOpti
 	// 获取用户ID
 	var userID *uint
 	if uid, exists := c.Get("user_id"); exists {
-		// 支持int64和uint两种类型
 		switch v := uid.(type) {
+		case uint64:
+			uidUint := uint(v)
+			userID = &uidUint
 		case int64:
 			uidUint := uint(v)
 			userID = &uidUint
 		case uint:
 			userID = &v
+		case int:
+			uidUint := uint(v)
+			userID = &uidUint
 		}
 	}
 

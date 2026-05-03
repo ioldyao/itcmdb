@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 
 	"github.com/itcmdb/cmdb-service/internal/models"
 	"github.com/itcmdb/cmdb-service/internal/repository"
@@ -350,7 +351,7 @@ func (s *ciService) ImportCIInstances(ciTypeID uint, data []byte, userID uint) (
 		name, ok := instData["name"].(string)
 		if !ok || name == "" {
 			result.Failed++
-			result.Errors = append(result.Errors, "Row "+string(rune(i+1))+": missing or invalid name")
+			result.Errors = append(result.Errors, "Row "+strconv.Itoa(i+1)+": missing or invalid name")
 			continue
 		}
 
@@ -365,7 +366,7 @@ func (s *ciService) ImportCIInstances(ciTypeID uint, data []byte, userID uint) (
 		// 验证必填属性
 		if err := s.validateAttributes(attributes, ciType.Attributes); err != nil {
 			result.Failed++
-			result.Errors = append(result.Errors, "Row "+string(rune(i+1))+": "+err.Error())
+			result.Errors = append(result.Errors, "Row "+strconv.Itoa(i+1)+": "+err.Error())
 			continue
 		}
 
@@ -382,7 +383,7 @@ func (s *ciService) ImportCIInstances(ciTypeID uint, data []byte, userID uint) (
 
 		if err := s.repo.CreateCIInstance(instance); err != nil {
 			result.Failed++
-			result.Errors = append(result.Errors, "Row "+string(rune(i+1))+": "+err.Error())
+			result.Errors = append(result.Errors, "Row "+strconv.Itoa(i+1)+": "+err.Error())
 			continue
 		}
 

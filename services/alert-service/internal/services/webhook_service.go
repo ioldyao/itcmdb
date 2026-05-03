@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"sort"
 	"sync"
 	"time"
@@ -459,7 +461,11 @@ func (s *WebhookService) sendToReceiver(receiver *models.AlertReceiver, alertDat
 }
 
 // sendHTTP 发送HTTP请求（带企业级特性）
-func (s *WebhookService) sendHTTP(webhook *models.OutboundWebhook, url string, payload interface{}, alertData map[string]interface{}) error {
+func (s *WebhookService) sendHTTP(webhook *models.OutboundWebhook, urlStr string, payload interface{}, alertData map[string]interface{}) error {
+	// SSRF 防护：验证目标URL不允许访问内网地址
+	if err := validateWebhookURL(urlStr); err != nil {
+		return fmt.Errorf("SSRF protection: %w", err)
+	}
 	// 1. 速率限制检查
 	if !s.rateLimiter.Allow() {
 		err := fmt.Errorf("rate limit exceeded")
@@ -481,7 +487,7 @@ func (s *WebhookService) sendHTTP(webhook *models.OutboundWebhook, url string, p
 				return fmt.Errorf("failed to marshal payload: %w", err)
 			}
 
-			req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+			req, err := http.NewRequest("POST", urlStr, bytes.NewBuffer(body))
 			if err != nil {
 				return fmt.Errorf("failed to create request: %w", err)
 			}
@@ -714,5 +720,90 @@ func (s *WebhookService) recordAlertHistory(alert *models.AlertInstance, eventTy
 		OperatedAt:   time.Now(),
 	}
 	s.db.Create(&history)
+}
+
+// validateWebhookURL 验证Webhook URL，防止SSRF攻击
+func validateWebhookURL(rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+
+	// 只允许http和https协议
+	scheme := parsed.Scheme
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("URL scheme %q is not allowed (only http/https)", scheme)
+	}
+
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		return fmt.Errorf("URL hostname is empty")
+	}
+
+	// 解析IP地址
+	ip := net.ParseIP(hostname)
+	if ip != nil {
+		if isPrivateIP(ip) {
+			return fmt.Errorf("URL targets private/internal IP address: %s", hostname)
+		}
+		return nil
+	}
+
+	// 如果不是IP，可能是域名 - 尝试DNS解析
+	ips, err := net.LookupIP(hostname)
+	if err != nil {
+		// DNS解析失败，仍然阻止以防止DNS rebinding
+		return fmt.Errorf("DNS lookup failed for %q: %w", hostname, err)
+	}
+
+	for _, resolvedIP := range ips {
+		if isPrivateIP(resolvedIP) {
+			return fmt.Errorf("URL hostname %q resolves to private IP: %s", hostname, resolvedIP)
+		}
+	}
+
+	return nil
+}
+
+// isPrivateIP 检查IP是否为私有/内部地址
+func isPrivateIP(ip net.IP) bool {
+	// 回环地址
+	if ip.IsLoopback() {
+		return true
+	}
+
+	// 私有地址范围
+	if ip.IsPrivate() {
+		return true
+	}
+
+	// 未指定地址
+	if ip.IsUnspecified() {
+		return true
+	}
+
+	// 链路本地地址
+	if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+
+	// 云元数据地址 (169.254.169.254)
+	if ip.Equal(net.ParseIP("169.254.169.254")) {
+		return true
+	}
+
+	// IPv6 私有/内网地址
+	if ip.To4() == nil {
+		// IPv6: 检查是否在内网范围
+		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return true
+		}
+		// fc00::/7 - Unique Local Address
+		if len(ip) == 16 && (ip[0]&0xfe) == 0xfc {
+			return true
+		}
+	}
+
+	return false
 }
 

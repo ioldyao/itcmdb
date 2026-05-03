@@ -39,7 +39,12 @@ export const useAuthStore = create<AuthState>()(
       hasPermission: (resource, action) => {
         const { permissions } = get()
         const requiredPermission = `${resource}:${action}`
-        return permissions.includes(requiredPermission) || permissions.includes('*:*')
+        for (const perm of permissions) {
+          if (perm === requiredPermission || perm === `${resource}:*` || perm === '*:*') {
+            return true
+          }
+        }
+        return false
       },
       refreshPermissions: async () => {
         const { token, user } = get()

@@ -64,8 +64,16 @@ func GRPCPermissionMiddleware(authClient *grpcclient.AuthClient, resource, actio
 			return
 		}
 
+		uid, ok := userID.(uint64)
+		if !ok {
+			logger.Error("Invalid user_id type", zap.Any("user_id", userID))
+			c.JSON(403, response.Error("无效的用户信息", ""))
+			c.Abort()
+			return
+		}
+
 		// 通过gRPC调用Auth服务检查权限
-		resp, err := authClient.CheckPermission(c.Request.Context(), userID.(uint64), resource, action)
+		resp, err := authClient.CheckPermission(c.Request.Context(), uid, resource, action)
 		if err != nil {
 			logger.Error("Failed to check permission via gRPC", zap.Error(err))
 			c.JSON(403, response.Error("权限检查失败", err.Error()))
@@ -93,8 +101,16 @@ func GRPCAdminOnlyMiddleware(authClient *grpcclient.AuthClient) gin.HandlerFunc 
 			return
 		}
 
+		uid, ok := userID.(uint64)
+		if !ok {
+			logger.Error("Invalid user_id type", zap.Any("user_id", userID))
+			c.JSON(403, response.Error("无效的用户信息", ""))
+			c.Abort()
+			return
+		}
+
 		// 通过gRPC调用Auth服务检查是否为管理员
-		resp, err := authClient.CheckPermission(c.Request.Context(), userID.(uint64), "system", "admin")
+		resp, err := authClient.CheckPermission(c.Request.Context(), uid, "system", "admin")
 		if err != nil {
 			logger.Error("Failed to check admin permission via gRPC", zap.Error(err))
 			c.JSON(403, response.Error("权限检查失败", err.Error()))

@@ -2,6 +2,7 @@ package password
 
 import (
 	"fmt"
+	"unicode"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -24,8 +25,26 @@ func CheckPassword(password, hash string) error {
 
 // ValidatePassword 验证密码强度
 func ValidatePassword(password string) error {
-	if len(password) < 6 {
-		return fmt.Errorf("password must be at least 6 characters")
+	if len(password) < 8 {
+		return fmt.Errorf("password must be at least 8 characters")
+	}
+
+	var hasUpper, hasLower, hasDigit, hasSpecial bool
+	for _, ch := range password {
+		switch {
+		case unicode.IsUpper(ch):
+			hasUpper = true
+		case unicode.IsLower(ch):
+			hasLower = true
+		case unicode.IsDigit(ch):
+			hasDigit = true
+		case unicode.IsPunct(ch) || unicode.IsSymbol(ch):
+			hasSpecial = true
+		}
+	}
+
+	if !hasUpper || !hasLower || !hasDigit || !hasSpecial {
+		return fmt.Errorf("password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character")
 	}
 	return nil
 }

@@ -27,8 +27,19 @@ func Success(data interface{}) Response {
 	}
 }
 
-// Error 错误响应（简化版）
+// Error 错误响应 - 只返回用户友好的消息，不泄露内部细节
 func Error(message string, detail string) Response {
+	// 在生产环境中，不向客户端暴露内部错误详情
+	// detail 仅用于日志记录，不返回给前端
+	return Response{
+		Code:    1,
+		Message: message,
+	}
+}
+
+// ErrorWithDetail 错误响应 - 用于开发环境，包含详细信息
+// 调用方应仅在开发模式下使用此函数
+func ErrorWithDetail(message string, detail string) Response {
 	return Response{
 		Code:    1,
 		Message: message + ": " + detail,
