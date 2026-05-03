@@ -22,7 +22,16 @@ var ValidResources = []Resource{
 	{Name: "tag", Description: "标签管理"},
 	{Name: "ticket", Description: "工单管理"},
 	{Name: "alert", Description: "告警管理"},
+	{Name: "alert_rule", Description: "告警规则"},
+	{Name: "alert_receiver", Description: "告警接收人"},
+	{Name: "routing", Description: "路由规则"},
+	{Name: "notification", Description: "通知管理"},
+	{Name: "template", Description: "通知模板"},
+	{Name: "webhook", Description: "Webhook集成"},
+	{Name: "monitoring", Description: "监控管理"},
 	{Name: "audit", Description: "审计日志"},
+	{Name: "report", Description: "报表管理"},
+	{Name: "system", Description: "系统管理"},
 }
 
 // ValidActions 定义所有有效的操作类型
@@ -33,6 +42,8 @@ var ValidActions = []Action{
 	{Name: "delete", Description: "删除"},
 	{Name: "view", Description: "查看"},
 	{Name: "manage", Description: "管理"},
+	{Name: "send", Description: "发送"},
+	{Name: "test", Description: "测试"},
 }
 
 // IsValidResource 检查资源是否有效

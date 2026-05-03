@@ -9,6 +9,7 @@ import (
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
+	"github.com/itcmdb/shared/pkg/rbac"
 	"github.com/itcmdb/shared/pkg/response"
 	"go.uber.org/zap"
 )
@@ -89,13 +90,13 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager) {
 	api := r.Group("/api/v1")
 	api.Use(jwtManager.AuthMiddleware())
 	{
-		api.GET("/tickets", getTicketsHandler())
-		api.POST("/tickets", createTicketHandler())
-		api.GET("/tickets/:id", getTicketHandler())
-		api.PUT("/tickets/:id/status", updateTicketStatusHandler())
-		api.POST("/tickets/:id/comments", addCommentHandler())
-		api.GET("/workflows", getWorkflowsHandler())
-		api.GET("/tickets/:id/sla", getTicketSLAHandler())
+		api.GET("/tickets", rbac.RequirePermission("ticket", "view"), getTicketsHandler())
+		api.POST("/tickets", rbac.RequirePermission("ticket", "create"), createTicketHandler())
+		api.GET("/tickets/:id", rbac.RequirePermission("ticket", "view"), getTicketHandler())
+		api.PUT("/tickets/:id/status", rbac.RequirePermission("ticket", "update"), updateTicketStatusHandler())
+		api.POST("/tickets/:id/comments", rbac.RequirePermission("ticket", "update"), addCommentHandler())
+		api.GET("/workflows", rbac.RequirePermission("ticket", "view"), getWorkflowsHandler())
+		api.GET("/tickets/:id/sla", rbac.RequirePermission("ticket", "view"), getTicketSLAHandler())
 	}
 
 	r.GET("/health", func(c *gin.Context) {

@@ -18,6 +18,7 @@ import (
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
+	"github.com/itcmdb/shared/pkg/rbac"
 	"go.uber.org/zap"
 )
 
@@ -176,8 +177,8 @@ func setupRoutes(r *gin.Engine, auditHandler *handlers.AuditHandler) {
 		audit := api.Group("/audit")
 		audit.Use(jwtManager.AuthMiddleware()) // 添加认证中间件
 		{
-			audit.GET("", auditHandler.GetAuditLogs)
-			audit.GET("/stats", auditHandler.GetAuditStats)
+			audit.GET("", rbac.RequirePermission("audit", "view"), auditHandler.GetAuditLogs)
+			audit.GET("/stats", rbac.RequirePermission("audit", "view"), auditHandler.GetAuditStats)
 		}
 	}
 

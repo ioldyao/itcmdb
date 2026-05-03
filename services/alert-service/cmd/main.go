@@ -12,6 +12,7 @@ import (
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
+	"github.com/itcmdb/shared/pkg/rbac"
 	"github.com/itcmdb/shared/pkg/response"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -167,77 +168,77 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 		{
 			// 告警管理
 			alertHandler := handlers.NewAlertHandler(db, alertEngine, vmClient)
-			protected.GET("/alerts", alertHandler.GetAlerts)
-			protected.GET("/alerts/:id", alertHandler.GetAlertByID)
-			protected.GET("/alerts/:id/history", alertHandler.GetAlertHistory)
-			protected.POST("/alerts/:id/ack", alertHandler.AcknowledgeAlert)
-			protected.POST("/alerts/:id/close", alertHandler.CloseAlert)
-			protected.POST("/alerts/batch/ack", alertHandler.BatchAcknowledgeAlerts)
-			protected.POST("/alerts/batch/close", alertHandler.BatchCloseAlerts)
-			protected.GET("/alerts/statistics", alertHandler.GetAlertStatistics)
-			protected.GET("/alerts/analytics", alertHandler.GetAlertAnalytics)
+			protected.GET("/alerts", rbac.RequirePermission("alert", "view"), alertHandler.GetAlerts)
+			protected.GET("/alerts/:id", rbac.RequirePermission("alert", "view"), alertHandler.GetAlertByID)
+			protected.GET("/alerts/:id/history", rbac.RequirePermission("alert", "view"), alertHandler.GetAlertHistory)
+			protected.POST("/alerts/:id/ack", rbac.RequirePermission("alert", "manage"), alertHandler.AcknowledgeAlert)
+			protected.POST("/alerts/:id/close", rbac.RequirePermission("alert", "manage"), alertHandler.CloseAlert)
+			protected.POST("/alerts/batch/ack", rbac.RequirePermission("alert", "manage"), alertHandler.BatchAcknowledgeAlerts)
+			protected.POST("/alerts/batch/close", rbac.RequirePermission("alert", "manage"), alertHandler.BatchCloseAlerts)
+			protected.GET("/alerts/statistics", rbac.RequirePermission("alert", "view"), alertHandler.GetAlertStatistics)
+			protected.GET("/alerts/analytics", rbac.RequirePermission("alert", "view"), alertHandler.GetAlertAnalytics)
 
 			// 规则管理
 			ruleHandler := handlers.NewRuleHandler(db)
-			protected.GET("/rules", ruleHandler.GetRules)
-			protected.GET("/rules/:id", ruleHandler.GetRuleByID)
-			protected.POST("/rules", ruleHandler.CreateRule)
-			protected.PUT("/rules/:id", ruleHandler.UpdateRule)
-			protected.DELETE("/rules/:id", ruleHandler.DeleteRule)
-			protected.POST("/rules/:id/enable", ruleHandler.EnableRule)
-			protected.POST("/rules/:id/disable", ruleHandler.DisableRule)
-			protected.POST("/rules/test", ruleHandler.TestRule)
+			protected.GET("/rules", rbac.RequirePermission("alert_rule", "view"), ruleHandler.GetRules)
+			protected.GET("/rules/:id", rbac.RequirePermission("alert_rule", "view"), ruleHandler.GetRuleByID)
+			protected.POST("/rules", rbac.RequirePermission("alert_rule", "create"), ruleHandler.CreateRule)
+			protected.PUT("/rules/:id", rbac.RequirePermission("alert_rule", "update"), ruleHandler.UpdateRule)
+			protected.DELETE("/rules/:id", rbac.RequirePermission("alert_rule", "delete"), ruleHandler.DeleteRule)
+			protected.POST("/rules/:id/enable", rbac.RequirePermission("alert_rule", "manage"), ruleHandler.EnableRule)
+			protected.POST("/rules/:id/disable", rbac.RequirePermission("alert_rule", "manage"), ruleHandler.DisableRule)
+			protected.POST("/rules/test", rbac.RequirePermission("alert_rule", "test"), ruleHandler.TestRule)
 
 			// 接收人管理
 			receiverHandler := handlers.NewReceiverHandler(db)
-			protected.GET("/receivers", receiverHandler.ListReceivers)
-			protected.GET("/receivers/:id", receiverHandler.GetReceiver)
-			protected.POST("/receivers", receiverHandler.CreateReceiver)
-			protected.PUT("/receivers/:id", receiverHandler.UpdateReceiver)
-			protected.DELETE("/receivers/:id", receiverHandler.DeleteReceiver)
-			protected.POST("/receivers/:id/test", receiverHandler.TestReceiver)
+			protected.GET("/receivers", rbac.RequirePermission("alert_receiver", "view"), receiverHandler.ListReceivers)
+			protected.GET("/receivers/:id", rbac.RequirePermission("alert_receiver", "view"), receiverHandler.GetReceiver)
+			protected.POST("/receivers", rbac.RequirePermission("alert_receiver", "create"), receiverHandler.CreateReceiver)
+			protected.PUT("/receivers/:id", rbac.RequirePermission("alert_receiver", "update"), receiverHandler.UpdateReceiver)
+			protected.DELETE("/receivers/:id", rbac.RequirePermission("alert_receiver", "delete"), receiverHandler.DeleteReceiver)
+			protected.POST("/receivers/:id/test", rbac.RequirePermission("alert_receiver", "test"), receiverHandler.TestReceiver)
 
 			// 接收组管理
 			groupHandler := handlers.NewReceiverGroupHandler(db)
-			protected.GET("/receiver-groups", groupHandler.ListReceiverGroups)
-			protected.GET("/receiver-groups/:id", groupHandler.GetReceiverGroup)
-			protected.POST("/receiver-groups", groupHandler.CreateReceiverGroup)
-			protected.PUT("/receiver-groups/:id", groupHandler.UpdateReceiverGroup)
-			protected.DELETE("/receiver-groups/:id", groupHandler.DeleteReceiverGroup)
+			protected.GET("/receiver-groups", rbac.RequirePermission("alert_receiver", "view"), groupHandler.ListReceiverGroups)
+			protected.GET("/receiver-groups/:id", rbac.RequirePermission("alert_receiver", "view"), groupHandler.GetReceiverGroup)
+			protected.POST("/receiver-groups", rbac.RequirePermission("alert_receiver", "create"), groupHandler.CreateReceiverGroup)
+			protected.PUT("/receiver-groups/:id", rbac.RequirePermission("alert_receiver", "update"), groupHandler.UpdateReceiverGroup)
+			protected.DELETE("/receiver-groups/:id", rbac.RequirePermission("alert_receiver", "delete"), groupHandler.DeleteReceiverGroup)
 
 			// Webhook集成管理
 			inboundHandler := handlers.NewInboundWebhookHandler(db, webhookService)
-			protected.GET("/webhooks/inbound", inboundHandler.ListInboundWebhooks)
-			protected.GET("/webhooks/inbound/:id", inboundHandler.GetInboundWebhook)
-			protected.POST("/webhooks/inbound", inboundHandler.CreateInboundWebhook)
-			protected.PUT("/webhooks/inbound/:id", inboundHandler.UpdateInboundWebhook)
-			protected.DELETE("/webhooks/inbound/:id", inboundHandler.DeleteInboundWebhook)
+			protected.GET("/webhooks/inbound", rbac.RequirePermission("webhook", "view"), inboundHandler.ListInboundWebhooks)
+			protected.GET("/webhooks/inbound/:id", rbac.RequirePermission("webhook", "view"), inboundHandler.GetInboundWebhook)
+			protected.POST("/webhooks/inbound", rbac.RequirePermission("webhook", "create"), inboundHandler.CreateInboundWebhook)
+			protected.PUT("/webhooks/inbound/:id", rbac.RequirePermission("webhook", "update"), inboundHandler.UpdateInboundWebhook)
+			protected.DELETE("/webhooks/inbound/:id", rbac.RequirePermission("webhook", "delete"), inboundHandler.DeleteInboundWebhook)
 
 			outboundHandler := handlers.NewOutboundWebhookHandler(db, webhookService)
-			protected.GET("/webhooks/outbound", outboundHandler.ListOutboundWebhooks)
-			protected.GET("/webhooks/outbound/:id", outboundHandler.GetOutboundWebhook)
-			protected.POST("/webhooks/outbound", outboundHandler.CreateOutboundWebhook)
-			protected.PUT("/webhooks/outbound/:id", outboundHandler.UpdateOutboundWebhook)
-			protected.DELETE("/webhooks/outbound/:id", outboundHandler.DeleteOutboundWebhook)
-			protected.POST("/webhooks/outbound/:id/test", outboundHandler.TestOutboundWebhook)
+			protected.GET("/webhooks/outbound", rbac.RequirePermission("webhook", "view"), outboundHandler.ListOutboundWebhooks)
+			protected.GET("/webhooks/outbound/:id", rbac.RequirePermission("webhook", "view"), outboundHandler.GetOutboundWebhook)
+			protected.POST("/webhooks/outbound", rbac.RequirePermission("webhook", "create"), outboundHandler.CreateOutboundWebhook)
+			protected.PUT("/webhooks/outbound/:id", rbac.RequirePermission("webhook", "update"), outboundHandler.UpdateOutboundWebhook)
+			protected.DELETE("/webhooks/outbound/:id", rbac.RequirePermission("webhook", "delete"), outboundHandler.DeleteOutboundWebhook)
+			protected.POST("/webhooks/outbound/:id/test", rbac.RequirePermission("webhook", "test"), outboundHandler.TestOutboundWebhook)
 
 			// 路由规则管理
 			routingHandler := handlers.NewRoutingHandler(db)
-			protected.GET("/alert-routing-rules", routingHandler.ListRoutingRules)
-			protected.GET("/alert-routing-rules/:id", routingHandler.GetRoutingRule)
-			protected.POST("/alert-routing-rules", routingHandler.CreateRoutingRule)
-			protected.PUT("/alert-routing-rules/:id", routingHandler.UpdateRoutingRule)
-			protected.DELETE("/alert-routing-rules/:id", routingHandler.DeleteRoutingRule)
+			protected.GET("/alert-routing-rules", rbac.RequirePermission("routing", "view"), routingHandler.ListRoutingRules)
+			protected.GET("/alert-routing-rules/:id", rbac.RequirePermission("routing", "view"), routingHandler.GetRoutingRule)
+			protected.POST("/alert-routing-rules", rbac.RequirePermission("routing", "create"), routingHandler.CreateRoutingRule)
+			protected.PUT("/alert-routing-rules/:id", rbac.RequirePermission("routing", "update"), routingHandler.UpdateRoutingRule)
+			protected.DELETE("/alert-routing-rules/:id", rbac.RequirePermission("routing", "delete"), routingHandler.DeleteRoutingRule)
 
 			// 通知模板管理
 			templateHandler := handlers.NewTemplateHandler(db)
-			protected.GET("/alert-notification-templates", templateHandler.ListNotificationTemplates)
-			protected.GET("/alert-notification-templates/:id", templateHandler.GetNotificationTemplate)
-			protected.POST("/alert-notification-templates", templateHandler.CreateNotificationTemplate)
-			protected.PUT("/alert-notification-templates/:id", templateHandler.UpdateNotificationTemplate)
-			protected.DELETE("/alert-notification-templates/:id", templateHandler.DeleteNotificationTemplate)
-			protected.POST("/alert-notification-templates/:id/set-default", templateHandler.SetDefaultTemplate)
-			protected.POST("/alert-notification-templates/preview", templateHandler.PreviewTemplate)
+			protected.GET("/alert-notification-templates", rbac.RequirePermission("template", "view"), templateHandler.ListNotificationTemplates)
+			protected.GET("/alert-notification-templates/:id", rbac.RequirePermission("template", "view"), templateHandler.GetNotificationTemplate)
+			protected.POST("/alert-notification-templates", rbac.RequirePermission("template", "create"), templateHandler.CreateNotificationTemplate)
+			protected.PUT("/alert-notification-templates/:id", rbac.RequirePermission("template", "update"), templateHandler.UpdateNotificationTemplate)
+			protected.DELETE("/alert-notification-templates/:id", rbac.RequirePermission("template", "delete"), templateHandler.DeleteNotificationTemplate)
+			protected.POST("/alert-notification-templates/:id/set-default", rbac.RequirePermission("template", "manage"), templateHandler.SetDefaultTemplate)
+			protected.POST("/alert-notification-templates/preview", rbac.RequirePermission("template", "view"), templateHandler.PreviewTemplate)
 		}
 	}
 }

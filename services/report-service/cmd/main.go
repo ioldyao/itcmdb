@@ -9,6 +9,7 @@ import (
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
+	"github.com/itcmdb/shared/pkg/rbac"
 	"github.com/itcmdb/shared/pkg/response"
 	"go.uber.org/zap"
 )
@@ -89,10 +90,10 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager) {
 	api := r.Group("/api/v1")
 	api.Use(jwtManager.AuthMiddleware())
 	{
-		api.GET("/reports/cmdb/assets", getCMDBAssetReportHandler())
-		api.GET("/reports/tickets/stats", getTicketStatsHandler())
-		api.GET("/reports/alerts/trends", getAlertTrendsHandler())
-		api.POST("/reports/export", exportReportHandler())
+		api.GET("/reports/cmdb/assets", rbac.RequirePermission("report", "view"), getCMDBAssetReportHandler())
+		api.GET("/reports/tickets/stats", rbac.RequirePermission("report", "view"), getTicketStatsHandler())
+		api.GET("/reports/alerts/trends", rbac.RequirePermission("report", "view"), getAlertTrendsHandler())
+		api.POST("/reports/export", rbac.RequirePermission("report", "view"), exportReportHandler())
 	}
 
 	r.GET("/health", func(c *gin.Context) {

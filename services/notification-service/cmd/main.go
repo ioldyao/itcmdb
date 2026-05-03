@@ -7,7 +7,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"github.com/itcmdb/shared/pkg/auth"
+	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
+	"github.com/itcmdb/shared/pkg/rbac"
 	"github.com/itcmdb/shared/pkg/response"
 	"go.uber.org/zap"
 )
@@ -19,6 +21,17 @@ func main() {
 
 	if err := logger.Init(viper.GetString("log.level")); err != nil {
 		log.Fatalf("Failed to init logger: %v", err)
+	}
+
+	if err := database.Init(database.Config{
+		Host:     viper.GetString("database.host"),
+		Port:     viper.GetInt("database.port"),
+		User:     viper.GetString("database.user"),
+		Password: viper.GetString("database.password"),
+		DBName:   viper.GetString("database.dbname"),
+		SSLMode:  viper.GetString("database.sslmode"),
+	}); err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
 	jwtManager := auth.NewJWTManager(
@@ -61,6 +74,12 @@ func loadConfig() error {
 	viper.SetDefault("env", "development")
 	viper.SetDefault("server.port", "5005")
 	viper.SetDefault("log.level", "info")
+	viper.SetDefault("database.host", "localhost")
+	viper.SetDefault("database.port", 5433)
+	viper.SetDefault("database.user", "postgres")
+	viper.SetDefault("database.password", "postgres")
+	viper.SetDefault("database.dbname", "itcmdb")
+	viper.SetDefault("database.sslmode", "disable")
 	viper.SetDefault("jwt.secret", "your-secret-key")
 	viper.SetDefault("jwt.expiration", "24h")
 	viper.ReadInConfig()
@@ -71,10 +90,10 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager) {
 	api := r.Group("/api/v1")
 	api.Use(jwtManager.AuthMiddleware())
 	{
-		api.GET("/notifications", getNotificationsHandler())
-		api.POST("/notifications/send", sendNotificationHandler())
-		api.GET("/templates", getTemplatesHandler())
-		api.POST("/templates", createTemplateHandler())
+		api.GET("/notifications", rbac.RequirePermission("notification", "view"), getNotificationsHandler())
+		api.POST("/notifications/send", rbac.RequirePermission("notification", "send"), sendNotificationHandler())
+		api.GET("/templates", rbac.RequirePermission("template", "view"), getTemplatesHandler())
+		api.POST("/templates", rbac.RequirePermission("template", "create"), createTemplateHandler())
 	}
 
 	r.GET("/health", func(c *gin.Context) {
