@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/itcmdb/alert-service/internal/handlers"
 	"github.com/itcmdb/alert-service/internal/services"
+	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
@@ -44,6 +45,14 @@ func main() {
 	// 自动迁移
 	if err := autoMigrate(db); err != nil {
 		logger.Fatal("Failed to migrate database", zap.Error(err))
+	}
+
+	// 初始化审计日志Kafka生产者
+	kafkaBrokers := viper.GetStringSlice("kafka.brokers")
+	if err := audit.InitProducer(kafkaBrokers); err != nil {
+		logger.Warn("Failed to init audit producer, audit logging disabled", zap.Error(err))
+	} else {
+		defer audit.CloseProducer()
 	}
 
 	// 初始化VictoriaMetrics客户端
@@ -115,6 +124,7 @@ func loadConfig() error {
 	viper.SetDefault("victoriametrics.endpoint", "http://localhost:8428")
 	viper.SetDefault("victoriametrics.username", "")
 	viper.SetDefault("victoriametrics.password", "")
+	viper.SetDefault("kafka.brokers", []string{"kafka:9092"})
 	viper.ReadInConfig()
 	return nil
 }

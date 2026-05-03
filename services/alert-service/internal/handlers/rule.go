@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/itcmdb/alert-service/internal/models"
+	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/response"
 	"gorm.io/gorm"
 )
@@ -152,6 +153,12 @@ func (h *RuleHandler) CreateRule(c *gin.Context) {
 		return
 	}
 
+	ruleID := uint(rule.ID)
+	audit.LogSuccess(c, "create", "alert_rule", &ruleID, map[string]interface{}{
+		"name":     rule.Name,
+		"severity": rule.Severity,
+	})
+
 	c.JSON(http.StatusCreated, response.Success(rule))
 }
 
@@ -245,6 +252,11 @@ func (h *RuleHandler) UpdateRule(c *gin.Context) {
 		return
 	}
 
+	ruleID := uint(rule.ID)
+	audit.LogSuccess(c, "update", "alert_rule", &ruleID, map[string]interface{}{
+		"name": rule.Name,
+	})
+
 	c.JSON(http.StatusOK, response.Success(rule))
 }
 
@@ -263,6 +275,9 @@ func (h *RuleHandler) DeleteRule(c *gin.Context) {
 		return
 	}
 
+	auditID := uint(ruleID)
+	audit.LogSuccess(c, "delete", "alert_rule", &auditID, nil)
+
 	c.JSON(http.StatusOK, response.Success(nil))
 }
 
@@ -280,6 +295,9 @@ func (h *RuleHandler) EnableRule(c *gin.Context) {
 		return
 	}
 
+	auditID := uint(ruleID)
+	audit.LogSuccess(c, "enable", "alert_rule", &auditID, nil)
+
 	c.JSON(http.StatusOK, response.Success(nil))
 }
 
@@ -296,6 +314,9 @@ func (h *RuleHandler) DisableRule(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, response.Error("禁用失败", err.Error()))
 		return
 	}
+
+	auditID := uint(ruleID)
+	audit.LogSuccess(c, "disable", "alert_rule", &auditID, nil)
 
 	c.JSON(http.StatusOK, response.Success(nil))
 }

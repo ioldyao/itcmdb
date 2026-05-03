@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/itcmdb/alert-service/internal/models"
 	"github.com/itcmdb/alert-service/internal/services"
+	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/response"
 	"gorm.io/gorm"
 )
@@ -68,6 +69,11 @@ func (h *RoutingHandler) CreateRoutingRule(c *gin.Context) {
 		return
 	}
 
+	ruleID := uint(rule.ID)
+	audit.LogSuccess(c, "create", "routing", &ruleID, map[string]interface{}{
+		"name": rule.Name,
+	})
+
 	c.JSON(http.StatusCreated, response.Success(rule))
 }
 
@@ -91,6 +97,11 @@ func (h *RoutingHandler) UpdateRoutingRule(c *gin.Context) {
 		return
 	}
 
+	ruleID := uint(rule.ID)
+	audit.LogSuccess(c, "update", "routing", &ruleID, map[string]interface{}{
+		"name": rule.Name,
+	})
+
 	c.JSON(http.StatusOK, response.Success(rule))
 }
 
@@ -106,6 +117,9 @@ func (h *RoutingHandler) DeleteRoutingRule(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, response.Error("Failed to delete routing rule", err.Error()))
 		return
 	}
+
+	auditID := uint(id)
+	audit.LogSuccess(c, "delete", "routing", &auditID, nil)
 
 	c.JSON(http.StatusOK, response.Success(gin.H{"message": "Routing rule deleted successfully"}))
 }
@@ -169,6 +183,11 @@ func (h *TemplateHandler) CreateNotificationTemplate(c *gin.Context) {
 		return
 	}
 
+	templateID := uint(template.ID)
+	audit.LogSuccess(c, "create", "template", &templateID, map[string]interface{}{
+		"name": template.Name,
+	})
+
 	c.JSON(http.StatusCreated, response.Success(template))
 }
 
@@ -192,6 +211,11 @@ func (h *TemplateHandler) UpdateNotificationTemplate(c *gin.Context) {
 		return
 	}
 
+	templateID := uint(template.ID)
+	audit.LogSuccess(c, "update", "template", &templateID, map[string]interface{}{
+		"name": template.Name,
+	})
+
 	c.JSON(http.StatusOK, response.Success(template))
 }
 
@@ -207,6 +231,9 @@ func (h *TemplateHandler) DeleteNotificationTemplate(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, response.Error("Failed to delete notification template", err.Error()))
 		return
 	}
+
+	auditID := uint(id)
+	audit.LogSuccess(c, "delete", "template", &auditID, nil)
 
 	c.JSON(http.StatusOK, response.Success(gin.H{"message": "Notification template deleted successfully"}))
 }

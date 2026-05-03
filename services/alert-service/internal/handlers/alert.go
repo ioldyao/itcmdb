@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/itcmdb/alert-service/internal/models"
 	"github.com/itcmdb/alert-service/internal/services"
+	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/response"
 	"gorm.io/gorm"
 )
@@ -215,6 +216,9 @@ func (h *AlertHandler) AcknowledgeAlert(c *gin.Context) {
 		return
 	}
 
+	auditID := uint(alertID)
+	audit.LogSuccess(c, "acknowledge", "alert", &auditID, nil)
+
 	c.JSON(http.StatusOK, response.Success(nil))
 }
 
@@ -278,6 +282,9 @@ func (h *AlertHandler) CloseAlert(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, response.Error("关闭失败", err.Error()))
 		return
 	}
+
+	auditID := uint(alertID)
+	audit.LogSuccess(c, "close", "alert", &auditID, nil)
 
 	c.JSON(http.StatusOK, response.Success(nil))
 }
@@ -438,6 +445,11 @@ func (h *AlertHandler) BatchAcknowledgeAlerts(c *gin.Context) {
 		return
 	}
 
+	audit.LogSuccess(c, "batch_acknowledge", "alert", nil, map[string]interface{}{
+		"alert_ids":    req.AlertIDs,
+		"affected_rows": result.RowsAffected,
+	})
+
 	c.JSON(http.StatusOK, response.Success(gin.H{
 		"affected_rows": result.RowsAffected,
 	}))
@@ -473,6 +485,11 @@ func (h *AlertHandler) BatchCloseAlerts(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, response.Error("批量关闭失败", result.Error.Error()))
 		return
 	}
+
+	audit.LogSuccess(c, "batch_close", "alert", nil, map[string]interface{}{
+		"alert_ids":    req.AlertIDs,
+		"affected_rows": result.RowsAffected,
+	})
 
 	c.JSON(http.StatusOK, response.Success(gin.H{
 		"affected_rows": result.RowsAffected,

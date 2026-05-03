@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/itcmdb/alert-service/internal/models"
 	"github.com/itcmdb/alert-service/internal/services"
+	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/response"
 	"gorm.io/gorm"
 )
@@ -126,6 +127,12 @@ func (h *InboundWebhookHandler) CreateInboundWebhook(c *gin.Context) {
 		return
 	}
 
+	webhookID := uint(webhook.ID)
+	audit.LogSuccess(c, "create", "webhook", &webhookID, map[string]interface{}{
+		"name":        webhook.Name,
+		"source_type": webhook.SourceType,
+	})
+
 	c.JSON(http.StatusCreated, webhook)
 }
 
@@ -169,6 +176,11 @@ func (h *InboundWebhookHandler) UpdateInboundWebhook(c *gin.Context) {
 		return
 	}
 
+	webhookID := uint(webhook.ID)
+	audit.LogSuccess(c, "update", "webhook", &webhookID, map[string]interface{}{
+		"name": webhook.Name,
+	})
+
 	c.JSON(http.StatusOK, webhook)
 }
 
@@ -184,6 +196,9 @@ func (h *InboundWebhookHandler) DeleteInboundWebhook(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, response.Error("Failed to delete webhook", err.Error()))
 		return
 	}
+
+	auditID := uint(id)
+	audit.LogSuccess(c, "delete", "webhook", &auditID, nil)
 
 	c.JSON(http.StatusOK, response.Success(gin.H{"message": "Webhook deleted successfully"}))
 }
@@ -289,6 +304,12 @@ func (h *OutboundWebhookHandler) CreateOutboundWebhook(c *gin.Context) {
 		return
 	}
 
+	webhookID := uint(webhook.ID)
+	audit.LogSuccess(c, "create", "webhook", &webhookID, map[string]interface{}{
+		"name":        webhook.Name,
+		"target_type": webhook.TargetType,
+	})
+
 	c.JSON(http.StatusCreated, webhook)
 }
 
@@ -344,6 +365,11 @@ func (h *OutboundWebhookHandler) UpdateOutboundWebhook(c *gin.Context) {
 		return
 	}
 
+	webhookID := uint(webhook.ID)
+	audit.LogSuccess(c, "update", "webhook", &webhookID, map[string]interface{}{
+		"name": webhook.Name,
+	})
+
 	c.JSON(http.StatusOK, webhook)
 }
 
@@ -359,6 +385,9 @@ func (h *OutboundWebhookHandler) DeleteOutboundWebhook(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, response.Error("Failed to delete webhook", err.Error()))
 		return
 	}
+
+	auditID := uint(id)
+	audit.LogSuccess(c, "delete", "webhook", &auditID, nil)
 
 	c.JSON(http.StatusOK, response.Success(gin.H{"message": "Webhook deleted successfully"}))
 }
@@ -393,9 +422,13 @@ func (h *OutboundWebhookHandler) TestOutboundWebhook(c *gin.Context) {
 
 	err = h.webhookService.SendOutboundWebhook(&webhook, testAlert)
 	if err != nil {
+		audit.LogError(c, "test", "webhook", nil, err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, response.Error("Test failed", err.Error()))
 		return
 	}
+
+	webhookID := uint(webhook.ID)
+	audit.LogSuccess(c, "test", "webhook", &webhookID, nil)
 
 	c.JSON(http.StatusOK, response.Success(gin.H{
 		"message": "Test message sent successfully",

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"github.com/itcmdb/shared/pkg/audit"
 	"github.com/itcmdb/shared/pkg/auth"
 	"github.com/itcmdb/shared/pkg/database"
 	"github.com/itcmdb/shared/pkg/logger"
@@ -32,6 +33,14 @@ func main() {
 		SSLMode:  viper.GetString("database.sslmode"),
 	}); err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	// 初始化审计日志Kafka生产者
+	kafkaBrokers := viper.GetStringSlice("kafka.brokers")
+	if err := audit.InitProducer(kafkaBrokers); err != nil {
+		logger.Warn("Failed to init audit producer, audit logging disabled", zap.Error(err))
+	} else {
+		defer audit.CloseProducer()
 	}
 
 	jwtManager := auth.NewJWTManager(
@@ -82,6 +91,7 @@ func loadConfig() error {
 	viper.SetDefault("database.sslmode", "disable")
 	viper.SetDefault("jwt.secret", "your-secret-key")
 	viper.SetDefault("jwt.expiration", "24h")
+	viper.SetDefault("kafka.brokers", []string{"kafka:9092"})
 	viper.ReadInConfig()
 	return nil
 }
@@ -109,6 +119,7 @@ func getNotificationsHandler() gin.HandlerFunc {
 
 func sendNotificationHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		audit.LogSuccess(c, "send", "notification", nil, nil)
 		c.JSON(200, response.Success(nil))
 	}
 }
@@ -121,6 +132,7 @@ func getTemplatesHandler() gin.HandlerFunc {
 
 func createTemplateHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		audit.LogSuccess(c, "create", "template", nil, nil)
 		c.JSON(200, response.Success(nil))
 	}
 }

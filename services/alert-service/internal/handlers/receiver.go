@@ -9,6 +9,7 @@ import (
 
 	"github.com/itcmdb/alert-service/internal/models"
 	"github.com/itcmdb/alert-service/internal/services"
+	"github.com/itcmdb/shared/pkg/audit"
 )
 
 // ReceiverHandler 接收人处理器
@@ -102,6 +103,12 @@ func (h *ReceiverHandler) CreateReceiver(c *gin.Context) {
 		return
 	}
 
+	receiverID := uint(receiver.ID)
+	audit.LogSuccess(c, "create", "alert_receiver", &receiverID, map[string]interface{}{
+		"name": receiver.Name,
+		"type": receiver.Type,
+	})
+
 	c.JSON(http.StatusCreated, receiver)
 }
 
@@ -157,6 +164,11 @@ func (h *ReceiverHandler) UpdateReceiver(c *gin.Context) {
 		return
 	}
 
+	receiverID := uint(receiver.ID)
+	audit.LogSuccess(c, "update", "alert_receiver", &receiverID, map[string]interface{}{
+		"name": receiver.Name,
+	})
+
 	c.JSON(http.StatusOK, receiver)
 }
 
@@ -172,6 +184,9 @@ func (h *ReceiverHandler) DeleteReceiver(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	auditID := uint(id)
+	audit.LogSuccess(c, "delete", "alert_receiver", &auditID, nil)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Receiver deleted successfully"})
 }
@@ -343,6 +358,11 @@ func (h *ReceiverGroupHandler) CreateReceiverGroup(c *gin.Context) {
 	// 重新加载包含接收人的数据
 	h.db.Preload("Receivers").First(&group, group.ID)
 
+	groupID := uint(group.ID)
+	audit.LogSuccess(c, "create", "alert_receiver_group", &groupID, map[string]interface{}{
+		"name": group.Name,
+	})
+
 	c.JSON(http.StatusCreated, group)
 }
 
@@ -426,6 +446,11 @@ func (h *ReceiverGroupHandler) UpdateReceiverGroup(c *gin.Context) {
 	// 重新加载包含接收人的数据
 	h.db.Preload("Receivers").First(&group, group.ID)
 
+	groupID = uint(group.ID)
+	audit.LogSuccess(c, "update", "alert_receiver_group", &groupID, map[string]interface{}{
+		"name": group.Name,
+	})
+
 	c.JSON(http.StatusOK, group)
 }
 
@@ -441,6 +466,9 @@ func (h *ReceiverGroupHandler) DeleteReceiverGroup(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	auditID := uint(id)
+	audit.LogSuccess(c, "delete", "alert_receiver_group", &auditID, nil)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Group deleted successfully"})
 }
