@@ -26,29 +26,29 @@ import { useState, useEffect } from 'react'
 
 const menuItems = [
   { key: '/dashboard', label: '仪表板', icon: LayoutDashboard },
-  { key: '/cmdb', label: 'CMDB', icon: Server, hasSubNav: true },
-  { key: '/tickets', label: '工单', icon: FileText },
-  { key: '/alerts', label: '告警', icon: Bell, hasSubNav: true },
-  { key: '/reports', label: '报表', icon: BarChart3 },
+  { key: '/cmdb', label: 'CMDB', icon: Server, hasSubNav: true, permission: { resource: 'ci', action: 'view' } },
+  { key: '/tickets', label: '工单', icon: FileText, permission: { resource: 'ticket', action: 'view' } },
+  { key: '/alerts', label: '告警', icon: Bell, hasSubNav: true, permission: { resource: 'alert', action: 'view' } },
+  { key: '/reports', label: '报表', icon: BarChart3, permission: { resource: 'report', action: 'view' } },
   { key: '/admin', label: '系统', icon: Settings },
 ]
 
 const cmdbSubMenuItems = [
   { key: '/cmdb', label: 'CMDB', icon: Server },
-  { key: '/cmdb/victoriametrics', label: 'VictoriaMetrics配置', icon: Monitor },
+  { key: '/cmdb/victoriametrics', label: 'VictoriaMetrics配置', icon: Monitor, permission: { resource: 'monitoring', action: 'view' } },
 ]
 
 const alertSubMenuItems = [
   { key: '/alerts', label: '告警', icon: Bell },
-  { key: '/alerts/rules', label: '规则配置', icon: SlidersHorizontal },
-  { key: '/alerts/integration/webhook', label: 'Webhook', icon: Webhook },
-  { key: '/alerts/receivers', label: '告警接收', icon: Users },
+  { key: '/alerts/rules', label: '规则配置', icon: SlidersHorizontal, permission: { resource: 'alert_rule', action: 'view' } },
+  { key: '/alerts/integration/webhook', label: 'Webhook', icon: Webhook, permission: { resource: 'webhook', action: 'view' } },
+  { key: '/alerts/receivers', label: '告警接收', icon: Users, permission: { resource: 'alert_receiver', action: 'view' } },
 ]
 
 export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, logout, token } = useAuthStore()
+  const { user, logout, token, hasPermission } = useAuthStore()
   const { theme, setTheme } = useThemeStore()
   const [showSubNav, setShowSubNav] = useState(false)
   const [currentSubNav, setCurrentSubNav] = useState<'cmdb' | 'alerts' | null>(null)
@@ -185,7 +185,7 @@ export default function MainLayout() {
                     transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
                     className="absolute inset-0 flex items-center gap-1"
                   >
-                    {menuItems.map((item) => {
+                    {menuItems.filter((item) => !item.permission || hasPermission(item.permission.resource, item.permission.action)).map((item) => {
                       const Icon = item.icon
                       const active = isActive(item.key)
 
@@ -251,7 +251,7 @@ export default function MainLayout() {
                     </button>
 
                     {/* 子菜单项 */}
-                    {(currentSubNav === 'cmdb' ? cmdbSubMenuItems : alertSubMenuItems).map((item) => {
+                    {(currentSubNav === 'cmdb' ? cmdbSubMenuItems : alertSubMenuItems).filter((item) => !item.permission || hasPermission(item.permission.resource, item.permission.action)).map((item) => {
                       const Icon = item.icon
                       const active = isSubNavActive(item.key)
 
