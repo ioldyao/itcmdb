@@ -327,23 +327,17 @@ export default function AdminRoles() {
             children: (
               <div className="bg-white dark:bg-bg-secondary p-6 rounded-lg border border-gray-200 dark:border-white/8">
                 {/* 权限说明文档 */}
-                <div style={{
-                  marginBottom: '24px',
-                  padding: '16px',
-                  background: '#f6ffed',
-                  border: '1px solid #b7eb8f',
-                  borderRadius: '8px'
-                }}>
-                  <div style={{ marginBottom: '12px', fontSize: '16px', fontWeight: 'bold', color: '#52c41a' }}>
-                    📚 权限系统说明
+                <div className="mb-6 p-4 bg-[#f6ffed] dark:bg-green-500/10 border border-[#b7eb8f] dark:border-green-500/30 rounded-lg">
+                  <div className="mb-3 text-base font-bold text-[#52c41a] dark:text-green-400">
+                    权限系统说明
                   </div>
-                  <div style={{ fontSize: '14px', color: '#666', lineHeight: '1.8' }}>
-                    <p style={{ marginBottom: '12px' }}>
+                  <div className="text-sm text-gray-600 dark:text-text-secondary leading-relaxed">
+                    <p className="mb-3">
                       <strong>权限格式：</strong><code>资源:操作</code>，例如 <code>user:view</code> 表示查看用户的权限
                     </p>
-                    <div style={{ marginBottom: '12px' }}>
+                    <div className="mb-3">
                       <strong>可用资源类型：</strong>
-                      <ul style={{ marginTop: '8px', marginLeft: '20px' }}>
+                      <ul className="mt-2 ml-5">
                         {validResources.map(r => (
                           <li key={r.Name}>
                             <code>{r.Name}</code> - {r.Description}
@@ -351,9 +345,9 @@ export default function AdminRoles() {
                         ))}
                       </ul>
                     </div>
-                    <div style={{ marginBottom: '12px' }}>
+                    <div className="mb-3">
                       <strong>可用操作类型：</strong>
-                      <ul style={{ marginTop: '8px', marginLeft: '20px' }}>
+                      <ul className="mt-2 ml-5">
                         {validActions.map(a => (
                           <li key={a.Name}>
                             <code>{a.Name}</code> - {a.Description}
@@ -361,8 +355,8 @@ export default function AdminRoles() {
                         ))}
                       </ul>
                     </div>
-                    <p style={{ marginBottom: '0', color: '#fa8c16' }}>
-                      ⚠️ <strong>注意：</strong>只能创建系统预定义的资源和操作组合。创建权限后，需要将权限分配给角色，再将角色分配给用户。
+                    <p className="mb-0 text-[#fa8c16] dark:text-orange-400">
+                      <strong>注意：</strong>只能创建系统预定义的资源和操作组合。创建权限后，需要将权限分配给角色，再将角色分配给用户。
                     </p>
                   </div>
                 </div>
@@ -476,19 +470,14 @@ export default function AdminRoles() {
               ))}
             </Select>
           </Form.Item>
-          <div style={{
-            padding: '12px',
-            background: '#f0f7ff',
-            borderRadius: '4px',
-            border: '1px solid #91d5ff'
-          }}>
-            <div style={{ color: '#0050b3', fontSize: '12px', marginBottom: '8px' }}>
-              <strong>💡 权限说明</strong>
+          <div className="p-3 bg-[#f0f7ff] dark:bg-blue-500/10 rounded border border-[#91d5ff] dark:border-blue-500/30">
+            <div className="text-xs text-[#0050b3] dark:text-blue-300 mb-2">
+              <strong>权限说明</strong>
             </div>
-            <div style={{ color: '#666', fontSize: '12px' }}>
-              • 权限格式为 <code>资源:操作</code>，例如 <code>user:view</code><br/>
-              • 只能创建系统预定义的资源和操作组合<br/>
-              • 创建后的权限可以分配给角色，角色再分配给用户
+            <div className="text-xs text-gray-600 dark:text-text-secondary">
+              权限格式为 <code>资源:操作</code>，例如 <code>user:view</code><br/>
+              只能创建系统预定义的资源和操作组合<br/>
+              创建后的权限可以分配给角色，角色再分配给用户
             </div>
           </div>
         </Form>

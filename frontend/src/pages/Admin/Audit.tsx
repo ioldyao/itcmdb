@@ -302,24 +302,58 @@ export default function AdminAudit() {
       title: '资源ID',
       dataIndex: 'resource_id',
       key: 'resource_id',
-      width: 80,
-      render: (id?: number) => id ? (
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 dark:bg-white/5 text-xs font-medium text-gray-700 dark:text-text-primary">
-          {id}
-        </span>
-      ) : <span className="text-gray-400 dark:text-text-tertiary">-</span>,
+      width: 100,
+      render: (_: any, record: AuditLog) => {
+        // 优先从 details 中提取有意义的标识
+        const username = record.details?.username
+        const email = record.details?.email
+        if (username) {
+          return (
+            <span className="inline-flex items-center gap-1 text-gray-700 dark:text-text-secondary text-sm">
+              <User size={13} className="text-gray-400 dark:text-text-tertiary" />
+              {username}
+            </span>
+          )
+        }
+        if (email) {
+          return <span className="text-gray-600 dark:text-text-secondary text-sm">{email}</span>
+        }
+        if (record.resource_id) {
+          return (
+            <span className="inline-flex items-center justify-center min-w-[28px] h-7 rounded-full bg-gray-100 dark:bg-white/5 text-xs font-medium text-gray-700 dark:text-text-primary">
+              {record.resource_id}
+            </span>
+          )
+        }
+        return <span className="text-gray-400 dark:text-text-tertiary">-</span>
+      },
     },
     {
       title: '用户',
       dataIndex: 'user_id',
       key: 'user_id',
-      width: 80,
-      render: (id?: number) => id ? (
-        <span className="inline-flex items-center gap-1 text-gray-600 dark:text-text-secondary text-sm">
-          <User size={13} className="text-gray-400 dark:text-text-tertiary" />
-          #{id}
-        </span>
-      ) : <span className="text-gray-400 dark:text-text-tertiary text-xs">系统</span>,
+      width: 100,
+      render: (_: any, record: AuditLog) => {
+        // 优先显示 details 中的 username（适用于登录/登出等未认证场景）
+        const username = record.details?.username
+        if (username) {
+          return (
+            <span className="inline-flex items-center gap-1 text-gray-600 dark:text-text-secondary text-sm">
+              <User size={13} className="text-gray-400 dark:text-text-tertiary" />
+              {username}
+            </span>
+          )
+        }
+        if (record.user_id) {
+          return (
+            <span className="inline-flex items-center gap-1 text-gray-600 dark:text-text-secondary text-sm">
+              <User size={13} className="text-gray-400 dark:text-text-tertiary" />
+              #{record.user_id}
+            </span>
+          )
+        }
+        return <span className="text-gray-400 dark:text-text-tertiary text-xs">系统</span>
+      },
     },
     {
       title: '详情',

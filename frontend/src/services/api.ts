@@ -40,6 +40,11 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
+    // 登录接口的401不走刷新token逻辑，直接返回错误
+    if (originalRequest.url?.includes('/auth/login')) {
+      return Promise.reject(error)
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {

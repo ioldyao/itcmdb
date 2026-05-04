@@ -470,12 +470,12 @@ export default function AdminUsers() {
         confirmLoading={roleLoading}
         width={600}
       >
-        <div style={{ marginBottom: 16 }}>
-          <p>为用户 <strong>{managingUser?.full_name}</strong> 分配角色：</p>
+        <div className="mb-4">
+          <p className="dark:text-text-secondary">为用户 <strong className="dark:text-text-primary">{managingUser?.full_name}</strong> 分配角色：</p>
         </div>
         <Select
           mode="multiple"
-          style={{ width: '100%' }}
+          className="w-full"
           placeholder="选择角色"
           value={userRoleIds}
           onChange={setUserRoleIds}
@@ -485,12 +485,12 @@ export default function AdminUsers() {
             value: role.id,
           }))}
         />
-        <div style={{ marginTop: 16, padding: 12, background: '#f0f0f0', borderRadius: 4 }}>
-          <div style={{ color: '#666', fontSize: 12, marginBottom: 8 }}>
+        <div className="mt-4 p-3 bg-gray-100 dark:bg-white/5 rounded">
+          <div className="text-xs text-gray-600 dark:text-text-secondary mb-2">
             已选择 {userRoleIds.length} 个角色
           </div>
-          <div style={{ color: '#ff4d4f', fontSize: 12 }}>
-            ⚠️ 注意：管理员角色不能与其他角色同时分配
+          <div className="text-xs text-red-500">
+            注意：管理员角色不能与其他角色同时分配
           </div>
         </div>
       </Modal>

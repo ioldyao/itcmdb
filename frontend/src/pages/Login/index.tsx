@@ -24,7 +24,14 @@ export default function Login() {
         message.error(response.message || '登录失败')
       }
     } catch (error: any) {
-      message.error(error?.response?.data?.message || '登录失败，请检查用户名和密码')
+      const msg = error?.response?.data?.message
+      if (msg === 'Locked') {
+        message.error({ content: '账户已被锁定，请15分钟后重试', duration: 5 })
+      } else if (msg === 'Unauthorized') {
+        message.error({ content: '用户名或密码错误', duration: 5 })
+      } else {
+        message.error({ content: msg || '登录失败，请稍后重试', duration: 5 })
+      }
     } finally {
       setLoading(false)
     }
