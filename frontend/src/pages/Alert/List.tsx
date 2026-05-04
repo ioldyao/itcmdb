@@ -58,6 +58,8 @@ export default function AlertList() {
     fetchStatistics,
     acknowledgeAlert,
     closeAlert,
+    batchAcknowledge,
+    batchClose,
     setFilters,
     clearFilters,
   } = useAlertStore()
@@ -151,8 +153,8 @@ export default function AlertList() {
       return
     }
     try {
-      await acknowledgeAlert(selectedRowKeys[0] as number, { handler: user?.id || 1, notes: '' })
-      message.success('批量确认成功')
+      await batchAcknowledge(selectedRowKeys as number[], { handler: user?.id || 1, notes: '' })
+      message.success(`已确认 ${selectedRowKeys.length} 条告警`)
       setSelectedRowKeys([])
     } catch (error: any) {
       message.error(error.message || '批量确认失败')
@@ -166,8 +168,8 @@ export default function AlertList() {
       return
     }
     try {
-      await closeAlert(selectedRowKeys[0] as number, { handler: user?.id || 1, notes: '' })
-      message.success('批量关闭成功')
+      await batchClose(selectedRowKeys as number[], { handler: user?.id || 1, notes: '' })
+      message.success(`已关闭 ${selectedRowKeys.length} 条告警`)
       setSelectedRowKeys([])
     } catch (error: any) {
       message.error(error.message || '批量关闭失败')
@@ -718,7 +720,7 @@ export default function AlertList() {
             {
               key: 'analysis',
               label: '告警分析',
-              children: <AlertAnalysis statistics={statistics} />,
+              children: <AlertAnalysis />,
             },
           ]}
         />

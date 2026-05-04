@@ -152,7 +152,7 @@ export default function NotificationTemplatesTab() {
       dataIndex: 'is_default',
       width: 100,
       render: (isDefault: boolean) =>
-        isDefault ? <StarFilled style={{ color: '#faad14' }} /> : null,
+        isDefault ? <StarFilled className="text-yellow-500" /> : null,
     },
     {
       title: '操作',
@@ -191,9 +191,9 @@ export default function NotificationTemplatesTab() {
   ]
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <h3>通知模板</h3>
+    <div className="dark:text-text-primary">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-base font-medium text-gray-900 dark:text-text-primary">通知模板</h3>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
           创建模板
         </Button>
@@ -249,7 +249,7 @@ export default function NotificationTemplatesTab() {
             <TextArea
               rows={10}
               placeholder="请输入模板内容"
-              style={{ fontFamily: 'monospace' }}
+              className="font-mono"
             />
           </Form.Item>
 
@@ -270,7 +270,7 @@ export default function NotificationTemplatesTab() {
         ]}
         width={700}
       >
-        <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>{previewContent}</pre>
+        <pre className="whitespace-pre-wrap break-words text-sm">{previewContent}</pre>
       </Modal>
     </div>
   )

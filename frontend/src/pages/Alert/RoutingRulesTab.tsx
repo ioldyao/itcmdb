@@ -167,9 +167,9 @@ export default function RoutingRulesTab() {
   ]
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <h3>路由规则</h3>
+    <div className="dark:text-text-primary">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-base font-medium text-gray-900 dark:text-text-primary">路由规则</h3>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
           创建路由规则
         </Button>
@@ -248,7 +248,7 @@ export default function RoutingRulesTab() {
           </Form.Item>
 
           <Form.Item name="priority" label="优先级" rules={[{ required: true }]} initialValue={0}>
-            <InputNumber style={{ width: '100%' }} placeholder="数字越小优先级越高" />
+            <InputNumber className="w-full" placeholder="数字越小优先级越高" />
           </Form.Item>
 
           <Form.Item name="continue" label="继续匹配" valuePropName="checked" initialValue={false}>

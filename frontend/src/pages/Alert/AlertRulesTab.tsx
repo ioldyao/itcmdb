@@ -25,6 +25,13 @@ import { alertService, AlertRule } from '@/services/alertService'
 
 const { TextArea } = Input
 
+const severityMap: Record<string, { text: string; color: string }> = {
+  critical: { text: '致命', color: 'red' },
+  high: { text: '高', color: 'orange' },
+  medium: { text: '中', color: 'gold' },
+  low: { text: '低', color: 'blue' },
+}
+
 export default function AlertRulesTab() {
   const [loading, setLoading] = useState(false)
   const [rules, setRules] = useState<AlertRule[]>([])
@@ -127,13 +134,8 @@ export default function AlertRulesTab() {
       dataIndex: 'severity',
       width: 100,
       render: (severity: string) => {
-        const colorMap: Record<string, string> = {
-          critical: 'red',
-          high: 'orange',
-          medium: 'gold',
-          low: 'blue',
-        }
-        return <Tag color={colorMap[severity]}>{severity}</Tag>
+        const s = severityMap[severity] || { text: severity, color: 'default' }
+        return <Tag color={s.color}>{s.text}</Tag>
       },
     },
     {
@@ -182,9 +184,9 @@ export default function AlertRulesTab() {
   ]
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <h3>告警规则</h3>
+    <div className="dark:text-text-primary">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-base font-medium text-gray-900 dark:text-text-primary">告警规则</h3>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
           创建规则
         </Button>
@@ -227,9 +229,9 @@ export default function AlertRulesTab() {
           </Form.Item>
 
           <Form.Item label="触发条件">
-            <Space.Compact style={{ width: '100%' }}>
+            <Space.Compact className="w-full">
               <Form.Item name="threshold_operator" noStyle rules={[{ required: true }]}>
-                <Select style={{ width: '30%' }} placeholder="运算符">
+                <Select className="w-[30%]" placeholder="运算符">
                   <Select.Option value=">">{'>'}</Select.Option>
                   <Select.Option value="<">{'<'}</Select.Option>
                   <Select.Option value=">=">{'>='}</Select.Option>
@@ -239,21 +241,21 @@ export default function AlertRulesTab() {
                 </Select>
               </Form.Item>
               <Form.Item name="threshold_value" noStyle rules={[{ required: true }]}>
-                <InputNumber style={{ width: '70%' }} placeholder="阈值" />
+                <InputNumber className="w-[70%]" placeholder="阈值" />
               </Form.Item>
             </Space.Compact>
           </Form.Item>
 
           <Form.Item name="duration" label="持续时间(秒)" rules={[{ required: true, message: '请输入持续时间' }]}>
-            <InputNumber style={{ width: '100%' }} placeholder="300" min={0} />
+            <InputNumber className="w-full" placeholder="300" min={0} />
           </Form.Item>
 
           <Form.Item name="severity" label="严重级别" rules={[{ required: true, message: '请选择严重级别' }]}>
             <Select placeholder="请选择严重级别">
-              <Select.Option value="critical">Critical</Select.Option>
-              <Select.Option value="high">High</Select.Option>
-              <Select.Option value="medium">Medium</Select.Option>
-              <Select.Option value="low">Low</Select.Option>
+              <Select.Option value="critical">致命</Select.Option>
+              <Select.Option value="high">高</Select.Option>
+              <Select.Option value="medium">中</Select.Option>
+              <Select.Option value="low">低</Select.Option>
             </Select>
           </Form.Item>
 

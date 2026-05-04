@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -385,7 +386,7 @@ func (h *AlertHandler) GetAlertAnalytics(c *gin.Context) {
 		return
 	}
 
-	// 查询时间范围内的告警 - 使用正确的字段名
+	// 查询时间范围内的告警
 	var alerts []models.AlertInstance
 	query := h.db.Where("last_triggered >= ? AND last_triggered <= ?", startTime, endTime)
 
@@ -394,22 +395,81 @@ func (h *AlertHandler) GetAlertAnalytics(c *gin.Context) {
 		return
 	}
 
-	// 构建响应
-	responseData := models.AlertAnalyticsResponse{
-		Dimensions: []models.AnalyticsDimension{},
-		TimeSeries: models.TimeSeriesData{
-			Dates: []string{},
-			Series: []models.TimeSeriesSeries{
-				{Name: "firing", Data: []int{}},
-				{Name: "acknowledged", Data: []int{}},
-				{Name: "resolved", Data: []int{}},
-				{Name: "closed", Data: []int{}},
-			},
-		},
+	// 构建时间序列数据 - 按日期分组统计各状态数量
+	dateMap := make(map[string]map[string]int)
+	var dates []string
+
+	for _, alert := range alerts {
+		date := alert.LastTriggered.Format("2006-01-02")
+		if _, exists := dateMap[date]; !exists {
+			dateMap[date] = map[string]int{"firing": 0, "acknowledged": 0, "resolved": 0, "closed": 0}
+			dates = append(dates, date)
+		}
+		if _, ok := dateMap[date][alert.Status]; ok {
+			dateMap[date][alert.Status]++
+		}
 	}
 
-	// TODO: 实现按维度分组统计
-	// TODO: 实现时间序列数据生成
+	// 排序日期
+	sort.Strings(dates)
+
+	// 构建各状态的数据系列
+	statuses := []string{"firing", "acknowledged", "resolved", "closed"}
+	series := make([]models.TimeSeriesSeries, len(statuses))
+	for i, status := range statuses {
+		data := make([]int, len(dates))
+		for j, date := range dates {
+			data[j] = dateMap[date][status]
+		}
+		series[i] = models.TimeSeriesSeries{Name: status, Data: data}
+	}
+
+	// 构建维度统计 - 按severity分组
+	severityCounts := make(map[string]int)
+	for _, alert := range alerts {
+		severityCounts[alert.Severity]++
+	}
+	total := len(alerts)
+
+	var severityItems []models.DimensionItem
+	severityOrder := []string{"critical", "high", "medium", "low"}
+	for _, sev := range severityOrder {
+		if count, ok := severityCounts[sev]; ok {
+			pct := 0.0
+			if total > 0 {
+				pct = float64(count) / float64(total) * 100
+			}
+			severityItems = append(severityItems, models.DimensionItem{Name: sev, Count: count, Percentage: pct})
+		}
+	}
+
+	// 构建维度统计 - 按status分组
+	statusCounts := make(map[string]int)
+	for _, alert := range alerts {
+		statusCounts[alert.Status]++
+	}
+
+	var statusItems []models.DimensionItem
+	for _, st := range statuses {
+		if count, ok := statusCounts[st]; ok {
+			pct := 0.0
+			if total > 0 {
+				pct = float64(count) / float64(total) * 100
+			}
+			statusItems = append(statusItems, models.DimensionItem{Name: st, Count: count, Percentage: pct})
+		}
+	}
+
+	responseData := models.AlertAnalyticsResponse{
+		Dimensions: []models.AnalyticsDimension{
+			{DimensionType: "severity", DimensionName: "严重级别", TotalCount: total, Items: severityItems},
+			{DimensionType: "status", DimensionName: "状态分布", TotalCount: total, Items: statusItems},
+		},
+		TimeSeries: models.TimeSeriesData{
+			Dates:  dates,
+			Series: series,
+		},
+	}
 
 	c.JSON(http.StatusOK, response.Success(responseData))
 }
