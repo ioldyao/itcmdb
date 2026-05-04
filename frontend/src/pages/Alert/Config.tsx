@@ -107,7 +107,7 @@ function SpaceManager() {
       const res = await alertService.getRoles()
       if (res.code === 0) setRoles(res.data || [])
     } catch {
-      // 静默失败
+      message.error('获取角色列表失败，请确认服务已部署')
     }
   }
 
