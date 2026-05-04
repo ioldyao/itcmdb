@@ -242,12 +242,20 @@ services:
     ports:
       - "5005:5005"
     depends_on:
+      postgres:
+        condition: service_healthy
       kafka:
         condition: service_healthy
     environment:
       NOTIFICATION_ENV: production
       NOTIFICATION_SERVER_PORT: "5005"
       NOTIFICATION_LOG_LEVEL: info
+      NOTIFICATION_DATABASE_HOST: postgres
+      NOTIFICATION_DATABASE_PORT: 5432
+      NOTIFICATION_DATABASE_USER: postgres
+      NOTIFICATION_DATABASE_PASSWORD: postgres
+      NOTIFICATION_DATABASE_DBNAME: itcmdb
+      NOTIFICATION_DATABASE_SSLMODE: disable
       NOTIFICATION_JWT_SECRET: your-secret-key-change-in-production
       NOTIFICATION_JWT_EXPIRATION: 24h
     networks:
