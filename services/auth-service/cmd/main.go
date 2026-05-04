@@ -594,8 +594,14 @@ func updateUserHandler(userService service.UserService) gin.HandlerFunc {
 
 		if err := userService.UpdateUser(uint(id), updates); err != nil {
 			c.JSON(400, response.Error("Bad Request", err.Error()))
+			audit.LogError(c, "update", "user", nil, err.Error(), updates)
 			return
 		}
+
+		userID := uint(id)
+		audit.LogSuccess(c, "update", "user", &userID, map[string]interface{}{
+			"updates": updates,
+		})
 
 		c.JSON(200, response.Success(nil))
 	}
@@ -613,8 +619,12 @@ func deleteUserHandler(userService service.UserService) gin.HandlerFunc {
 
 		if err := userService.DeleteUser(uint(id)); err != nil {
 			c.JSON(500, response.Error("Internal Error", "failed to delete user"))
+			audit.LogError(c, "delete", "user", nil, err.Error(), nil)
 			return
 		}
+
+		userID := uint(id)
+		audit.LogSuccess(c, "delete", "user", &userID, nil)
 
 		c.JSON(200, response.Success(nil))
 	}

@@ -1034,8 +1034,48 @@ INSERT INTO permissions (resource, action, description) VALUES
 ('alert', 'update', '更新告警'),
 ('alert', 'delete', '删除告警'),
 ('alert', 'view', '查看告警'),
+('alert', 'manage', '管理告警'),
+-- 告警规则权限
+('alert_rule', 'create', '创建告警规则'),
+('alert_rule', 'update', '更新告警规则'),
+('alert_rule', 'delete', '删除告警规则'),
+('alert_rule', 'view', '查看告警规则'),
+('alert_rule', 'manage', '管理告警规则'),
+('alert_rule', 'test', '测试告警规则'),
+-- 告警接收人权限
+('alert_receiver', 'create', '创建告警接收人'),
+('alert_receiver', 'update', '更新告警接收人'),
+('alert_receiver', 'delete', '删除告警接收人'),
+('alert_receiver', 'view', '查看告警接收人'),
+('alert_receiver', 'test', '测试告警接收人'),
+-- Webhook集成权限
+('webhook', 'create', '创建Webhook'),
+('webhook', 'update', '更新Webhook'),
+('webhook', 'delete', '删除Webhook'),
+('webhook', 'view', '查看Webhook'),
+('webhook', 'test', '测试Webhook'),
+-- 路由规则权限
+('routing', 'create', '创建路由规则'),
+('routing', 'update', '更新路由规则'),
+('routing', 'delete', '删除路由规则'),
+('routing', 'view', '查看路由规则'),
+-- 通知模板权限
+('template', 'create', '创建通知模板'),
+('template', 'update', '更新通知模板'),
+('template', 'delete', '删除通知模板'),
+('template', 'view', '查看通知模板'),
+('template', 'manage', '管理通知模板'),
+-- 通知管理权限
+('notification', 'view', '查看通知'),
+('notification', 'send', '发送通知'),
+-- 监控管理权限
+('monitoring', 'view', '查看监控'),
+-- 报表管理权限
+('report', 'view', '查看报表'),
 -- 审计日志权限
 ('audit', 'view', '查看审计日志'),
+-- 系统管理权限
+('system', 'manage', '管理系统'),
 -- 超级管理员权限
 ('*', '*', '超级管理员全部权限')
 ON CONFLICT (resource, action) DO NOTHING;
@@ -1054,6 +1094,67 @@ BEGIN
         VALUES (admin_role_id, super_admin_perm_id)
         ON CONFLICT (role_id, permission_id) DO NOTHING;
     END IF;
+END $$;
+
+-- 为operator角色分配权限（运维工程师：可操作CMDB、工单、告警、监控）
+DO $$
+DECLARE
+    operator_role_id INT;
+BEGIN
+    SELECT id INTO operator_role_id FROM roles WHERE name = 'operator';
+    IF operator_role_id IS NULL THEN RETURN; END IF;
+
+    INSERT INTO role_permissions (role_id, permission_id)
+    SELECT operator_role_id, id FROM permissions WHERE
+        (resource = 'ci' AND action IN ('create', 'update', 'delete', 'view'))
+        OR (resource = 'tag' AND action IN ('create', 'update', 'delete', 'view'))
+        OR (resource = 'ticket' AND action IN ('create', 'update', 'view'))
+        OR (resource = 'alert' AND action IN ('view', 'manage'))
+        OR (resource = 'alert_rule' AND action IN ('create', 'update', 'delete', 'view', 'manage', 'test'))
+        OR (resource = 'alert_receiver' AND action IN ('create', 'update', 'delete', 'view', 'test'))
+        OR (resource = 'webhook' AND action IN ('create', 'update', 'delete', 'view', 'test'))
+        OR (resource = 'routing' AND action IN ('create', 'update', 'delete', 'view'))
+        OR (resource = 'template' AND action IN ('create', 'update', 'delete', 'view', 'manage'))
+        OR (resource = 'notification' AND action IN ('view', 'send'))
+        OR (resource = 'monitoring' AND action = 'view')
+        OR (resource = 'report' AND action = 'view')
+    ON CONFLICT (role_id, permission_id) DO NOTHING;
+END $$;
+
+-- 为developer角色分配权限（开发工程师：只读+创建工单）
+DO $$
+DECLARE
+    developer_role_id INT;
+BEGIN
+    SELECT id INTO developer_role_id FROM roles WHERE name = 'developer';
+    IF developer_role_id IS NULL THEN RETURN; END IF;
+
+    INSERT INTO role_permissions (role_id, permission_id)
+    SELECT developer_role_id, id FROM permissions WHERE
+        (resource = 'ci' AND action = 'view')
+        OR (resource = 'tag' AND action = 'view')
+        OR (resource = 'ticket' AND action IN ('create', 'update', 'view'))
+        OR (resource = 'alert' AND action = 'view')
+        OR (resource = 'alert_rule' AND action = 'view')
+        OR (resource = 'alert_receiver' AND action = 'view')
+        OR (resource = 'webhook' AND action = 'view')
+        OR (resource = 'notification' AND action = 'view')
+        OR (resource = 'monitoring' AND action = 'view')
+        OR (resource = 'report' AND action = 'view')
+    ON CONFLICT (role_id, permission_id) DO NOTHING;
+END $$;
+
+-- 为viewer角色分配权限（只读用户：仅查看权限）
+DO $$
+DECLARE
+    viewer_role_id INT;
+BEGIN
+    SELECT id INTO viewer_role_id FROM roles WHERE name = 'viewer';
+    IF viewer_role_id IS NULL THEN RETURN; END IF;
+
+    INSERT INTO role_permissions (role_id, permission_id)
+    SELECT viewer_role_id, id FROM permissions WHERE action = 'view'
+    ON CONFLICT (role_id, permission_id) DO NOTHING;
 END $$;
 
 -- 插入默认CI类型

@@ -85,8 +85,15 @@ func (h *RoleHandler) UpdateRole(c *gin.Context) {
 	role, err := h.roleService.UpdateRole(uint(id), req.Name, req.Description)
 	if err != nil {
 		c.JSON(400, response.Error("400", err.Error()))
+		audit.LogError(c, "update", "roles", nil, err.Error(), req)
 		return
 	}
+
+	roleID := uint(role.ID)
+	audit.LogSuccess(c, "update", "roles", &roleID, map[string]interface{}{
+		"role_name":   role.Name,
+		"description": req.Description,
+	})
 
 	c.JSON(200, response.Success(role))
 }
@@ -100,10 +107,21 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 		return
 	}
 
+	// 删除前查出角色信息用于审计
+	role, _ := h.roleService.GetRoleByID(uint(id))
+
 	if err := h.roleService.DeleteRole(uint(id)); err != nil {
 		c.JSON(500, response.Error("500", "failed to delete role"))
+		audit.LogError(c, "delete", "roles", nil, err.Error(), nil)
 		return
 	}
+
+	auditID := uint(id)
+	details := map[string]interface{}{}
+	if role != nil {
+		details["role_name"] = role.Name
+	}
+	audit.LogSuccess(c, "delete", "roles", &auditID, details)
 
 	c.JSON(200, response.Success(nil))
 }
@@ -163,8 +181,15 @@ func (h *RoleHandler) CreatePermission(c *gin.Context) {
 	permission, err := h.roleService.CreatePermission(req.Resource, req.Action)
 	if err != nil {
 		c.JSON(500, response.Error("500", "failed to create permission"))
+		audit.LogError(c, "create", "permission", nil, err.Error(), req)
 		return
 	}
+
+	permID := uint(permission.ID)
+	audit.LogSuccess(c, "create", "permission", &permID, map[string]interface{}{
+		"resource": req.Resource,
+		"action":   req.Action,
+	})
 
 	c.JSON(200, response.Success(permission))
 }
@@ -180,8 +205,12 @@ func (h *RoleHandler) DeletePermission(c *gin.Context) {
 
 	if err := h.roleService.DeletePermission(uint(id)); err != nil {
 		c.JSON(500, response.Error("500", "failed to delete permission"))
+		audit.LogError(c, "delete", "permission", nil, err.Error(), nil)
 		return
 	}
+
+	auditID := uint(id)
+	audit.LogSuccess(c, "delete", "permission", &auditID, nil)
 
 	c.JSON(200, response.Success(nil))
 }
@@ -200,11 +229,17 @@ func (h *RoleHandler) AssignPermissionToRole(c *gin.Context) {
 
 	if err := h.roleService.AssignPermissionToRole(req.RoleID, req.PermissionID); err != nil {
 		c.JSON(500, response.Error("500", "failed to assign permission"))
+		audit.LogError(c, "assign_permission", "role", nil, err.Error(), req)
 		return
 	}
 
 	// 清除该角色所有用户的权限缓存
 	h.clearRoleUsersCache(c, req.RoleID)
+
+	roleID := uint(req.RoleID)
+	audit.LogSuccess(c, "assign_permission", "role", &roleID, map[string]interface{}{
+		"permission_id": req.PermissionID,
+	})
 
 	c.JSON(200, response.Success(nil))
 }
@@ -223,11 +258,17 @@ func (h *RoleHandler) RemovePermissionFromRole(c *gin.Context) {
 
 	if err := h.roleService.RemovePermissionFromRole(req.RoleID, req.PermissionID); err != nil {
 		c.JSON(500, response.Error("500", "failed to remove permission"))
+		audit.LogError(c, "remove_permission", "role", nil, err.Error(), req)
 		return
 	}
 
 	// 清除该角色所有用户的权限缓存
 	h.clearRoleUsersCache(c, req.RoleID)
+
+	roleID := uint(req.RoleID)
+	audit.LogSuccess(c, "remove_permission", "role", &roleID, map[string]interface{}{
+		"permission_id": req.PermissionID,
+	})
 
 	c.JSON(200, response.Success(nil))
 }
@@ -246,6 +287,7 @@ func (h *RoleHandler) AssignRoleToUser(c *gin.Context) {
 
 	if err := h.roleService.AssignRoleToUser(req.UserID, req.RoleID); err != nil {
 		c.JSON(500, response.Error("500", "failed to assign role"))
+		audit.LogError(c, "assign_role", "user", nil, err.Error(), req)
 		return
 	}
 
@@ -253,6 +295,11 @@ func (h *RoleHandler) AssignRoleToUser(c *gin.Context) {
 	if err := rbac.ClearUserPermissionsCache(c.Request.Context(), int64(req.UserID)); err != nil {
 		logger.Warn("Failed to clear user permission cache", zap.Error(err), zap.Uint("user_id", req.UserID))
 	}
+
+	userID := uint(req.UserID)
+	audit.LogSuccess(c, "assign_role", "user", &userID, map[string]interface{}{
+		"role_id": req.RoleID,
+	})
 
 	c.JSON(200, response.Success(nil))
 }
@@ -271,6 +318,7 @@ func (h *RoleHandler) RemoveRoleFromUser(c *gin.Context) {
 
 	if err := h.roleService.RemoveRoleFromUser(req.UserID, req.RoleID); err != nil {
 		c.JSON(500, response.Error("500", "failed to remove role"))
+		audit.LogError(c, "remove_role", "user", nil, err.Error(), req)
 		return
 	}
 
@@ -278,6 +326,11 @@ func (h *RoleHandler) RemoveRoleFromUser(c *gin.Context) {
 	if err := rbac.ClearUserPermissionsCache(c.Request.Context(), int64(req.UserID)); err != nil {
 		logger.Warn("Failed to clear user permission cache", zap.Error(err), zap.Uint("user_id", req.UserID))
 	}
+
+	userID := uint(req.UserID)
+	audit.LogSuccess(c, "remove_role", "user", &userID, map[string]interface{}{
+		"role_id": req.RoleID,
+	})
 
 	c.JSON(200, response.Success(nil))
 }
