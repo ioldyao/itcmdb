@@ -5,7 +5,6 @@ import {
   Button,
   Space,
   Input,
-  Select,
   DatePicker,
   message,
   Row,
@@ -560,40 +559,60 @@ export default function AlertList() {
                     <Card size="small" className="mb-4 bg-gray-50 dark:bg-white/5">
                       <Row gutter={16}>
                         <Col span={8}>
-                          <div style={{ marginBottom: 8 }}>
-                            <label style={{ fontSize: 12, color: '#666' }}>告警状态</label>
+                          <div className="mb-2">
+                            <label className="text-xs text-gray-500 dark:text-text-secondary">告警状态</label>
                           </div>
-                          <Select
-                            mode="multiple"
-                            placeholder="选择状态"
-                            style={{ width: '100%' }}
-                            value={statusFilter}
-                            onChange={setStatusFilter}
-                            allowClear
-                          >
-                            <Select.Option value="firing">未恢复</Select.Option>
-                            <Select.Option value="acknowledged">已确认</Select.Option>
-                            <Select.Option value="resolved">已恢复</Select.Option>
-                            <Select.Option value="closed">已关闭</Select.Option>
-                          </Select>
+                          <div className="flex flex-wrap gap-2">
+                            {[
+                              { value: 'firing', label: '未恢复', color: 'red' },
+                              { value: 'acknowledged', label: '已确认', color: 'orange' },
+                              { value: 'resolved', label: '已恢复', color: 'green' },
+                              { value: 'closed', label: '已关闭', color: 'default' },
+                            ].map((item) => (
+                              <Tag
+                                key={item.value}
+                                color={statusFilter.includes(item.value) ? item.color : 'default'}
+                                className="cursor-pointer select-none px-3 py-1 text-sm"
+                                onClick={() => {
+                                  if (statusFilter.includes(item.value)) {
+                                    setStatusFilter(statusFilter.filter(v => v !== item.value))
+                                  } else {
+                                    setStatusFilter([...statusFilter, item.value])
+                                  }
+                                }}
+                              >
+                                {item.label}
+                              </Tag>
+                            ))}
+                          </div>
                         </Col>
                         <Col span={8}>
-                          <div style={{ marginBottom: 8 }}>
-                            <label style={{ fontSize: 12, color: '#666' }}>严重程度</label>
+                          <div className="mb-2">
+                            <label className="text-xs text-gray-500 dark:text-text-secondary">严重程度</label>
                           </div>
-                          <Select
-                            mode="multiple"
-                            placeholder="选择严重程度"
-                            style={{ width: '100%' }}
-                            value={severityFilter}
-                            onChange={setSeverityFilter}
-                            allowClear
-                          >
-                            <Select.Option value="critical">紧急</Select.Option>
-                            <Select.Option value="high">高</Select.Option>
-                            <Select.Option value="medium">中</Select.Option>
-                            <Select.Option value="low">低</Select.Option>
-                          </Select>
+                          <div className="flex flex-wrap gap-2">
+                            {[
+                              { value: 'critical', label: '紧急', color: 'red' },
+                              { value: 'high', label: '高', color: 'orange' },
+                              { value: 'medium', label: '中', color: 'gold' },
+                              { value: 'low', label: '低', color: 'blue' },
+                            ].map((item) => (
+                              <Tag
+                                key={item.value}
+                                color={severityFilter.includes(item.value) ? item.color : 'default'}
+                                className="cursor-pointer select-none px-3 py-1 text-sm"
+                                onClick={() => {
+                                  if (severityFilter.includes(item.value)) {
+                                    setSeverityFilter(severityFilter.filter(v => v !== item.value))
+                                  } else {
+                                    setSeverityFilter([...severityFilter, item.value])
+                                  }
+                                }}
+                              >
+                                {item.label}
+                              </Tag>
+                            ))}
+                          </div>
                         </Col>
                         <Col span={8}>
                           <div style={{ marginBottom: 8 }}>
