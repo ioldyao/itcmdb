@@ -59,12 +59,15 @@ function FilterCheckbox({ label, count, value, checked, onChange, color }: Filte
     : ''
 
   return (
-    <div className="flex items-center justify-between px-4 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-      <label className="flex items-center gap-2 cursor-pointer flex-1">
-        <Checkbox value={value} checked={checked} onChange={onChange} />
+    <div
+      className="flex items-center justify-between px-4 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+      onClick={() => onChange?.({ target: { checked: !checked, value } } as any)}
+    >
+      <div className="flex items-center gap-2 flex-1">
+        <Checkbox checked={checked} />
         {color && <div className="w-1 h-4 rounded-sm" style={{ background: color }} />}
         <span className={`text-sm ${colorClass}`}>{label}</span>
-      </label>
+      </div>
       <span className="text-sm text-gray-400 dark:text-text-tertiary">{count}</span>
     </div>
   )
