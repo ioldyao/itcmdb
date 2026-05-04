@@ -3,12 +3,13 @@ import { Card, Select, Button, Spin, Empty } from 'antd'
 import { CameraOutlined, ReloadOutlined } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import { alertService } from '@/services/alertService'
+import dayjs from 'dayjs'
 
-const timeRangeMap: Record<string, { label: string; start: string; end: string }> = {
-  '1h': { label: '1小时', start: 'now-1h', end: 'now' },
-  '1d': { label: '1天', start: 'now-1d', end: 'now' },
-  '1w': { label: '1周', start: 'now-1w', end: 'now' },
-  '1M': { label: '1月', start: 'now-1M', end: 'now' },
+const timeRangeMap: Record<string, { label: string; hours: number }> = {
+  '1h': { label: '1小时', hours: 1 },
+  '1d': { label: '1天', hours: 24 },
+  '1w': { label: '1周', hours: 24 * 7 },
+  '1M': { label: '1月', hours: 24 * 30 },
 }
 
 export default function AlertAnalysis() {
@@ -20,9 +21,11 @@ export default function AlertAnalysis() {
     setLoading(true)
     try {
       const range = timeRangeMap[timeRange] || timeRangeMap['1w']
+      const endTime = dayjs()
+      const startTime = endTime.subtract(range.hours, 'hour')
       const res = await alertService.getAlertAnalytics({
-        start_time: range.start,
-        end_time: range.end,
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
         group_by: ['status', 'severity'],
       })
       if (res.code === 0 && res.data) {
