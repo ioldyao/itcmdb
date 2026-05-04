@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Badge, Collapse, Checkbox, Space } from 'antd'
+import { Badge, Collapse, Space } from 'antd'
 import {
   UserOutlined,
   CheckCircleOutlined,
@@ -7,9 +7,9 @@ import {
   RightOutlined,
   DownOutlined,
 } from '@ant-design/icons'
-import type { CheckboxChangeEvent } from 'antd/es/checkbox'
 import { useAlertStore } from '@/stores/alertStore'
 import { useAuthStore } from '@/stores/authStore'
+
 
 const { Panel } = Collapse
 
@@ -48,11 +48,11 @@ interface FilterCheckboxProps {
   count: number
   value: string
   checked?: boolean
-  onChange?: (e: CheckboxChangeEvent) => void
+  onChange?: () => void
   color?: string
 }
 
-function FilterCheckbox({ label, count, value, checked, onChange, color }: FilterCheckboxProps) {
+function FilterCheckbox({ label, count, checked, onChange, color }: FilterCheckboxProps) {
   const colorClass = color === '#ff4d4f' ? 'text-red-500'
     : color === '#fa8c16' ? 'text-orange-500'
     : color === '#faad14' ? 'text-yellow-500'
@@ -60,11 +60,21 @@ function FilterCheckbox({ label, count, value, checked, onChange, color }: Filte
 
   return (
     <div
-      className="flex items-center justify-between px-4 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-      onClick={() => onChange?.({ target: { checked: !checked, value } } as any)}
+      className="flex items-center justify-between px-4 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors select-none"
+      onClick={onChange}
     >
       <div className="flex items-center gap-2 flex-1">
-        <Checkbox checked={checked} />
+        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+          checked
+            ? 'bg-blue-500 border-blue-500'
+            : 'border-gray-300 dark:border-white/20'
+        }`}>
+          {checked && (
+            <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
+              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+        </div>
         {color && <div className="w-1 h-4 rounded-sm" style={{ background: color }} />}
         <span className={`text-sm ${colorClass}`}>{label}</span>
       </div>
@@ -91,17 +101,17 @@ export default function AlertSidebar({ collapsed = false }: AlertSidebarProps) {
     if (activeItem === key) {
       setActiveItem('all')
       const newFilters = { ...filters }
-      delete (newFilters as any)[key]
+      ;(newFilters as any)[key] = undefined
       setFilters(newFilters)
       return
     }
     setActiveItem(key)
     const newFilters: Record<string, any> = { ...filters }
     // 清除快捷筛选项
-    delete newFilters.handler
-    delete newFilters.handlingStatus
-    delete newFilters.objectType
-    delete newFilters.status
+    newFilters.handler = undefined
+    newFilters.handlingStatus = undefined
+    newFilters.objectType = undefined
+    newFilters.status = undefined
 
     if (key === 'handler') {
       newFilters.handler = value
@@ -119,7 +129,7 @@ export default function AlertSidebar({ collapsed = false }: AlertSidebarProps) {
   const handleCheckboxChange = (type: string, values: string[]) => {
     const newFilters = { ...filters }
     if (values.length === 0) {
-      delete (newFilters as any)[type]
+      ;(newFilters as any)[type] = undefined
     } else {
       ;(newFilters as any)[type] = values
     }
@@ -288,7 +298,7 @@ export default function AlertSidebar({ collapsed = false }: AlertSidebarProps) {
               onChange={() => {
                 if (item.value === '') {
                   const newFilters = { ...filters }
-                  delete newFilters.handlingStatus
+                  newFilters.handlingStatus = undefined
                   setFilters(newFilters)
                 } else {
                   setFilters({ handlingStatus: item.value })
@@ -314,7 +324,7 @@ export default function AlertSidebar({ collapsed = false }: AlertSidebarProps) {
               onChange={() => {
                 if (filters.objectType === item.value) {
                   const newFilters = { ...filters }
-                  delete newFilters.objectType
+                  newFilters.objectType = undefined
                   setFilters(newFilters)
                 } else {
                   setFilters({ objectType: item.value })
@@ -335,7 +345,7 @@ export default function AlertSidebar({ collapsed = false }: AlertSidebarProps) {
               onChange={() => {
                 if (filters.category === cat) {
                   const newFilters = { ...filters }
-                  delete newFilters.category
+                  newFilters.category = undefined
                   setFilters(newFilters)
                 } else {
                   setFilters({ category: cat })
