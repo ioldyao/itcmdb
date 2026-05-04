@@ -20,9 +20,8 @@ type User struct {
 
 // UserRole 用户角色关联
 type UserRole struct {
-	ID     uint `gorm:"primaryKey" json:"id"`
-	UserID uint `gorm:"column:user_id" json:"user_id"`
-	RoleID uint `gorm:"column:role_id" json:"role_id"`
+	UserID uint `gorm:"column:user_id;primaryKey" json:"user_id"`
+	RoleID uint `gorm:"column:role_id;primaryKey" json:"role_id"`
 }
 
 // Role 角色模型
@@ -43,15 +42,13 @@ type Permission struct {
 
 // RolePermission 角色权限关联
 type RolePermission struct {
-	ID           uint `gorm:"primaryKey" json:"id"`
-	RoleID       uint `gorm:"column:role_id" json:"role_id"`
+	RoleID       uint `gorm:"column:role_id;primaryKey" json:"role_id"`
 	PermissionID uint `gorm:"column:permission_id" json:"permission_id"`
 }
 
 // UserPermission 用户权限关联（直接权限）
 type UserPermission struct {
-	ID           uint `gorm:"primaryKey" json:"id"`
-	UserID       uint `gorm:"column:user_id" json:"user_id"`
+	UserID       uint `gorm:"column:user_id;primaryKey" json:"user_id"`
 	PermissionID uint `gorm:"column:permission_id" json:"permission_id"`
 }
 
