@@ -177,7 +177,22 @@ func autoMigrate(db *gorm.DB) error {
 func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, vmClient *services.VictoriaMetricsClient, webhookService *services.WebhookService, jwtManager *auth.JWTManager) {
 	// 健康检查
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		health := gin.H{"status": "ok", "service": "alert-service"}
+
+		db := database.Get()
+		sqlDB, err := db.DB()
+		if err != nil || sqlDB.Ping() != nil {
+			health["status"] = "degraded"
+			health["database"] = "unavailable"
+		} else {
+			health["database"] = "ok"
+		}
+
+		status := 200
+		if health["status"] == "degraded" {
+			status = 503
+		}
+		c.JSON(status, health)
 	})
 
 	// VM健康检查

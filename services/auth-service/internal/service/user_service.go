@@ -122,8 +122,15 @@ func (s *userService) UpdateUser(id uint, updates map[string]interface{}) error 
 		return errors.New("cannot update email")
 	}
 
-	// 如果要修改密码
+	// 如果要修改密码，必须提供旧密码验证
 	if newPassword, ok := updates["password"].(string); ok {
+		oldPassword, _ := updates["old_password"].(string)
+		if oldPassword == "" {
+			return errors.New("old password is required to change password")
+		}
+		if err := passwordpkg.CheckPassword(oldPassword, user.PasswordHash); err != nil {
+			return errors.New("old password is incorrect")
+		}
 		if err := passwordpkg.ValidatePassword(newPassword); err != nil {
 			return err
 		}
@@ -132,6 +139,7 @@ func (s *userService) UpdateUser(id uint, updates map[string]interface{}) error 
 			return err
 		}
 		user.PasswordHash = hashedPassword
+		delete(updates, "old_password")
 	}
 
 	// 应用其他更新

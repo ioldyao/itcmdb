@@ -132,7 +132,22 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager) {
 	}
 
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		health := gin.H{"status": "ok", "service": "report-service"}
+
+		db := database.Get()
+		sqlDB, err := db.DB()
+		if err != nil || sqlDB.Ping() != nil {
+			health["status"] = "degraded"
+			health["database"] = "unavailable"
+		} else {
+			health["database"] = "ok"
+		}
+
+		status := 200
+		if health["status"] == "degraded" {
+			status = 503
+		}
+		c.JSON(status, health)
 	})
 }
 

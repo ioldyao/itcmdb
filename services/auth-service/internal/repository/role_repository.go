@@ -72,7 +72,18 @@ func (r *roleRepository) UpdateRole(role *models.Role) error {
 }
 
 func (r *roleRepository) DeleteRole(id uint) error {
-	return r.db.Delete(&models.Role{}, id).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 清理角色-权限关联
+		if err := tx.Where("role_id = ?", id).Delete(&models.RolePermission{}).Error; err != nil {
+			return err
+		}
+		// 清理用户-角色关联
+		if err := tx.Where("role_id = ?", id).Delete(&models.UserRole{}).Error; err != nil {
+			return err
+		}
+		// 删除角色本身
+		return tx.Delete(&models.Role{}, id).Error
+	})
 }
 
 func (r *roleRepository) GetPermissions() ([]models.Permission, error) {
@@ -95,7 +106,14 @@ func (r *roleRepository) CreatePermission(permission *models.Permission) error {
 }
 
 func (r *roleRepository) DeletePermission(id uint) error {
-	return r.db.Delete(&models.Permission{}, id).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 清理角色-权限关联
+		if err := tx.Where("permission_id = ?", id).Delete(&models.RolePermission{}).Error; err != nil {
+			return err
+		}
+		// 删除权限本身
+		return tx.Delete(&models.Permission{}, id).Error
+	})
 }
 
 func (r *roleRepository) AssignPermissionToRole(roleID, permissionID uint) error {

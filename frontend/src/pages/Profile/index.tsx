@@ -82,6 +82,7 @@ export default function Profile() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          old_password: values.oldPassword,
           password: values.newPassword,
         }),
       })
@@ -167,11 +168,18 @@ export default function Profile() {
           style={{ maxWidth: 400 }}
         >
           <Form.Item
+            label="当前密码"
+            name="oldPassword"
+            rules={[{ required: true, message: '请输入当前密码' }]}
+          >
+            <Input.Password prefix={<LockOutlined />} placeholder="请输入当前密码" />
+          </Form.Item>
+          <Form.Item
             label="新密码"
             name="newPassword"
             rules={[
               { required: true, message: '请输入新密码' },
-              { min: 6, message: '密码至少6个字符' },
+              { min: 8, message: '密码至少8个字符，需包含大小写字母、数字和特殊字符' },
             ]}
           >
             <Input.Password prefix={<LockOutlined />} placeholder="请输入新密码" />

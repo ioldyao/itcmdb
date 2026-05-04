@@ -487,7 +487,34 @@ func setupRoutes(r *gin.Engine, authClient *grpcclient.AuthClient, ciHandler *ha
 	}
 
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		health := gin.H{"status": "ok", "service": "cmdb-service"}
+
+		// 检查数据库连接
+		db := database.Get()
+		sqlDB, err := db.DB()
+		if err != nil || sqlDB.Ping() != nil {
+			health["status"] = "degraded"
+			health["database"] = "unavailable"
+		} else {
+			health["database"] = "ok"
+		}
+
+		// 检查Redis连接
+		redisClient := cache.Get()
+		if redisClient != nil {
+			if err := redisClient.Ping(c.Request.Context()).Err(); err != nil {
+				health["status"] = "degraded"
+				health["redis"] = "unavailable"
+			} else {
+				health["redis"] = "ok"
+			}
+		}
+
+		status := 200
+		if health["status"] == "degraded" {
+			status = 503
+		}
+		c.JSON(status, health)
 	})
 }
 

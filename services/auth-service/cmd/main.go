@@ -203,7 +203,8 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, userService service
 		// 认证相关
 		auth := api.Group("/auth")
 		{
-			auth.POST("/register", registerHandler(userService, jwtManager))
+			// 注册接口仅管理员可用
+			auth.POST("/register", jwtManager.AuthMiddleware(), middleware.RequirePermission(userService, "user", "create"), registerHandler(userService, jwtManager))
 			auth.POST("/login", loginHandler(userService, jwtManager))
 			auth.POST("/logout", jwtManager.AuthMiddleware(), logoutHandler(jwtManager))
 			auth.POST("/refresh", refreshHandler(jwtManager))
@@ -302,19 +303,48 @@ func setupRoutes(r *gin.Engine, jwtManager *auth.JWTManager, userService service
 
 	// 健康检查
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		health := gin.H{"status": "ok", "service": "auth-service"}
+
+		// 检查数据库连接
+		db := database.Get()
+		sqlDB, err := db.DB()
+		if err != nil || sqlDB.Ping() != nil {
+			health["status"] = "degraded"
+			health["database"] = "unavailable"
+		} else {
+			health["database"] = "ok"
+		}
+
+		// 检查Redis连接
+		redisClient := cache.Get()
+		if redisClient != nil {
+			if err := redisClient.Ping(c.Request.Context()).Err(); err != nil {
+				health["status"] = "degraded"
+				health["redis"] = "unavailable"
+			} else {
+				health["redis"] = "ok"
+			}
+		} else {
+			health["redis"] = "not_configured"
+		}
+
+		status := 200
+		if health["status"] == "degraded" {
+			status = 503
+		}
+		c.JSON(status, health)
 	})
 }
 
 // Handler functions
 
-// registerHandler 用户注册
+// registerHandler 用户注册（仅管理员可用）
 func registerHandler(userService service.UserService, jwtManager *auth.JWTManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
 			Username string `json:"username" binding:"required"`
 			Email    string `json:"email" binding:"required,email"`
-			Password string `json:"password" binding:"required,min=6"`
+			Password string `json:"password" binding:"required,min=8"`
 			FullName string `json:"full_name"`
 		}
 
@@ -323,36 +353,22 @@ func registerHandler(userService service.UserService, jwtManager *auth.JWTManage
 			return
 		}
 
-		// 创建用户
 		user, err := userService.Register(req.Username, req.Email, req.Password, req.FullName)
 		if err != nil {
 			c.JSON(400, response.Error("Bad Request", err.Error()))
 			return
 		}
 
-		// 获取用户权限
-		permissions, err := userService.GetUserPermissions(user.ID)
-		if err != nil {
-			logger.Warn("Failed to get user permissions", zap.Error(err))
-			permissions = []string{}
-		}
-
-		// 生成token
-		token, err := jwtManager.Generate(int64(user.ID), user.Username, permissions)
-		if err != nil {
-			c.JSON(500, response.Error("Internal Error", "failed to generate token"))
-			return
-		}
+		audit.LogSuccess(c, "create", "user", &user.ID, map[string]interface{}{
+			"username": user.Username,
+			"email":    user.Email,
+		})
 
 		c.JSON(200, response.Success(gin.H{
-			"token": token,
-			"user": gin.H{
-				"id":       user.ID,
-				"username": user.Username,
-				"email":    user.Email,
-				"fullName": user.FullName,
-			},
-			"permissions": permissions,
+			"id":       user.ID,
+			"username": user.Username,
+			"email":    user.Email,
+			"fullName": user.FullName,
 		}))
 	}
 }
@@ -370,15 +386,51 @@ func loginHandler(userService service.UserService, jwtManager *auth.JWTManager) 
 			return
 		}
 
+		// 检查登录锁定
+		lockKey := "login_lock:" + req.Username
+		redisClient := cache.Get()
+		if redisClient != nil {
+			ctx := c.Request.Context()
+			if locked, _ := redisClient.Get(ctx, lockKey).Bool(); locked {
+				audit.LogError(c, "login", "user", nil, "account locked due to too many failed attempts", gin.H{
+					"username": req.Username,
+				})
+				c.JSON(423, response.Error("Locked", "account locked due to too many failed login attempts, please try again later"))
+				return
+			}
+		}
+
 		// 验证用户
 		user, err := userService.ValidateUser(req.Username, req.Password)
 		if err != nil {
+			// 记录登录失败次数
+			failKey := "login_fail:" + req.Username
+			if redisClient != nil {
+				ctx := c.Request.Context()
+				count, _ := redisClient.Incr(ctx, failKey).Result()
+				redisClient.Expire(ctx, failKey, 15*time.Minute)
+
+				// 5次失败后锁定15分钟
+				if count >= 5 {
+					redisClient.Set(ctx, lockKey, true, 15*time.Minute)
+					logger.Warn("Account locked due to too many failed login attempts",
+						zap.String("username", req.Username),
+						zap.Int64("attempts", count))
+				}
+			}
+
 			// 记录登录失败的审计日志
 			audit.LogError(c, "login", "user", nil, "invalid username or password", gin.H{
 				"username": req.Username,
 			})
 			c.JSON(401, response.Error("Unauthorized", "invalid username or password"))
 			return
+		}
+
+		// 登录成功，清除失败计数
+		if redisClient != nil {
+			ctx := c.Request.Context()
+			redisClient.Del(ctx, "login_fail:"+req.Username)
 		}
 
 		// 获取用户权限
@@ -451,18 +503,64 @@ func logoutHandler(jwtManager *auth.JWTManager) gin.HandlerFunc {
 
 func refreshHandler(jwtManager *auth.JWTManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req struct {
-			Token string `json:"token" binding:"required"`
+		// 从Authorization header获取token
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			c.JSON(401, response.Error("Unauthorized", "missing or invalid authorization header"))
+			return
 		}
+		oldToken := strings.TrimPrefix(authHeader, "Bearer ")
 
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(400, response.Error("Bad Request", "invalid request"))
+		// 验证旧token
+		claims, err := jwtManager.Verify(oldToken)
+		if err != nil {
+			c.JSON(401, response.Error("Unauthorized", err.Error()))
 			return
 		}
 
-		newToken, err := jwtManager.Refresh(req.Token)
+		// 检查是否在刷新窗口内（剩余时间 < 1小时）
+		if time.Until(claims.ExpiresAt.Time) > time.Hour {
+			c.JSON(400, response.Error("Bad Request", "token not ready for refresh"))
+			return
+		}
+
+		// 将旧token加入黑名单
+		if err := jwtManager.AddToBlacklist(c.Request.Context(), oldToken, claims); err != nil {
+			logger.Warn("Failed to blacklist old token during refresh", zap.Error(err))
+		}
+
+		// 获取最新权限
+		var permissions []string
+		userID := uint(claims.UserID)
+		db := database.Get()
+		if db != nil {
+			var rolePerms []string
+			db.Table("permissions").
+				Joins("JOIN role_permissions ON permissions.id = role_permissions.permission_id").
+				Joins("JOIN user_roles ON user_roles.role_id = role_permissions.role_id").
+				Where("user_roles.user_id = ?", userID).
+				Pluck("CONCAT(resource, ':', action)", &rolePerms)
+			var userPerms []string
+			db.Table("permissions").
+				Joins("JOIN user_permissions ON permissions.id = user_permissions.permission_id").
+				Where("user_permissions.user_id = ?", userID).
+				Pluck("CONCAT(resource, ':', action)", &userPerms)
+			permMap := make(map[string]bool)
+			for _, p := range rolePerms {
+				permMap[p] = true
+			}
+			for _, p := range userPerms {
+				permMap[p] = true
+			}
+			for p := range permMap {
+				permissions = append(permissions, p)
+			}
+		}
+
+		// 生成新token
+		newToken, err := jwtManager.Generate(claims.UserID, claims.Username, permissions)
 		if err != nil {
-			c.JSON(401, response.Error("Unauthorized", err.Error()))
+			c.JSON(500, response.Error("Internal Error", "failed to generate token"))
 			return
 		}
 
