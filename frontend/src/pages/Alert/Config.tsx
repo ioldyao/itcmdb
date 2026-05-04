@@ -7,6 +7,7 @@ import {
   Form,
   Input,
   Select,
+  AutoComplete,
   InputNumber,
   Switch,
   Tag,
@@ -423,10 +424,8 @@ function RouteManager() {
             rules={[{ required: true, message: '请输入匹配字段' }]}
             extra="告警标签中的字段名，如 project、alertgroup、env"
           >
-            <Select
-              placeholder="选择或输入字段名"
-              showSearch
-              allowClear
+            <AutoComplete
+              placeholder="输入字段名，支持自定义"
               options={[
                 { label: 'project (项目)', value: 'project' },
                 { label: 'alertgroup (告警组)', value: 'alertgroup' },
@@ -436,6 +435,9 @@ function RouteManager() {
                 { label: 'job (任务)', value: 'job' },
                 { label: 'severity (级别)', value: 'severity' },
               ]}
+              filterOption={(inputValue, option) =>
+                (option?.label ?? '').toLowerCase().includes(inputValue.toLowerCase())
+              }
             />
           </Form.Item>
           <Form.Item

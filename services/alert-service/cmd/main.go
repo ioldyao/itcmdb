@@ -238,6 +238,7 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 
 			// 空间管理（管理员）
 			spaceHandler := handlers.NewSpaceHandler(db)
+			protected.GET("/roles", rbac.RequirePermission("alert", "view"), spaceHandler.ListRoles)
 			protected.GET("/spaces", rbac.RequirePermission("alert", "view"), spaceHandler.ListSpaces)
 			protected.POST("/spaces", rbac.RequirePermission("alert", "manage"), spaceHandler.CreateSpace)
 			protected.PUT("/spaces/:id", rbac.RequirePermission("alert", "manage"), spaceHandler.UpdateSpace)

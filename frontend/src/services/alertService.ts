@@ -208,11 +208,11 @@ export const alertService = {
   },
 
   // ============================================
-  // 角色（从 auth-service 获取）
+  // 角色列表（从 alert-service 共享DB读取）
   // ============================================
 
   getRoles: async (): Promise<ApiResponse<any[]>> => {
-    return api.get('/auth/roles')
+    return api.get('/roles')
   },
 
   // ============================================

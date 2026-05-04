@@ -297,6 +297,16 @@ func (h *SpaceHandler) MatchSpaceByLabels(labels map[string]interface{}) []int {
 	return ids
 }
 
+// ListRoles 获取角色列表（从共享DB直接读取）
+func (h *SpaceHandler) ListRoles(c *gin.Context) {
+	var roles []models.Role
+	if err := h.db.Order("id ASC").Find(&roles).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, response.Error("查询失败", err.Error()))
+		return
+	}
+	c.JSON(http.StatusOK, response.Success(roles))
+}
+
 // GetSpaceUserIDs 获取空间下所有用户ID（通过角色关联）
 func (h *SpaceHandler) GetSpaceUserIDs(spaceIDs []int) []int {
 	if len(spaceIDs) == 0 {
