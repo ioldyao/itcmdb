@@ -212,7 +212,7 @@ export const alertService = {
   // ============================================
 
   getRoles: async (): Promise<ApiResponse<any[]>> => {
-    return api.get('/roles')
+    return api.get('/alert-roles')
   },
 
   // ============================================
