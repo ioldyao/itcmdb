@@ -215,10 +215,21 @@ func LogPlatformEvent(action, serviceName string, details interface{}) {
 		zap.String("service", serviceName),
 	)
 
+	// 将serviceName合并到details中
+	mergedDetails := make(map[string]interface{})
+	mergedDetails["service"] = serviceName
+	if details != nil {
+		if detailsMap, ok := details.(map[string]interface{}); ok {
+			for k, v := range detailsMap {
+				mergedDetails[k] = v
+			}
+		}
+	}
+
 	event := kafka.AuditEvent{
 		Action:    action,
 		Resource:  "platform",
-		Details:   details,
+		Details:   mergedDetails,
 		Status:    "success",
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
