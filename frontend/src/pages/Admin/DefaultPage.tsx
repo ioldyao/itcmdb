@@ -41,31 +41,32 @@ export default function AdminDefaultPage() {
   })
 
   return (
-    <div>
-      <h2 style={{ marginBottom: 24 }}>系统管理</h2>
+    <div className="p-8">
+      <h1 className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-2">系统管理</h1>
+      <p className="text-gray-600 dark:text-text-secondary mb-6">管理系统用户、角色和审计日志</p>
       <Row gutter={[16, 16]}>
         {availableSections.map(section => (
           <Col key={section.key} xs={24} sm={12} md={8}>
             <Card
               hoverable
               onClick={() => navigate(section.path)}
-              style={{ height: '100%' }}
+              className="h-full dark:bg-bg-secondary dark:border-white/8"
             >
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ marginBottom: 16, color: '#1890ff' }}>
+              <div className="text-center">
+                <div className="mb-4 text-brand-primary">
                   {section.icon}
                 </div>
-                <h3 style={{ marginBottom: 8 }}>{section.title}</h3>
-                <p style={{ color: '#666', fontSize: 14 }}>{section.description}</p>
+                <h3 className="mb-2 font-medium text-gray-900 dark:text-text-primary">{section.title}</h3>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">{section.description}</p>
               </div>
             </Card>
           </Col>
         ))}
       </Row>
       {availableSections.length === 0 && (
-        <Card>
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <p style={{ color: '#999' }}>您没有权限访问任何系统管理功能</p>
+        <Card className="dark:bg-bg-secondary dark:border-white/8">
+          <div className="text-center py-10">
+            <p className="text-gray-500 dark:text-text-secondary">您没有权限访问任何系统管理功能</p>
           </div>
         </Card>
       )}

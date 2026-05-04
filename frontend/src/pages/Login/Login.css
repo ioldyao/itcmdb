@@ -3,10 +3,149 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
 }
 
-.login-card {
-  width: 400px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+.login-wrapper {
+  display: flex;
+  width: 900px;
+  min-height: 520px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* 左侧品牌区域 */
+.login-brand {
+  flex: 1;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 48px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.brand-content {
+  color: white;
+}
+
+.brand-logo {
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.brand-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.brand-subtitle {
+  font-size: 16px;
+  opacity: 0.9;
+  margin: 0 0 32px 0;
+}
+
+.brand-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.feature-dot {
+  width: 6px;
+  height: 6px;
+  background: white;
+  border-radius: 50%;
+}
+
+/* 右侧登录表单 */
+.login-form-container {
+  flex: 1;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-form-wrapper {
+  width: 100%;
+  max-width: 320px;
+  padding: 48px 40px;
+}
+
+.form-header {
+  margin-bottom: 32px;
+}
+
+.form-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 8px 0;
+}
+
+.form-header p {
+  color: #666;
+  margin: 0;
+  font-size: 14px;
+}
+
+.login-form .login-input {
+  height: 44px;
+}
+
+.login-button {
+  height: 44px;
+  font-size: 16px;
+}
+
+.form-footer {
+  margin-top: 32px;
+  text-align: center;
+}
+
+.version-text {
+  font-size: 12px;
+  color: #999;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .login-wrapper {
+    flex-direction: column;
+    width: 90%;
+    max-width: 400px;
+    min-height: auto;
+  }
+
+  .login-brand {
+    padding: 32px 24px;
+  }
+
+  .brand-title {
+    font-size: 24px;
+  }
+
+  .brand-features {
+    display: none;
+  }
+
+  .login-form-wrapper {
+    padding: 32px 24px;
+  }
 }

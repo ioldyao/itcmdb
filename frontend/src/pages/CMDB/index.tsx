@@ -9,6 +9,7 @@ import {
   Tags as TagsIcon,
 } from 'lucide-react'
 import { useState } from 'react'
+import Breadcrumb from '@/components/Breadcrumb'
 
 const { Sider, Content } = Layout
 
@@ -57,7 +58,8 @@ export default function CMDBLayout() {
           />
         </div>
       </Sider>
-      <Content style={{ padding: '24px', background: '#fff' }}>
+      <Content className="p-6 bg-white dark:bg-bg-primary">
+        <Breadcrumb />
         <Outlet />
       </Content>
     </Layout>

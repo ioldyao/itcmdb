@@ -338,25 +338,33 @@ export default function AdminUsers() {
   ]
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <h2>用户管理</h2>
+    <div className="p-8">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-2">用户管理</h1>
+          <p className="text-gray-600 dark:text-text-secondary">管理系统用户账户和状态</p>
+        </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
           添加用户
         </Button>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={users}
-        rowKey="id"
-        loading={loading}
-        pagination={{
-          pageSize: 10,
-          showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 条`,
-        }}
-      />
+      <div className="bg-white dark:bg-bg-secondary rounded-lg border border-gray-200 dark:border-white/8">
+        <Table
+          columns={columns}
+          dataSource={users}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条用户`,
+          }}
+          locale={{
+            emptyText: '暂无用户数据',
+          }}
+        />
+      </div>
 
       <Modal
         title={editingUser ? '编辑用户' : '添加用户'}

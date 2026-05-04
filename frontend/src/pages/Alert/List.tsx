@@ -40,6 +40,7 @@ import {
   RightOutlined,
   ReloadOutlined,
 } from '@ant-design/icons'
+import Breadcrumb from '@/components/Breadcrumb'
 
 const { RangePicker } = DatePicker
 
@@ -342,17 +343,10 @@ export default function AlertList() {
   ]
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#f0f2f5' }}>
+    <div className="flex h-screen bg-gray-100 dark:bg-bg-primary">
       {/* 左侧边栏 */}
       <div
-        style={{
-          width: sidebarCollapsed ? 0 : 260,
-          transition: 'width 0.3s',
-          overflow: 'hidden',
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
+        className={`transition-all duration-300 overflow-hidden relative flex flex-col bg-white dark:bg-bg-secondary border-r border-gray-200 dark:border-white/8 ${sidebarCollapsed ? 'w-0' : 'w-[260px]'}`}
       >
         <AlertSidebar
           onFilterChange={(newFilters) => {
@@ -407,12 +401,15 @@ export default function AlertList() {
       )}
 
       {/* 主内容区域 */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+      <div className="flex-1 overflow-y-auto p-6">
         <Card bordered={false}>
+          {/* 面包屑 */}
+          <Breadcrumb />
+
           {/* 页面标题 */}
-          <div style={{ marginBottom: 24 }}>
-            <h2 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, margin: 0 }}>告警中心</h2>
-            <p style={{ color: '#666', margin: 0, fontSize: 14 }}>
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-2">告警中心</h2>
+            <p className="text-gray-600 dark:text-text-secondary text-sm">
               实时监控和管理系统告警，支持告警查看、确认、关闭等操作
             </p>
           </div>
@@ -591,7 +588,7 @@ export default function AlertList() {
 
                   {/* 高级筛选（可折叠） */}
                   {showFilters && (
-                    <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
+                    <Card size="small" className="mb-4 bg-gray-50 dark:bg-white/5">
                       <Row gutter={16}>
                         <Col span={8}>
                           <div style={{ marginBottom: 8 }}>
@@ -657,7 +654,7 @@ export default function AlertList() {
 
                   {/* 批量操作栏 */}
                   {selectedRowKeys.length > 0 && (
-                    <Card size="small" style={{ marginBottom: 16, background: '#e6f7ff', borderColor: '#1890ff' }}>
+                    <Card size="small" className="mb-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
                       <Space>
                         <span style={{ fontSize: 14 }}>
                           已选择 <strong>{selectedRowKeys.length}</strong> 项

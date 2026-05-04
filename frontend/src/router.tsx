@@ -40,6 +40,9 @@ import AdminDefaultPage from '@/pages/Admin/DefaultPage'
 import AlertIntegrationWebhook from '@/pages/Admin/AlertIntegration/Webhook'
 import VictoriaMetrics from '@/pages/Monitoring/VictoriaMetrics'
 
+// Reports
+import Reports from '@/pages/Reports'
+
 const router = createBrowserRouter([
   {
     path: '/login',
@@ -56,6 +59,10 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: <Dashboard /> },
       { path: 'profile', element: <Profile /> },
+      {
+        path: 'reports',
+        element: <PermissionGuard resource="report" action="view"><Reports /></PermissionGuard>,
+      },
       {
         path: 'cmdb',
         element: <CMDBLayout />,

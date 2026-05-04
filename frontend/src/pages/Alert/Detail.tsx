@@ -58,7 +58,7 @@ export default function AlertDetail() {
 
   if (loading) {
     return (
-      <div style={{ padding: 100, textAlign: 'center' }}>
+      <div className="flex justify-center items-center h-64">
         <Spin size="large" tip="加载中..." />
       </div>
     )
@@ -66,8 +66,8 @@ export default function AlertDetail() {
 
   if (!alert) {
     return (
-      <div style={{ padding: 100, textAlign: 'center' }}>
-        <h2>告警不存在</h2>
+      <div className="p-8 text-center">
+        <h2 className="text-xl font-medium text-gray-900 dark:text-text-primary mb-4">告警不存在</h2>
         <Button type="primary" onClick={() => navigate('/alerts')}>
           返回告警列表
         </Button>
@@ -99,9 +99,9 @@ export default function AlertDetail() {
   const statusInfo = statusMap[alert.status] || { text: alert.status, color: 'default' }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className="p-6">
       {/* 头部 */}
-      <Card>
+      <Card className="dark:bg-bg-secondary dark:border-white/8">
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space>
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/alerts')}>
@@ -141,7 +141,7 @@ export default function AlertDetail() {
       </Card>
 
       {/* 详情内容 */}
-      <Card style={{ marginTop: 16 }}>
+      <Card className="mt-4 dark:bg-bg-secondary dark:border-white/8">
         <Tabs
           defaultActiveKey="info"
           items={[
