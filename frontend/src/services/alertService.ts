@@ -188,6 +188,54 @@ export const alertService = {
   },
 
   // ============================================
+  // 空间管理
+  // ============================================
+
+  getSpaces: async (): Promise<ApiResponse<any[]>> => {
+    return api.get('/spaces')
+  },
+
+  createSpace: async (data: { name: string; description?: string; role_ids?: number[] }): Promise<ApiResponse<any>> => {
+    return api.post('/spaces', data)
+  },
+
+  updateSpace: async (id: number, data: { name?: string; description?: string; role_ids?: number[] }): Promise<ApiResponse<any>> => {
+    return api.put(`/spaces/${id}`, data)
+  },
+
+  deleteSpace: async (id: number): Promise<ApiResponse<void>> => {
+    return api.delete(`/spaces/${id}`)
+  },
+
+  // ============================================
+  // 角色（从 auth-service 获取）
+  // ============================================
+
+  getRoles: async (): Promise<ApiResponse<any[]>> => {
+    return api.get('/auth/roles')
+  },
+
+  // ============================================
+  // 空间路由规则
+  // ============================================
+
+  getSpaceRoutes: async (): Promise<ApiResponse<any[]>> => {
+    return api.get('/space-routes')
+  },
+
+  createSpaceRoute: async (data: { field_name: string; field_value: string; space_id: number; priority?: number }): Promise<ApiResponse<any>> => {
+    return api.post('/space-routes', data)
+  },
+
+  updateSpaceRoute: async (id: number, data: { field_name?: string; field_value?: string; space_id?: number; priority?: number; enabled?: boolean }): Promise<ApiResponse<any>> => {
+    return api.put(`/space-routes/${id}`, data)
+  },
+
+  deleteSpaceRoute: async (id: number): Promise<ApiResponse<void>> => {
+    return api.delete(`/space-routes/${id}`)
+  },
+
+  // ============================================
   // 告警规则管理
   // ============================================
 

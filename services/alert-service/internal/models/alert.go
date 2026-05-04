@@ -7,6 +7,29 @@ import (
 )
 
 // ============================================
+// 跨服务引用模型（对应 auth-service 的表）
+// ============================================
+
+// UserRole 用户角色关联（对应 auth-service 的 user_roles 表）
+type UserRole struct {
+	UserID int `json:"user_id" gorm:"column:user_id;primaryKey"`
+	RoleID int `json:"role_id" gorm:"column:role_id;primaryKey"`
+}
+
+func (UserRole) TableName() string { return "user_roles" }
+
+// Role 角色（对应 auth-service 的 roles 表）
+type Role struct {
+	ID          int       `json:"id" gorm:"primaryKey"`
+	Name        string    `json:"name" gorm:"size:50;notNull"`
+	Description string    `json:"description" gorm:"type:text"`
+	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+func (Role) TableName() string { return "roles" }
+
+// ============================================
 // 数据模型定义
 // ============================================
 
@@ -145,6 +168,48 @@ type AlertAggregation struct {
 // TableName 指定表名
 func (AlertAggregation) TableName() string {
 	return "alert_aggregations"
+}
+
+// AlertSpace 告警空间
+type AlertSpace struct {
+	ID          int       `json:"id" gorm:"primaryKey"`
+	Name        string    `json:"name" gorm:"uniqueIndex;size:100;notNull"`
+	Description string    `json:"description" gorm:"size:255"`
+	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// TableName 指定表名
+func (AlertSpace) TableName() string {
+	return "alert_spaces"
+}
+
+// AlertSpaceRole 空间-角色关联
+type AlertSpaceRole struct {
+	SpaceID int `json:"space_id" gorm:"primaryKey;notNull"`
+	RoleID  int `json:"role_id" gorm:"primaryKey;notNull"`
+}
+
+// TableName 指定表名
+func (AlertSpaceRole) TableName() string {
+	return "alert_space_roles"
+}
+
+// AlertSpaceRoute 告警空间路由规则
+type AlertSpaceRoute struct {
+	ID         int       `json:"id" gorm:"primaryKey"`
+	FieldName  string    `json:"field_name" gorm:"size:100;notNull"`  // 匹配的告警字段名，如 project, alertgroup
+	FieldValue string    `json:"field_value" gorm:"size:255;notNull"` // 匹配的字段值，如 HPC1, 系统资源告警
+	SpaceID    int       `json:"space_id" gorm:"notNull;index"`       // 关联的空间ID
+	Priority   int       `json:"priority" gorm:"default:0"`           // 优先级，数字越小优先级越高
+	Enabled    bool      `json:"enabled" gorm:"default:true;index"`
+	CreatedAt  time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// TableName 指定表名
+func (AlertSpaceRoute) TableName() string {
+	return "alert_space_routes"
 }
 
 // ============================================

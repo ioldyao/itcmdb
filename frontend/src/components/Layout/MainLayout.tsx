@@ -43,6 +43,7 @@ const alertSubMenuItems = [
   { key: '/alerts/rules', label: '规则配置', icon: SlidersHorizontal, permission: { resource: 'alert_rule', action: 'view' } },
   { key: '/alerts/integration/webhook', label: 'Webhook', icon: Webhook, permission: { resource: 'webhook', action: 'view' } },
   { key: '/alerts/receivers', label: '告警接收', icon: Users, permission: { resource: 'alert_receiver', action: 'view' } },
+  { key: '/alerts/config', label: '配置', icon: Settings, adminOnly: true },
 ]
 
 export default function MainLayout() {
@@ -278,7 +279,11 @@ export default function MainLayout() {
                     </button>
 
                     {/* 子菜单项 */}
-                    {(currentSubNav === 'cmdb' ? cmdbSubMenuItems : alertSubMenuItems).filter((item) => !item.permission || hasPermission(item.permission.resource, item.permission.action)).map((item) => {
+                    {(currentSubNav === 'cmdb' ? cmdbSubMenuItems : alertSubMenuItems).filter((item) => {
+                      if (item.permission) return hasPermission(item.permission.resource, item.permission.action)
+                      if ((item as any).adminOnly) return hasPermission('alert', 'manage')
+                      return true
+                    }).map((item) => {
                       const Icon = item.icon
                       const active = isSubNavActive(item.key)
 

@@ -30,6 +30,7 @@ import AlertDetail from '@/pages/Alert/Detail'
 import AlertRules from '@/pages/Alert/Rules'
 import AlertHistory from '@/pages/Alert/History'
 import AlertReceivers from '@/pages/Alerts/AlertReceivers'
+import AlertConfig from '@/pages/Alert/Config'
 
 // Admin Pages
 import AdminLayout from '@/pages/Admin'
@@ -95,6 +96,7 @@ const router = createBrowserRouter([
           { path: 'history', element: <PermissionGuard resource="alert" action="view"><AlertHistory /></PermissionGuard> },
           { path: 'integration/webhook', element: <PermissionGuard resource="webhook" action="view"><AlertIntegrationWebhook /></PermissionGuard> },
           { path: 'receivers', element: <PermissionGuard resource="alert_receiver" action="view"><AlertReceivers /></PermissionGuard> },
+          { path: 'config', element: <PermissionGuard resource="alert" action="manage"><AlertConfig /></PermissionGuard> },
         ],
       },
       {

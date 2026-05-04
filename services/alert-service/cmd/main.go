@@ -236,6 +236,19 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 			protected.PUT("/silences/:id", rbac.RequirePermission("alert", "manage"), silenceHandler.UpdateSilence)
 			protected.DELETE("/silences/:id", rbac.RequirePermission("alert", "manage"), silenceHandler.DeleteSilence)
 
+			// 空间管理（管理员）
+			spaceHandler := handlers.NewSpaceHandler(db)
+			protected.GET("/spaces", rbac.RequirePermission("alert", "view"), spaceHandler.ListSpaces)
+			protected.POST("/spaces", rbac.RequirePermission("alert", "manage"), spaceHandler.CreateSpace)
+			protected.PUT("/spaces/:id", rbac.RequirePermission("alert", "manage"), spaceHandler.UpdateSpace)
+			protected.DELETE("/spaces/:id", rbac.RequirePermission("alert", "manage"), spaceHandler.DeleteSpace)
+
+			// 空间路由规则（管理员）
+			protected.GET("/space-routes", rbac.RequirePermission("alert", "view"), spaceHandler.ListSpaceRoutes)
+			protected.POST("/space-routes", rbac.RequirePermission("alert", "manage"), spaceHandler.CreateSpaceRoute)
+			protected.PUT("/space-routes/:id", rbac.RequirePermission("alert", "manage"), spaceHandler.UpdateSpaceRoute)
+			protected.DELETE("/space-routes/:id", rbac.RequirePermission("alert", "manage"), spaceHandler.DeleteSpaceRoute)
+
 			// 规则管理
 			ruleHandler := handlers.NewRuleHandler(db)
 			protected.GET("/rules", rbac.RequirePermission("alert_rule", "view"), ruleHandler.GetRules)

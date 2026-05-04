@@ -252,6 +252,9 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 
 	} else if err == gorm.ErrRecordNotFound {
 		// 3. 创建新告警记录
+		// 匹配空间路由
+		spaceName := s.matchSpaceName(labelsMap)
+
 		newAlert := models.AlertInstance{
 			AlertID:           alertID,
 			Title:             title,
@@ -259,7 +262,7 @@ func (s *WebhookService) ProcessInboundAlert(webhook *models.InboundWebhook, ale
 			Severity:          severity,
 			Status:            status,
 			Category:          webhook.SourceType,
-			ObjectType:        labelsMap["instance"], // 使用instance字段作为空间名
+			ObjectType:        spaceName,
 			Fingerprint:       fingerprint,
 			FirstTriggered:    now,
 			LastTriggered:     now,
@@ -805,5 +808,25 @@ func isPrivateIP(ip net.IP) bool {
 	}
 
 	return false
+}
+
+// matchSpaceName 根据告警标签匹配空间名称
+func (s *WebhookService) matchSpaceName(labels map[string]string) string {
+	var routes []models.AlertSpaceRoute
+	s.db.Where("enabled = ?", true).Order("priority ASC").Find(&routes)
+
+	for _, route := range routes {
+		if val, ok := labels[route.FieldName]; ok && val == route.FieldValue {
+			var space models.AlertSpace
+			if s.db.Where("id = ?", route.SpaceID).First(&space).Error == nil {
+				return space.Name
+			}
+		}
+	}
+	// 未匹配到空间，返回 instance 或默认值
+	if inst, ok := labels["instance"]; ok {
+		return inst
+	}
+	return ""
 }
 

@@ -71,7 +71,6 @@ export default function AlertList() {
   const [severityFilter, setSeverityFilter] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [activeTab, setActiveTab] = useState('list')
-  const [spaceFilter, setSpaceFilter] = useState('all')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   // 计算没有处理人的告警数量
@@ -521,20 +520,6 @@ export default function AlertList() {
                   <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
                     <Col flex="auto">
                       <Space size="large">
-                        {/* 空间筛选 */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 14, color: '#666' }}>空间筛选:</span>
-                          <Select
-                            value={spaceFilter}
-                            onChange={setSpaceFilter}
-                            style={{ width: 180 }}
-                          >
-                            <Select.Option value="all">-我有权限的空间-</Select.Option>
-                            <Select.Option value="space1">空间1</Select.Option>
-                            <Select.Option value="space2">空间2</Select.Option>
-                          </Select>
-                        </div>
-
                         {/* 搜索 */}
                         <div style={{ position: 'relative' }}>
                           <FilterOutlined style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#999' }} />
