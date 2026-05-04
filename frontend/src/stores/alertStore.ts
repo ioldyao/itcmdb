@@ -19,6 +19,9 @@ interface AlertState {
     status?: string[]
     severity?: string[]
     category?: string
+    handler?: number
+    handlingStatus?: string
+    objectType?: string
     searchKeyword?: string
     startTime?: string
     endTime?: string
@@ -61,12 +64,23 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const { filters, page, pageSize } = get()
-      const response = await alertService.getAlerts({
+      const apiParams: Record<string, any> = {
         page,
         page_size: pageSize,
-        ...filters,
         ...params,
-      })
+      }
+      // 映射 camelCase 筛选参数到 snake_case
+      if (filters.status) apiParams.status = filters.status
+      if (filters.severity) apiParams.severity = filters.severity
+      if (filters.category) apiParams.category = filters.category
+      if (filters.handler) apiParams.handler = filters.handler
+      if (filters.handlingStatus) apiParams.handling_status = filters.handlingStatus
+      if (filters.objectType) apiParams.object_type = filters.objectType
+      if (filters.searchKeyword) apiParams.search_keyword = filters.searchKeyword
+      if (filters.startTime) apiParams.start_time = filters.startTime
+      if (filters.endTime) apiParams.end_time = filters.endTime
+
+      const response = await alertService.getAlerts(apiParams)
 
       if (response.code === 0 && response.data) {
         set({

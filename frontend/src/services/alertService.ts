@@ -166,6 +166,28 @@ export const alertService = {
   },
 
   // ============================================
+  // 告警静默管理
+  // ============================================
+
+  getSilences: async (params?: { active?: string }): Promise<ApiResponse<any[]>> => {
+    return api.get('/silences', { params })
+  },
+
+  createSilence: async (data: {
+    name: string
+    comment?: string
+    matchers: Record<string, any>
+    starts_at: string
+    ends_at: string
+  }): Promise<ApiResponse<any>> => {
+    return api.post('/silences', data)
+  },
+
+  deleteSilence: async (id: number): Promise<ApiResponse<void>> => {
+    return api.delete(`/silences/${id}`)
+  },
+
+  // ============================================
   // 告警规则管理
   // ============================================
 

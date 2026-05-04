@@ -228,6 +228,14 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, alertEngine *services.AlertEngine, 
 			protected.GET("/alerts/statistics", rbac.RequirePermission("alert", "view"), alertHandler.GetAlertStatistics)
 			protected.GET("/alerts/analytics", rbac.RequirePermission("alert", "view"), alertHandler.GetAlertAnalytics)
 
+			// 静默管理
+			silenceHandler := handlers.NewSilenceHandler(db)
+			protected.GET("/silences", rbac.RequirePermission("alert", "view"), silenceHandler.ListSilences)
+			protected.GET("/silences/:id", rbac.RequirePermission("alert", "view"), silenceHandler.GetSilence)
+			protected.POST("/silences", rbac.RequirePermission("alert", "manage"), silenceHandler.CreateSilence)
+			protected.PUT("/silences/:id", rbac.RequirePermission("alert", "manage"), silenceHandler.UpdateSilence)
+			protected.DELETE("/silences/:id", rbac.RequirePermission("alert", "manage"), silenceHandler.DeleteSilence)
+
 			// 规则管理
 			ruleHandler := handlers.NewRuleHandler(db)
 			protected.GET("/rules", rbac.RequirePermission("alert_rule", "view"), ruleHandler.GetRules)

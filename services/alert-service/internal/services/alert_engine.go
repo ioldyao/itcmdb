@@ -220,3 +220,22 @@ func IsValidOperator(operator string) bool {
 		return false
 	}
 }
+
+// IsAlertSilenced 检查告警是否被静默规则匹配
+// matchers 格式: {"severity": "critical", "alertname": "xxx", "env": "production"}
+// alertLabels 格式: 同上
+func IsAlertSilenced(matchers, alertLabels map[string]interface{}) bool {
+	if len(matchers) == 0 {
+		return false
+	}
+	for key, matcherVal := range matchers {
+		alertVal, ok := alertLabels[key]
+		if !ok {
+			return false
+		}
+		if fmt.Sprintf("%v", matcherVal) != fmt.Sprintf("%v", alertVal) {
+			return false
+		}
+	}
+	return true
+}

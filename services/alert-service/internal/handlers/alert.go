@@ -87,6 +87,21 @@ func (h *AlertHandler) GetAlerts(c *gin.Context) {
 		query = query.Where("title LIKE ? OR description LIKE ?", searchPattern, searchPattern)
 	}
 
+	// 处理人筛选
+	if req.Handler != nil {
+		query = query.Where("handler = ?", *req.Handler)
+	}
+
+	// 处理阶段筛选
+	if req.HandlingStatus != "" {
+		query = query.Where("handling_status = ?", req.HandlingStatus)
+	}
+
+	// 对象类型筛选
+	if req.ObjectType != "" {
+		query = query.Where("object_type = ?", req.ObjectType)
+	}
+
 	// 获取总数
 	var total int64
 	if err := query.Count(&total).Error; err != nil {

@@ -193,16 +193,19 @@ type CloseAlertRequest struct {
 
 // AlertListRequest 告警列表查询请求
 type AlertListRequest struct {
-	Page          int                    `form:"page,default=1"`
-	PageSize      int                    `form:"page_size,default=20"`
-	Status        []string               `form:"status"`
-	Severity      []string               `form:"severity"`
-	Category      string                 `form:"category"`
-	SearchKeyword string                 `form:"search_keyword"`
-	StartTime     string                 `form:"start_time"`
-	EndTime       string                 `form:"end_time"`
-	SortField     string                 `form:"sort_field,default=last_triggered"`
-	SortOrder     string                 `form:"sort_order,default=desc"`
+	Page           int      `form:"page,default=1"`
+	PageSize       int      `form:"page_size,default=20"`
+	Status         []string `form:"status"`
+	Severity       []string `form:"severity"`
+	Category       string   `form:"category"`
+	Handler        *int     `form:"handler"`
+	HandlingStatus string   `form:"handling_status"`
+	ObjectType     string   `form:"object_type"`
+	SearchKeyword  string   `form:"search_keyword"`
+	StartTime      string   `form:"start_time"`
+	EndTime        string   `form:"end_time"`
+	SortField      string   `form:"sort_field,default=last_triggered"`
+	SortOrder      string   `form:"sort_order,default=desc"`
 }
 
 // AlertListResponse 告警列表响应

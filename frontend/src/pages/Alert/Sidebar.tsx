@@ -2,9 +2,6 @@ import { useState } from 'react'
 import { Badge, Collapse, Checkbox, Space } from 'antd'
 import {
   UserOutlined,
-  StarOutlined,
-  BellOutlined,
-  StopOutlined,
   CheckCircleOutlined,
   AlertOutlined,
   RightOutlined,
@@ -12,6 +9,7 @@ import {
 } from '@ant-design/icons'
 import type { CheckboxChangeEvent } from 'antd/es/checkbox'
 import { useAlertStore } from '@/stores/alertStore'
+import { useAuthStore } from '@/stores/authStore'
 
 const { Panel } = Collapse
 
@@ -73,35 +71,56 @@ function FilterCheckbox({ label, count, value, checked, onChange, color }: Filte
 }
 
 interface AlertSidebarProps {
-  onFilterChange?: (filters: any) => void
   collapsed?: boolean
 }
 
-export default function AlertSidebar({ onFilterChange, collapsed = false }: AlertSidebarProps) {
+export default function AlertSidebar({ collapsed = false }: AlertSidebarProps) {
   const { statistics, filters, setFilters } = useAlertStore()
+  const { user } = useAuthStore()
   const [activeItem, setActiveItem] = useState<string>('all')
 
   const stats = statistics?.stats || { total: 0, firing: 0, acknowledged: 0, resolved: 0, closed: 0 }
   const severityStats = statistics?.severity_stats || []
 
+  // 点击侧边栏快捷项
   const handleSidebarItemClick = (key: string, value: any) => {
-    setActiveItem(key)
-    if (onFilterChange) {
-      onFilterChange({ [key]: value })
+    // 切换同一个项时取消筛选
+    if (activeItem === key) {
+      setActiveItem('all')
+      const newFilters = { ...filters }
+      delete (newFilters as any)[key]
+      setFilters(newFilters)
+      return
     }
+    setActiveItem(key)
+    const newFilters: Record<string, any> = { ...filters }
+    // 清除快捷筛选项
+    delete newFilters.handler
+    delete newFilters.handlingStatus
+    delete newFilters.objectType
+    delete newFilters.status
+
+    if (key === 'handler') {
+      newFilters.handler = value
+    } else if (key === 'status') {
+      newFilters.status = [value]
+    } else if (key === 'handlingStatus') {
+      newFilters.handlingStatus = value
+    } else if (key === 'objectType') {
+      newFilters.objectType = value
+    }
+    setFilters(newFilters)
   }
 
+  // 处理复选框筛选
   const handleCheckboxChange = (type: string, values: string[]) => {
     const newFilters = { ...filters }
     if (values.length === 0) {
-      delete newFilters[type as keyof typeof newFilters]
+      delete (newFilters as any)[type]
     } else {
       ;(newFilters as any)[type] = values
     }
     setFilters(newFilters)
-    if (onFilterChange) {
-      onFilterChange(newFilters)
-    }
   }
 
   if (collapsed) {
@@ -134,72 +153,24 @@ export default function AlertSidebar({ onFilterChange, collapsed = false }: Aler
             <SidebarItem
               icon={<UserOutlined className="text-blue-500 text-sm" />}
               label="我负责的"
-              count={0}
-              active={activeItem === 'assigned'}
-              onClick={() => handleSidebarItemClick('assigned', true)}
-            />
-            <SidebarItem
-              icon={<StarOutlined className="text-green-500 text-sm" />}
-              label="我关注的"
-              count={0}
-              active={activeItem === 'watched'}
-              onClick={() => handleSidebarItemClick('watched', true)}
-            />
-            <SidebarItem
-              icon={<BellOutlined className="text-sm" />}
-              label="我收到的"
-              count={0}
-              active={activeItem === 'received'}
-              onClick={() => handleSidebarItemClick('received', true)}
+              count={stats.firing}
+              active={activeItem === 'handler'}
+              onClick={() => user?.id && handleSidebarItemClick('handler', user.id)}
             />
             <SidebarItem
               icon={<AlertOutlined className="text-red-500 text-sm" />}
               label="未恢复"
               count={stats.firing}
-              active={activeItem === 'firing'}
+              active={activeItem === 'status' && filters.status?.[0] === 'firing'}
               onClick={() => handleSidebarItemClick('status', 'firing')}
-            />
-            <SidebarItem
-              icon={<StopOutlined className="text-sm" />}
-              label="未恢复(已屏蔽)"
-              count={0}
-              active={activeItem === 'suppressed'}
-              onClick={() => handleSidebarItemClick('suppressed', true)}
             />
             <SidebarItem
               icon={<CheckCircleOutlined className="text-green-500 text-sm" />}
               label="已恢复"
               count={stats.resolved}
-              active={activeItem === 'resolved'}
+              active={activeItem === 'status' && filters.status?.[0] === 'resolved'}
               onClick={() => handleSidebarItemClick('status', 'resolved')}
             />
-          </Panel>
-        </Collapse>
-      </div>
-
-      {/* 处理记录 */}
-      <div className="border-b border-gray-200 dark:border-white/8">
-        <Collapse
-          bordered={false}
-          expandIcon={({ isActive }) => (isActive ? <DownOutlined /> : <RightOutlined />)}
-          className="bg-transparent dark:bg-transparent"
-        >
-          <Panel
-            header={
-              <div className="flex items-center justify-between">
-                <Space>
-                  <RightOutlined className="text-xs text-gray-400 dark:text-text-tertiary" />
-                  <span className="font-medium text-gray-900 dark:text-text-primary">处理记录</span>
-                </Space>
-                <span className="text-sm text-gray-400 dark:text-text-tertiary">0</span>
-              </div>
-            }
-            key="history"
-            className="!border-none"
-          >
-            <div className="px-4 py-2 text-sm text-gray-400 dark:text-text-tertiary">
-              查看历史处理记录
-            </div>
           </Panel>
         </Collapse>
       </div>
@@ -217,11 +188,11 @@ export default function AlertSidebar({ onFilterChange, collapsed = false }: Aler
         className="bg-transparent dark:bg-transparent"
       >
         <Panel header="级别" key="severity" className="!border-none !px-4">
-          {severityStats.map((stat: any) => {
+          {severityStats.length > 0 ? severityStats.map((stat: any) => {
             const config: Record<string, { label: string; color: string }> = {
               critical: { label: '致命', color: '#ff4d4f' },
-              high: { label: '预警', color: '#fa8c16' },
-              medium: { label: '提醒', color: '#faad14' },
+              high: { label: '高', color: '#fa8c16' },
+              medium: { label: '中', color: '#faad14' },
               low: { label: '低', color: '#1890ff' },
             }
             const cfg = config[stat.severity] || { label: stat.severity, color: '#999' }
@@ -234,32 +205,141 @@ export default function AlertSidebar({ onFilterChange, collapsed = false }: Aler
                 value={stat.severity}
                 checked={checked}
                 onChange={() => {
+                  const current = (filters.severity as string[]) || []
                   const newValues = checked
-                    ? (filters.severity as string[]).filter((s) => s !== stat.severity)
-                    : [...(filters.severity as string[] || []), stat.severity]
+                    ? current.filter((s) => s !== stat.severity)
+                    : [...current, stat.severity]
                   handleCheckboxChange('severity', newValues)
                 }}
                 color={cfg.color}
               />
             )
-          })}
+          }) : (
+            <>
+              <FilterCheckbox
+                label="致命" count={0} value="critical"
+                checked={(filters.severity as string[])?.includes('critical')}
+                onChange={() => {
+                  const current = (filters.severity as string[]) || []
+                  const newValues = current.includes('critical')
+                    ? current.filter((s) => s !== 'critical')
+                    : [...current, 'critical']
+                  handleCheckboxChange('severity', newValues)
+                }}
+                color="#ff4d4f"
+              />
+              <FilterCheckbox
+                label="高" count={0} value="high"
+                checked={(filters.severity as string[])?.includes('high')}
+                onChange={() => {
+                  const current = (filters.severity as string[]) || []
+                  const newValues = current.includes('high')
+                    ? current.filter((s) => s !== 'high')
+                    : [...current, 'high']
+                  handleCheckboxChange('severity', newValues)
+                }}
+                color="#fa8c16"
+              />
+              <FilterCheckbox
+                label="中" count={0} value="medium"
+                checked={(filters.severity as string[])?.includes('medium')}
+                onChange={() => {
+                  const current = (filters.severity as string[]) || []
+                  const newValues = current.includes('medium')
+                    ? current.filter((s) => s !== 'medium')
+                    : [...current, 'medium']
+                  handleCheckboxChange('severity', newValues)
+                }}
+                color="#faad14"
+              />
+              <FilterCheckbox
+                label="低" count={0} value="low"
+                checked={(filters.severity as string[])?.includes('low')}
+                onChange={() => {
+                  const current = (filters.severity as string[]) || []
+                  const newValues = current.includes('low')
+                    ? current.filter((s) => s !== 'low')
+                    : [...current, 'low']
+                  handleCheckboxChange('severity', newValues)
+                }}
+                color="#1890ff"
+              />
+            </>
+          )}
         </Panel>
 
         <Panel header="处理阶段" key="handling" className="!border-none !px-4">
-          <FilterCheckbox label="已通知" count={0} value="notified" />
-          <FilterCheckbox label="已确认" count={0} value="acknowledged" />
-          <FilterCheckbox label="已屏蔽" count={0} value="suppressed" />
-          <FilterCheckbox label="已流控" count={0} value="throttled" />
+          {[
+            { label: '未处理', value: '' },
+            { label: '已通知', value: 'notified' },
+            { label: '已确认', value: 'acknowledged' },
+            { label: '已屏蔽', value: 'suppressed' },
+            { label: '已流控', value: 'throttled' },
+          ].map((item) => (
+            <FilterCheckbox
+              key={item.value}
+              label={item.label}
+              count={0}
+              value={item.value}
+              checked={filters.handlingStatus === item.value || (!filters.handlingStatus && item.value === '')}
+              onChange={() => {
+                if (item.value === '') {
+                  const newFilters = { ...filters }
+                  delete newFilters.handlingStatus
+                  setFilters(newFilters)
+                } else {
+                  setFilters({ handlingStatus: item.value })
+                }
+              }}
+            />
+          ))}
         </Panel>
 
         <Panel header="数据类型" key="dataType" className="!border-none !px-4">
-          <FilterCheckbox label="时序数据" count={0} value="metric" />
-          <FilterCheckbox label="事件" count={0} value="event" />
-          <FilterCheckbox label="日志" count={0} value="log" />
+          {[
+            { label: '监控指标', value: 'metric' },
+            { label: '事件', value: 'event' },
+            { label: '日志', value: 'log' },
+            { label: '外部告警', value: 'external' },
+          ].map((item) => (
+            <FilterCheckbox
+              key={item.value}
+              label={item.label}
+              count={0}
+              value={item.value}
+              checked={filters.objectType === item.value}
+              onChange={() => {
+                if (filters.objectType === item.value) {
+                  const newFilters = { ...filters }
+                  delete newFilters.objectType
+                  setFilters(newFilters)
+                } else {
+                  setFilters({ objectType: item.value })
+                }
+              }}
+            />
+          ))}
         </Panel>
 
         <Panel header="分类" key="category" className="!border-none !px-4">
-          <div className="py-2 text-sm text-gray-400 dark:text-text-tertiary">加载中...</div>
+          {['基础设施', '应用服务', '网络', '安全', '数据库'].map((cat) => (
+            <FilterCheckbox
+              key={cat}
+              label={cat}
+              count={0}
+              value={cat}
+              checked={filters.category === cat}
+              onChange={() => {
+                if (filters.category === cat) {
+                  const newFilters = { ...filters }
+                  delete newFilters.category
+                  setFilters(newFilters)
+                } else {
+                  setFilters({ category: cat })
+                }
+              }}
+            />
+          ))}
         </Panel>
       </Collapse>
     </div>

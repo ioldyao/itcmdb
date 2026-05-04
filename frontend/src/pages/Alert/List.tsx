@@ -182,10 +182,10 @@ export default function AlertList() {
       dataIndex: 'id',
       width: 80,
       fixed: 'left',
-      render: (id: number) => <span style={{ color: '#1890ff' }}>{id}</span>,
+      render: (id: number) => <span className="text-blue-500">{id}</span>,
     },
     {
-      title: '空间名',
+      title: '对象类型',
       dataIndex: 'object_type',
       width: 120,
       ellipsis: true,
@@ -351,10 +351,6 @@ export default function AlertList() {
         className={`transition-all duration-300 overflow-hidden relative flex flex-col bg-white dark:bg-bg-secondary border-r border-gray-200 dark:border-white/8 ${sidebarCollapsed ? 'w-0' : 'w-[260px]'}`}
       >
         <AlertSidebar
-          onFilterChange={(newFilters) => {
-            // 处理筛选变化
-            console.log('Filter changed:', newFilters)
-          }}
           collapsed={sidebarCollapsed}
         />
         {/* 折叠按钮 */}
@@ -363,21 +359,7 @@ export default function AlertList() {
             type="text"
             icon={<LeftOutlined />}
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            style={{
-              position: 'absolute',
-              right: -12,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              width: 24,
-              height: 48,
-              background: '#fff',
-              border: '1px solid #f0f0f0',
-              borderRadius: '0 8px 8px 0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10,
-            }}
+            className="absolute right-[-12px] top-1/2 -translate-y-1/2 w-6 h-12 bg-white dark:bg-bg-secondary border border-gray-200 dark:border-white/10 rounded-r-lg flex items-center justify-center z-10"
           />
         )}
       </div>
