@@ -4,6 +4,8 @@ import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutli
 import { Box as BoxIcon } from 'lucide-react'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useCMDBStore, CIInstance } from '@/stores/cmdbStore'
+import { useRoleStore } from '@/stores/roleStore'
+import { useTagStore } from '@/stores/tagStore'
 import { useAuthStore } from '@/stores/authStore'
 
 export default function CMDBApplications() {
@@ -17,10 +19,16 @@ export default function CMDBApplications() {
     createInstance,
     updateInstance,
     deleteInstance,
+    fetchInstanceRoles,
+    assignInstanceRoles,
+    fetchInstanceTags,
+    assignInstanceTags,
     setFilters,
     resetFilters,
   } = useCMDBStore()
 
+  const { ciRoles, fetchCIRoles } = useRoleStore()
+  const { tags, fetchTags } = useTagStore()
   const hasPermission = useAuthStore((state) => state.hasPermission)
 
   // 检查权限
@@ -39,7 +47,9 @@ export default function CMDBApplications() {
   useEffect(() => {
     // 假设应用服务类型的 ci_type_id 是 3
     fetchInstances(3, page, pageSize)
-  }, [fetchInstances, page, pageSize])
+    fetchCIRoles()
+    fetchTags()
+  }, [fetchInstances, fetchCIRoles, fetchTags, page, pageSize])
 
   // 状态映射
   const statusConfig = {
@@ -86,8 +96,17 @@ export default function CMDBApplications() {
     setIsModalOpen(true)
   }
 
-  const handleEdit = (record: CIInstance) => {
+  const handleEdit = async (record: CIInstance) => {
     setEditingInstance(record)
+
+    const [rolesData, tagsData] = await Promise.all([
+      fetchInstanceRoles(record.id),
+      fetchInstanceTags(record.id),
+    ])
+
+    const roleIds = rolesData.map((r: any) => r.role_id || r.id)
+    const tagIds = tagsData.map((t: any) => t.tag_id || t.id)
+
     form.setFieldsValue({
       name: record.name,
       status: record.status,
@@ -98,6 +117,8 @@ export default function CMDBApplications() {
       environment: record.attributes?.environment || '',
       deploy_type: record.attributes?.deploy_type || '',
       repository_url: record.attributes?.repository_url || '',
+      roles: roleIds,
+      tags: tagIds,
     })
     setIsModalOpen(true)
   }
@@ -130,14 +151,26 @@ export default function CMDBApplications() {
           status: values.status,
           attributes,
         })
+
+        const roles = values.roles || []
+        const tags = values.tags || []
+        if (roles.length > 0) await assignInstanceRoles(editingInstance.id, roles)
+        if (tags.length > 0) await assignInstanceTags(editingInstance.id, tags)
+
         message.success('更新成功')
       } else {
-        await createInstance({
-          ci_type_id: 3, // 应用服务类型
+        const instance = await createInstance({
+          ci_type_id: 3,
           name: values.name,
           status: values.status,
           attributes,
         })
+
+        const roles = values.roles || []
+        const tags = values.tags || []
+        if (roles.length > 0) await assignInstanceRoles(instance.id, roles)
+        if (tags.length > 0) await assignInstanceTags(instance.id, tags)
+
         message.success('创建成功')
       }
       setIsModalOpen(false)
@@ -461,6 +494,40 @@ export default function CMDBApplications() {
               <Select.Option value="maintenance">维护中</Select.Option>
               <Select.Option value="decommissioned">已下线</Select.Option>
             </Select>
+          </Form.Item>
+          <Form.Item label="角色" name="roles">
+            <Select
+              mode="multiple"
+              placeholder="选择角色"
+              options={ciRoles.map(role => ({
+                label: role.display_name,
+                value: role.id,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item label="标签" name="tags">
+            <Select
+              mode="multiple"
+              placeholder="选择标签"
+              options={tags.map(tag => ({
+                label: (
+                  <span>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 12,
+                        height: 12,
+                        backgroundColor: tag.color,
+                        borderRadius: 2,
+                        marginRight: 8,
+                      }}
+                    />
+                    {tag.display_name}
+                  </span>
+                ),
+                value: tag.id,
+              }))}
+            />
           </Form.Item>
         </Form>
       </Modal>

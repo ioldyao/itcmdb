@@ -41,8 +41,8 @@ export default function CMDBLayout() {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         width={220}
+        className="!bg-white dark:!bg-bg-secondary"
         style={{
-          background: '#fff',
           borderRight: '1px solid rgba(0,0,0,0.06)',
         }}
         trigger={null}

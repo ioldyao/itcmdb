@@ -104,7 +104,7 @@ export default function CIDetail() {
           <Button
             type="primary"
             icon={<EditOutlined />}
-            onClick={() => navigate(`/cmdb/instances/${instance.id}/edit`)}
+            onClick={() => navigate(-1)}
           >
             编辑
           </Button>

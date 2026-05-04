@@ -142,10 +142,7 @@ interface CreateCIRelationRequest {
 // Helper function to get auth token
 const getAuthToken = () => {
   const authState = useAuthStore.getState()
-  const token = authState?.token
-  console.log('[CMDB] Getting token:', token ? `${token.substring(0, 20)}...` : 'undefined')
-  console.log('[CMDB] Auth state:', { isAuthenticated: authState?.isAuthenticated, user: authState?.user })
-  return token
+  return authState?.token
 }
 
 export const useCMDBStore = create<CMDBState>()(
@@ -204,16 +201,9 @@ export const useCMDBStore = create<CMDBState>()(
             'Authorization': `Bearer ${token}`,
           }
 
-          console.log('[CMDB] Fetching with headers:', {
-            'Authorization': headers.Authorization.substring(0, 50) + '...'
-          })
-
           const response = await fetch(`/api/v1/ci/instances?${params}`, {
             headers,
           })
-
-          console.log('[CMDB] Response status:', response.status)
-          console.log('[CMDB] Response headers:', Object.fromEntries(response.headers.entries()))
 
           if (response.status === 401) {
             message.error('登录已过期，请重新登录')

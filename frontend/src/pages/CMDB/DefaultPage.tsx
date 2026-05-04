@@ -52,8 +52,8 @@ export default function CMDBDefaultPage() {
 
   return (
     <div>
-      <h2 style={{ marginBottom: 24 }}>配置管理数据库 (CMDB)</h2>
-      <p style={{ marginBottom: 24, color: '#666' }}>
+      <h2 className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-6">配置管理数据库 (CMDB)</h2>
+      <p className="text-gray-600 dark:text-text-secondary mb-6">
         选择要管理的资源类型
       </p>
       <Row gutter={[16, 16]}>
@@ -62,14 +62,14 @@ export default function CMDBDefaultPage() {
             <Card
               hoverable
               onClick={() => navigate(section.path)}
-              style={{ height: '100%' }}
+              className="h-full dark:bg-bg-secondary dark:border-white/8"
             >
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ marginBottom: 16, color: '#1890ff' }}>
+              <div className="text-center">
+                <div className="mb-4 text-brand-primary">
                   {section.icon}
                 </div>
-                <h3 style={{ marginBottom: 8 }}>{section.title}</h3>
-                <p style={{ color: '#666', fontSize: 14 }}>{section.description}</p>
+                <h3 className="mb-2 text-gray-900 dark:text-text-primary">{section.title}</h3>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">{section.description}</p>
               </div>
             </Card>
           </Col>
