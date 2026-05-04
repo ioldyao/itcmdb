@@ -22,7 +22,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import type { MenuProps } from 'antd'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const menuItems = [
   { key: '/dashboard', label: '仪表板', icon: LayoutDashboard },
@@ -52,21 +52,34 @@ export default function MainLayout() {
   const { theme, setTheme } = useThemeStore()
   const [showSubNav, setShowSubNav] = useState(false)
   const [currentSubNav, setCurrentSubNav] = useState<'cmdb' | 'alerts' | null>(null)
+  const userCollapsedSubNav = useRef(false)
 
   // 检查当前是否在子导航模块下
   useEffect(() => {
     const isInAlerts = location.pathname.startsWith('/alerts')
     const isInCMDB = location.pathname.startsWith('/cmdb')
 
+    // 用户手动收起了子导航，且路径没有变化（仍在同模块内），不自动展开
+    if (userCollapsedSubNav.current) {
+      // 但如果路径变了（比如从 /cmdb/servers 跳到 /cmdb/tags），重新展开
+      const prevModule = currentSubNav === 'cmdb' ? '/cmdb' : currentSubNav === 'alerts' ? '/alerts' : ''
+      const newModule = isInCMDB ? '/cmdb' : isInAlerts ? '/alerts' : ''
+      if (prevModule !== newModule) {
+        userCollapsedSubNav.current = false
+      } else {
+        return
+      }
+    }
+
     if (isInAlerts) {
-      setShowSubNav(true)
       setCurrentSubNav('alerts')
-    } else if (isInCMDB) {
       setShowSubNav(true)
+    } else if (isInCMDB) {
       setCurrentSubNav('cmdb')
+      setShowSubNav(true)
     } else {
-      setShowSubNav(false)
       setCurrentSubNav(null)
+      setShowSubNav(false)
     }
   }, [location.pathname])
 
@@ -85,17 +98,31 @@ export default function MainLayout() {
 
   // 处理 CMDB 菜单点击
   const handleCMDBClick = () => {
-    navigate('/cmdb')
+    userCollapsedSubNav.current = false
+    if (location.pathname.startsWith('/cmdb')) {
+      setShowSubNav(true)
+      setCurrentSubNav('cmdb')
+    } else {
+      navigate('/cmdb')
+    }
   }
 
   // 处理告警菜单点击
   const handleAlertClick = () => {
-    navigate('/alerts')
+    userCollapsedSubNav.current = false
+    if (location.pathname.startsWith('/alerts')) {
+      setShowSubNav(true)
+      setCurrentSubNav('alerts')
+    } else {
+      navigate('/alerts')
+    }
   }
 
-  // 返回主导航
+  // 返回主导航（只切换导航层级，不跳转页面）
   const handleBackToMain = () => {
-    navigate('/dashboard')
+    userCollapsedSubNav.current = true
+    setShowSubNav(false)
+    setCurrentSubNav(null)
   }
 
   const userMenuItems: MenuProps['items'] = [

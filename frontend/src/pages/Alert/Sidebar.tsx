@@ -27,30 +27,20 @@ function SidebarItem({ icon, label, count, active = false, onClick }: SidebarIte
   return (
     <div
       onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '8px 16px',
-        cursor: 'pointer',
-        background: active ? '#f0f0f0' : 'transparent',
-      }}
-      onMouseEnter={(e) => {
-        if (!active) {
-          e.currentTarget.style.background = '#fafafa'
+      className={`
+        flex items-center justify-between px-4 py-2 cursor-pointer
+        transition-colors duration-150
+        ${active
+          ? 'bg-gray-100 dark:bg-white/10'
+          : 'hover:bg-gray-50 dark:hover:bg-white/5'
         }
-      }}
-      onMouseLeave={(e) => {
-        if (!active) {
-          e.currentTarget.style.background = 'transparent'
-        }
-      }}
+      `}
     >
       <Space size={8}>
         {icon}
-        <span style={{ fontSize: 14 }}>{label}</span>
+        <span className="text-sm">{label}</span>
       </Space>
-      <span style={{ fontSize: 14, color: '#999' }}>{count}</span>
+      <span className="text-sm text-gray-400 dark:text-text-tertiary">{count}</span>
     </div>
   )
 }
@@ -65,37 +55,19 @@ interface FilterCheckboxProps {
 }
 
 function FilterCheckbox({ label, count, value, checked, onChange, color }: FilterCheckboxProps) {
+  const colorClass = color === '#ff4d4f' ? 'text-red-500'
+    : color === '#fa8c16' ? 'text-orange-500'
+    : color === '#faad14' ? 'text-yellow-500'
+    : ''
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '6px 16px',
-        cursor: 'pointer',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = '#fafafa'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent'
-      }}
-    >
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flex: 1 }}>
+    <div className="flex items-center justify-between px-4 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+      <label className="flex items-center gap-2 cursor-pointer flex-1">
         <Checkbox value={value} checked={checked} onChange={onChange} />
-        {color && <div style={{ width: 4, height: 16, background: color, borderRadius: 2 }} />}
-        <span
-          style={{
-            fontSize: 14,
-            ...(color === '#ff4d4f' ? { color: '#ff4d4f' } : {}),
-            ...(color === '#fa8c16' ? { color: '#fa8c16' } : {}),
-            ...(color === '#faad14' ? { color: '#faad14' } : {}),
-          }}
-        >
-          {label}
-        </span>
+        {color && <div className="w-1 h-4 rounded-sm" style={{ background: color }} />}
+        <span className={`text-sm ${colorClass}`}>{label}</span>
       </label>
-      <span style={{ fontSize: 14, color: '#999' }}>{count}</span>
+      <span className="text-sm text-gray-400 dark:text-text-tertiary">{count}</span>
     </div>
   )
 }
@@ -109,11 +81,9 @@ export default function AlertSidebar({ onFilterChange, collapsed = false }: Aler
   const { statistics, filters, setFilters } = useAlertStore()
   const [activeItem, setActiveItem] = useState<string>('all')
 
-  // 计算各分类数量（实际应从API获取）
   const stats = statistics?.stats || { total: 0, firing: 0, acknowledged: 0, resolved: 0, closed: 0 }
   const severityStats = statistics?.severity_stats || []
 
-  // 处理边栏项点击
   const handleSidebarItemClick = (key: string, value: any) => {
     setActiveItem(key)
     if (onFilterChange) {
@@ -121,7 +91,6 @@ export default function AlertSidebar({ onFilterChange, collapsed = false }: Aler
     }
   }
 
-  // 处理复选框变化
   const handleCheckboxChange = (type: string, values: string[]) => {
     const newFilters = { ...filters }
     if (values.length === 0) {
@@ -140,75 +109,65 @@ export default function AlertSidebar({ onFilterChange, collapsed = false }: Aler
   }
 
   return (
-    <div
-      style={{
-        width: 260,
-        height: '100%',
-        borderRight: '1px solid #f0f0f0',
-        background: '#fff',
-        overflowY: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    <div className="w-[260px] h-full border-r border-gray-200 dark:border-white/8 bg-white dark:bg-bg-secondary overflow-y-auto flex flex-col">
       {/* 告警部分 */}
-      <div style={{ borderBottom: '1px solid #f0f0f0' }}>
+      <div className="border-b border-gray-200 dark:border-white/8">
         <Collapse
           defaultActiveKey={['alerts']}
           bordered={false}
           expandIcon={({ isActive }) => (isActive ? <DownOutlined /> : <RightOutlined />)}
-          style={{ background: 'transparent' }}
+          className="bg-transparent dark:bg-transparent"
         >
           <Panel
             header={
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div className="flex items-center justify-between">
                 <Space>
-                  <DownOutlined style={{ fontSize: 12, color: '#999' }} />
-                  <span style={{ fontWeight: 500 }}>告警</span>
+                  <DownOutlined className="text-xs text-gray-400 dark:text-text-tertiary" />
+                  <span className="font-medium text-gray-900 dark:text-text-primary">告警</span>
                 </Space>
-                <Badge count={stats.total} style={{ background: '#1890ff' }} />
+                <Badge count={stats.total} className="dark:bg-blue-600" />
               </div>
             }
             key="alerts"
-            style={{ border: 'none', padding: 0 }}
+            className="!border-none !p-0"
           >
             <SidebarItem
-              icon={<UserOutlined style={{ color: '#1890ff', fontSize: 14 }} />}
+              icon={<UserOutlined className="text-blue-500 text-sm" />}
               label="我负责的"
               count={0}
               active={activeItem === 'assigned'}
               onClick={() => handleSidebarItemClick('assigned', true)}
             />
             <SidebarItem
-              icon={<StarOutlined style={{ color: '#52c41a', fontSize: 14 }} />}
+              icon={<StarOutlined className="text-green-500 text-sm" />}
               label="我关注的"
               count={0}
               active={activeItem === 'watched'}
               onClick={() => handleSidebarItemClick('watched', true)}
             />
             <SidebarItem
-              icon={<BellOutlined style={{ fontSize: 14 }} />}
+              icon={<BellOutlined className="text-sm" />}
               label="我收到的"
               count={0}
               active={activeItem === 'received'}
               onClick={() => handleSidebarItemClick('received', true)}
             />
             <SidebarItem
-              icon={<AlertOutlined style={{ color: '#ff4d4f', fontSize: 14 }} />}
+              icon={<AlertOutlined className="text-red-500 text-sm" />}
               label="未恢复"
               count={stats.firing}
               active={activeItem === 'firing'}
               onClick={() => handleSidebarItemClick('status', 'firing')}
             />
             <SidebarItem
-              icon={<StopOutlined style={{ fontSize: 14 }} />}
+              icon={<StopOutlined className="text-sm" />}
               label="未恢复(已屏蔽)"
               count={0}
               active={activeItem === 'suppressed'}
               onClick={() => handleSidebarItemClick('suppressed', true)}
             />
             <SidebarItem
-              icon={<CheckCircleOutlined style={{ color: '#52c41a', fontSize: 14 }} />}
+              icon={<CheckCircleOutlined className="text-green-500 text-sm" />}
               label="已恢复"
               count={stats.resolved}
               active={activeItem === 'resolved'}
@@ -219,26 +178,26 @@ export default function AlertSidebar({ onFilterChange, collapsed = false }: Aler
       </div>
 
       {/* 处理记录 */}
-      <div style={{ borderBottom: '1px solid #f0f0f0' }}>
+      <div className="border-b border-gray-200 dark:border-white/8">
         <Collapse
           bordered={false}
           expandIcon={({ isActive }) => (isActive ? <DownOutlined /> : <RightOutlined />)}
-          style={{ background: 'transparent' }}
+          className="bg-transparent dark:bg-transparent"
         >
           <Panel
             header={
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div className="flex items-center justify-between">
                 <Space>
-                  <RightOutlined style={{ fontSize: 12, color: '#999' }} />
-                  <span style={{ fontWeight: 500 }}>处理记录</span>
+                  <RightOutlined className="text-xs text-gray-400 dark:text-text-tertiary" />
+                  <span className="font-medium text-gray-900 dark:text-text-primary">处理记录</span>
                 </Space>
-                <span style={{ fontSize: 14, color: '#999' }}>0</span>
+                <span className="text-sm text-gray-400 dark:text-text-tertiary">0</span>
               </div>
             }
             key="history"
-            style={{ border: 'none' }}
+            className="!border-none"
           >
-            <div style={{ padding: '8px 16px', fontSize: 14, color: '#999' }}>
+            <div className="px-4 py-2 text-sm text-gray-400 dark:text-text-tertiary">
               查看历史处理记录
             </div>
           </Panel>
@@ -246,8 +205,8 @@ export default function AlertSidebar({ onFilterChange, collapsed = false }: Aler
       </div>
 
       {/* 高级筛选 */}
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
-        <span style={{ fontSize: 14, fontWeight: 500, color: '#666' }}>高级筛选</span>
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-white/8">
+        <span className="text-sm font-medium text-gray-600 dark:text-text-secondary">高级筛选</span>
       </div>
 
       {/* 级别筛选 */}
@@ -255,9 +214,9 @@ export default function AlertSidebar({ onFilterChange, collapsed = false }: Aler
         defaultActiveKey={['severity']}
         bordered={false}
         expandIcon={({ isActive }) => (isActive ? <DownOutlined /> : <RightOutlined />)}
-        style={{ background: 'transparent' }}
+        className="bg-transparent dark:bg-transparent"
       >
-        <Panel header="级别" key="severity" style={{ border: 'none', padding: '0 16px' }}>
+        <Panel header="级别" key="severity" className="!border-none !px-4">
           {severityStats.map((stat: any) => {
             const config: Record<string, { label: string; color: string }> = {
               critical: { label: '致命', color: '#ff4d4f' },
@@ -286,21 +245,21 @@ export default function AlertSidebar({ onFilterChange, collapsed = false }: Aler
           })}
         </Panel>
 
-        <Panel header="处理阶段" key="handling" style={{ border: 'none', padding: '0 16px' }}>
+        <Panel header="处理阶段" key="handling" className="!border-none !px-4">
           <FilterCheckbox label="已通知" count={0} value="notified" />
           <FilterCheckbox label="已确认" count={0} value="acknowledged" />
           <FilterCheckbox label="已屏蔽" count={0} value="suppressed" />
           <FilterCheckbox label="已流控" count={0} value="throttled" />
         </Panel>
 
-        <Panel header="数据类型" key="dataType" style={{ border: 'none', padding: '0 16px' }}>
+        <Panel header="数据类型" key="dataType" className="!border-none !px-4">
           <FilterCheckbox label="时序数据" count={0} value="metric" />
           <FilterCheckbox label="事件" count={0} value="event" />
           <FilterCheckbox label="日志" count={0} value="log" />
         </Panel>
 
-        <Panel header="分类" key="category" style={{ border: 'none', padding: '0 16px' }}>
-          <div style={{ padding: '8px 0', fontSize: 14, color: '#999' }}>加载中...</div>
+        <Panel header="分类" key="category" className="!border-none !px-4">
+          <div className="py-2 text-sm text-gray-400 dark:text-text-tertiary">加载中...</div>
         </Panel>
       </Collapse>
     </div>
