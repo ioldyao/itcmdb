@@ -18,7 +18,6 @@ import {
   SlidersHorizontal,
   Users,
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import type { MenuProps } from 'antd'
@@ -54,23 +53,22 @@ export default function MainLayout() {
   const [showSubNav, setShowSubNav] = useState(false)
   const [currentSubNav, setCurrentSubNav] = useState<'cmdb' | 'alerts' | null>(null)
   const userCollapsedSubNav = useRef(false)
+  const prevModuleRef = useRef('')
 
   // 检查当前是否在子导航模块下
   useEffect(() => {
     const isInAlerts = location.pathname.startsWith('/alerts')
     const isInCMDB = location.pathname.startsWith('/cmdb')
+    const newModule = isInCMDB ? '/cmdb' : isInAlerts ? '/alerts' : ''
 
-    // 用户手动收起了子导航，且路径没有变化（仍在同模块内），不自动展开
     if (userCollapsedSubNav.current) {
-      // 但如果路径变了（比如从 /cmdb/servers 跳到 /cmdb/tags），重新展开
-      const prevModule = currentSubNav === 'cmdb' ? '/cmdb' : currentSubNav === 'alerts' ? '/alerts' : ''
-      const newModule = isInCMDB ? '/cmdb' : isInAlerts ? '/alerts' : ''
-      if (prevModule !== newModule) {
-        userCollapsedSubNav.current = false
-      } else {
+      if (prevModuleRef.current === newModule) {
         return
       }
+      userCollapsedSubNav.current = false
     }
+
+    prevModuleRef.current = newModule
 
     if (isInAlerts) {
       setCurrentSubNav('alerts')
@@ -176,8 +174,8 @@ export default function MainLayout() {
 
   // 判断子导航项是否激活
   const isSubNavActive = (path: string) => {
-    if (path === '/alerts') {
-      return location.pathname === '/alerts'
+    if (path === '/alerts' || path === '/cmdb') {
+      return location.pathname === path
     }
     return location.pathname.startsWith(path)
   }
@@ -188,7 +186,7 @@ export default function MainLayout() {
   return (
     <div className="min-h-screen bg-white dark:bg-bg-primary transition-colors">
       {/* 顶部导航栏 */}
-      <header className="h-16 bg-white dark:bg-bg-secondary border-b border-gray-200 dark:border-white/8 sticky top-0 z-50 backdrop-blur-md">
+      <header className="h-16 bg-white dark:bg-bg-secondary border-b border-gray-200 dark:border-white/8 sticky top-0 z-50">
         <div className="h-full px-6 flex items-center justify-between">
           {/* Logo + 菜单 */}
           <div className="flex items-center gap-8">
@@ -203,121 +201,101 @@ export default function MainLayout() {
             {/* 横向菜单 - 主导航和子导航切换 */}
             <nav className="relative h-10 min-w-[600px]">
               {/* 主导航 */}
-              <AnimatePresence>
-                {!showSubNav && (
-                  <motion.div
-                    key="main-nav"
-                    initial={{ opacity: 0, x: -20, zIndex: 1 }}
-                    animate={{ opacity: 1, x: 0, zIndex: 1 }}
-                    exit={{ opacity: 0, x: -20, zIndex: 0 }}
-                    transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                    className="absolute inset-0 flex items-center gap-1"
-                  >
-                    {menuItems.filter((item) => !item.permission || hasPermission(item.permission.resource, item.permission.action)).map((item) => {
-                      const Icon = item.icon
-                      const active = isActive(item.key)
+              <div
+                className={`absolute inset-0 flex items-center gap-1 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  showSubNav ? 'opacity-0 -translate-x-3 pointer-events-none' : 'opacity-100 translate-x-0'
+                }`}
+              >
+                {menuItems.filter((item) => !item.permission || hasPermission(item.permission.resource, item.permission.action)).map((item) => {
+                  const Icon = item.icon
+                  const active = isActive(item.key)
 
-                      return (
-                        <button
-                          key={item.key}
-                          onClick={() => {
-                            if (item.hasSubNav) {
-                              if (item.key === '/cmdb') {
-                                handleCMDBClick()
-                              } else if (item.key === '/alerts') {
-                                handleAlertClick()
-                              }
-                            } else {
-                              navigate(item.key)
-                            }
-                          }}
-                          className={`
-                            relative px-4 py-2 rounded-lg flex items-center gap-2
-                            transition-all duration-200
-                            ${active
-                              ? 'text-brand-primary bg-brand-primary/10'
-                              : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5'
-                            }
-                          `}
-                        >
-                          <Icon size={18} />
-                          <span className="text-sm font-medium">{item.label}</span>
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => {
+                        if (item.hasSubNav) {
+                          if (item.key === '/cmdb') {
+                            handleCMDBClick()
+                          } else if (item.key === '/alerts') {
+                            handleAlertClick()
+                          }
+                        } else {
+                          navigate(item.key)
+                        }
+                      }}
+                      className={`
+                        relative px-4 py-2 rounded-lg flex items-center gap-2 will-change-transform
+                        transition-colors duration-150
+                        ${active
+                          ? 'text-brand-primary bg-brand-primary/10'
+                          : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5'
+                        }
+                      `}
+                    >
+                      <Icon size={18} />
+                      <span className="text-sm font-medium">{item.label}</span>
 
-                          {/* 活动指示器 */}
-                          {active && (
-                            <motion.div
-                              layoutId="activeTab"
-                              className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary"
-                              initial={false}
-                              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                            />
-                          )}
-                        </button>
-                      )
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      {/* 活动指示器 */}
+                      <span
+                        className={`absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary transition-all duration-300 ease-[cubic-bezier(0.34,1.3,0.64,1)] ${
+                          active ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
+                        }`}
+                      />
+                    </button>
+                  )
+                })}
+              </div>
 
               {/* 子导航 - CMDB 或告警模块 */}
-              <AnimatePresence>
-                {showSubNav && (
-                  <motion.div
-                    key={`sub-nav-${currentSubNav}`}
-                    initial={{ opacity: 0, x: 20, zIndex: 1 }}
-                    animate={{ opacity: 1, x: 0, zIndex: 1 }}
-                    exit={{ opacity: 0, x: 20, zIndex: 0 }}
-                    transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                    className="absolute inset-0 flex items-center gap-1"
-                  >
-                    {/* 返回按钮 */}
+              <div
+                className={`absolute inset-0 flex items-center gap-1 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  showSubNav ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-3 pointer-events-none'
+                }`}
+              >
+                {/* 返回按钮 */}
+                <button
+                  onClick={handleBackToMain}
+                  className="px-3 py-2 rounded-lg flex items-center gap-2 text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5 transition-colors duration-150"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+
+                {/* 子菜单项 */}
+                {(currentSubNav === 'cmdb' ? cmdbSubMenuItems : alertSubMenuItems).filter((item) => {
+                  if (item.permission) return hasPermission(item.permission.resource, item.permission.action)
+                  if ((item as any).adminOnly) return hasPermission('alert', 'manage')
+                  return true
+                }).map((item) => {
+                  const Icon = item.icon
+                  const active = isSubNavActive(item.key)
+
+                  return (
                     <button
-                      onClick={handleBackToMain}
-                      className="px-3 py-2 rounded-lg flex items-center gap-2 text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5 transition-all duration-200"
+                      key={item.key}
+                      onClick={() => navigate(item.key)}
+                      className={`
+                        relative px-4 py-2 rounded-lg flex items-center gap-2 will-change-transform
+                        transition-colors duration-150
+                        ${active
+                          ? 'text-brand-primary bg-brand-primary/10'
+                          : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5'
+                        }
+                      `}
                     >
-                      <ArrowLeft size={18} />
+                      <Icon size={18} />
+                      <span className="text-sm font-medium">{item.label}</span>
+
+                      {/* 活动指示器 */}
+                      <span
+                        className={`absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary transition-all duration-300 ease-[cubic-bezier(0.34,1.3,0.64,1)] ${
+                          active ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
+                        }`}
+                      />
                     </button>
-
-                    {/* 子菜单项 */}
-                    {(currentSubNav === 'cmdb' ? cmdbSubMenuItems : alertSubMenuItems).filter((item) => {
-                      if (item.permission) return hasPermission(item.permission.resource, item.permission.action)
-                      if ((item as any).adminOnly) return hasPermission('alert', 'manage')
-                      return true
-                    }).map((item) => {
-                      const Icon = item.icon
-                      const active = isSubNavActive(item.key)
-
-                      return (
-                        <button
-                          key={item.key}
-                          onClick={() => navigate(item.key)}
-                          className={`
-                            relative px-4 py-2 rounded-lg flex items-center gap-2
-                            transition-all duration-200
-                            ${active
-                              ? 'text-brand-primary bg-brand-primary/10'
-                              : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:bg-gray-100 dark:hover:bg-white/5'
-                            }
-                          `}
-                        >
-                          <Icon size={18} />
-                          <span className="text-sm font-medium">{item.label}</span>
-
-                          {/* 活动指示器 */}
-                          {active && (
-                            <motion.div
-                              layoutId="activeSubTab"
-                              className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary"
-                              initial={false}
-                              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                            />
-                          )}
-                        </button>
-                      )
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  )
+                })}
+              </div>
             </nav>
           </div>
 
